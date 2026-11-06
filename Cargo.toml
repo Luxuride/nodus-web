@@ -12,7 +12,7 @@ repository = "https://github.com/luxuride/nodus-web"
 
 # The `sdk` submodule is a sibling checkout pinned by the parent repository, so
 # plain path dependencies are exact. The wire contract and the state store are
-# documented in the backend repository (`docs/08-sdk.md`) and in `sdk/README.md`.
+# documented in the SDK repository (`sdk/docs/03-contract.md`) and in `sdk/README.md`.
 [workspace.dependencies]
 nodus-shared = { path = "../sdk/crates/shared", version = "0.1.0" }
 nodus-instance = { path = "../sdk/crates/instance", version = "0.1.0" }

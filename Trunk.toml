@@ -9,5 +9,5 @@ port = 8080
 open = false
 
 [[proxy]]
-backend = "http://127.0.0.1:3000/api"
+recommender = "http://127.0.0.1:3000/api"
 rewrite = "/api"

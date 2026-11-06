@@ -12,8 +12,8 @@ every instance feature.
 - **Fine-grained reactivity.** Signals, not VDOM diffing: a 300-post timeline
   re-renders the one post that changed. This is the structural difference that
   matters for dense lists, and the main reason not to use Yew here.
-- **One language end to end.** `mastodon-reccom-shared` (DTOs) and
-  `mastodon-reccom-mastodon` (instance client) are compiled into the browser, the
+- **One language end to end.** `nodus-shared` (DTOs) and
+  `nodus-instance` (instance client) are compiled into the browser, the
   API and the worker, so a wrong field is a compile error on every side at once
   instead of a runtime 500 in production.
 - **Hydration available later** without changing the app model — relevant only if

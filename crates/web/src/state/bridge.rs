@@ -18,7 +18,7 @@
 use std::cell::RefCell;
 
 use leptos::prelude::*;
-use mastodon_reccom_sdk::{Command, ShellSdk, Subscription, shell_sdk};
+use nodus_sdk::{Command, ShellSdk, Subscription, shell_sdk};
 
 thread_local! {
     /// The one SDK instance for this app.

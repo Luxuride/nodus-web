@@ -9,7 +9,7 @@ Two backends, one app:
 ```mermaid
 flowchart LR
     subgraph sdk["sdk/ (WASM)"]
-        STATEMACHINE["mastodon-reccom-sdk<br/>Sdk&lt;I, D, P, C&gt;<br/>AppState · Command"]
+        STATEMACHINE["nodus-sdk<br/>Sdk&lt;I, D, P, C&gt;<br/>AppState · Command"]
         MASTO["InstanceApi impl<br/>(wasm transport)"]
         APIC["Discovery impl<br/>(our-API client)"]
         IDB[("IndexedDB<br/>(Persistence impl)")]
@@ -21,7 +21,7 @@ flowchart LR
     end
     MASTO -->|REST| INST[(instance)]
     MASTO -->|wss streaming| INST
-    APIC -->|"REST, CORS"| API[(mastodon-reccom-api)]
+    APIC -->|"REST, CORS"| API[(nodus-api)]
     STATEMACHINE --- MASTO
     STATEMACHINE --- APIC
     STATEMACHINE --- IDB
@@ -33,7 +33,7 @@ flowchart LR
 
 **The SDK owns client state; the web crate renders it.** Session, timelines,
 feed, streaming status, paging and cache policy all live in
-[`mastodon-reccom-sdk`](../../sdk/README.md), which is generic over four ports
+[`nodus-sdk`](../../sdk/README.md), which is generic over four ports
 (`InstanceApi`, `Discovery`, `Persistence`, `Clock`). `web` contributes: routing,
 rendering, sanitisation, keyboard handling, and the ~40-line bridge that adapts an
 SDK handle to a Leptos signal.
@@ -58,8 +58,8 @@ that degrades to an error card.
 ## Crate layout
 
 ```text
-MastodonReccom/
-├── sdk/                  # submodule: mastodon-reccom-shared, -mastodon, -sdk
+Nodus/
+├── sdk/                  # submodule: nodus-shared, -mastodon, -sdk
 └── web/
     ├── Cargo.toml        # workspace: crates/web; deps on ../../sdk by path
     ├── Trunk.toml        # build target, dist, dev server + /api proxy

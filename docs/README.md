@@ -13,8 +13,8 @@ client renders SDK state and dispatches commands. It has its own README
 [`backend/docs/08-sdk.md`](../../backend/docs/08-sdk.md).
 
 ```text
-MastodonReccom/          ← superproject (submodules, .devcontainer)
-├── sdk/          mastodon-reccom-shared, -mastodon, -sdk · README
+Nodus/          ← superproject (submodules, .devcontainer)
+├── sdk/          nodus-shared, -mastodon, -sdk · README
 ├── backend/      core, store, ingest, api · docs/
 └── web/          this repository: crates/web · docs/ ← you are here
 ```
@@ -59,3 +59,15 @@ If (1) holds but (2) does not, we built a Mastodon clone with a mediocre tab. If
    deploys, SPA fallback to `index.html`.
 4. **PWA vs installable app.** Assumed PWA only (no app-store packaging) until
    M5.
+
+## Legal footprint
+
+Nodus is not affiliated with, endorsed by, or sponsored by Mastodon GmbH.
+"Mastodon" is a trademark of Mastodon GmbH, used in these documents only to
+describe compatibility. Two client obligations follow from that, and both are
+part of the release checklist in [05-quality.md](05-quality.md):
+
+- the about screen carries the disclaimer text verbatim from
+  [12-trademark.md](../../backend/docs/12-trademark.md);
+- no Mastodon logo, wordmark or instance artwork is bundled — the client ships
+  its own icon or none.

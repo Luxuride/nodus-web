@@ -854,44 +854,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mastodon-reccom-mastodon"
-version = "0.1.0"
-dependencies = [
- "mastodon-reccom-shared",
- "serde",
- "thiserror 2.0.21",
- "url",
-]
-
-[[package]]
-name = "mastodon-reccom-sdk"
-version = "0.1.0"
-dependencies = [
- "mastodon-reccom-mastodon",
- "mastodon-reccom-shared",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "mastodon-reccom-shared"
-version = "0.1.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "mastodon-reccom-web"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "leptos",
- "mastodon-reccom-sdk",
- "mastodon-reccom-shared",
-]
-
-[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -902,6 +864,44 @@ name = "next_tuple"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60993920e071b0c9b66f14e2b32740a4e27ffc82854dcd72035887f336a09a28"
+
+[[package]]
+name = "nodus-instance"
+version = "0.1.0"
+dependencies = [
+ "nodus-shared",
+ "serde",
+ "thiserror 2.0.21",
+ "url",
+]
+
+[[package]]
+name = "nodus-sdk"
+version = "0.1.0"
+dependencies = [
+ "nodus-instance",
+ "nodus-shared",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "nodus-shared"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "nodus-web"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "leptos",
+ "nodus-sdk",
+ "nodus-shared",
+]
 
 [[package]]
 name = "oco_ref"

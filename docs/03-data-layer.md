@@ -22,7 +22,7 @@ Consequences for this repository, stated once:
   signals and dispatches commands;
 - views never call an HTTP endpoint directly — on either plane.
 
-## `mastodon-reccom-mastodon` — the instance surface
+## `nodus-instance` — the instance surface
 
 The SDK does not ship a concrete HTTP client in M0; it ships the surface one must
 satisfy:
@@ -66,7 +66,7 @@ endpoint, which requires it in the query string.
 ```text
 1. instance picker           → GET https://host/api/v2/instance   (name, version, capabilities)
 2. register the app once     → POST https://host/api/v1/apps
-                              {client_name: "Mastodon Reccom", redirect_uris: <client>/callback,
+                              {client_name: "Nodus", redirect_uris: <client>/callback,
                                scopes: "read write follow", website}
                               → client_id  (no client_secret: public client)
 3. authorize                 → https://host/oauth/authorize?response_type=code&client_id=…
@@ -122,7 +122,7 @@ Repository-side details (in the web implementation of this port):
 - Base URL from `PUBLIC_API_BASE` (build-time `env!`/`option_env!`, overridable in
   development), one `gloo-net` wrapper.
 - Attaches the Mastodon token as a bearer credential and `X-Contract-Version`
-  from `mastodon_reccom_shared::CONTRACT_VERSION`.
+  from `nodus_shared::CONTRACT_VERSION`.
 - On boot, `GET /api/v1/meta` is fetched once; the SDK caches it under
   `CacheKey::DiscoveryMeta` and the result gates features: an unknown `features`
   entry is not used, and `client_too_old` (426) short-circuits to an update screen

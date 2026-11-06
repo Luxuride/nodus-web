@@ -2,7 +2,7 @@
 //! recommendation Feed tab.
 //!
 //! This crate renders; it does not decide. All state lives in
-//! `mastodon-reccom-sdk` (the sibling `sdk` project), and every can happen is a
+//! `nodus-sdk` (the sibling `sdk` project), and every can happen is a
 //! `Command` there. Scope, data layer and performance budget are specified in
 //! `docs/` in this repository; the SDK is specified in `sdk/README.md`.
 
@@ -11,7 +11,7 @@ mod state;
 use crate::state::bridge::{init, revision, with_sdk};
 
 use leptos::prelude::*;
-use mastodon_reccom_sdk::StreamState;
+use nodus_sdk::StreamState;
 
 fn main() {
     console_error_panic_hook::set_once();
@@ -41,10 +41,10 @@ fn App() -> impl IntoView {
 
     view! {
         <main class="shell">
-            <h1>"mastodon-reccom"</h1>
+            <h1>"nodus"</h1>
             <p>"Client shell — see docs/ for scope and plan, sdk/README.md for the state machine."</p>
             <p class="meta">
-                "contract " {mastodon_reccom_shared::CONTRACT_VERSION}
+                "contract " {nodus_shared::CONTRACT_VERSION}
                 " · session " {move || if signed_in() { "signed in" } else { "signed out" }}
                 " · stream " {stream_label}
             </p>

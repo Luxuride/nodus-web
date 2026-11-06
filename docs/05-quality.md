@@ -43,8 +43,8 @@ one-line CI tweak.
 
 | Layer | Tool | What it covers |
 | --- | --- | --- |
-| `mastodon-reccom-mastodon` (model) | `cargo test` | serde round-trips for statuses/notifications, `Page`/`PageParams` invariants |
-| `mastodon-reccom-sdk` | `cargo test` (native) | the whole state machine: session/feed/timeline transitions, cache round-trip via `MemoryPersistence`, `FixedClock`, discovery-outage degradation |
+| `nodus-instance` (model) | `cargo test` | serde round-trips for statuses/notifications, `Page`/`PageParams` invariants |
+| `nodus-sdk` | `cargo test` (native) | the whole state machine: session/feed/timeline transitions, cache round-trip via `MemoryPersistence`, `FixedClock`, discovery-outage degradation |
 | SDK ports (wasm impl) | `wasm-bindgen-test` + stub `fetch` | bearer header, stream URL construction, 401 path, IndexedDB adapter |
 | `crates/web` logic | `wasm-bindgen-test` | sanitizer payload battery, outbox replay order, bridge wiring |
 | API client | `wasm-bindgen-test` + stub | contract version header, `426` handling, error envelope mapping |
@@ -83,6 +83,10 @@ bump is part of the lockfile review.
   ([08-sdk.md](../../backend/docs/08-sdk.md)).
 - Sign-out and cache-clear paths are smoke-tested in every release, because they
   are the paths that only break in production.
+- Naming and trademarks: the about screen shows the "not affiliated with Mastodon
+  GmbH" disclaimer, `dist` bundles no Mastodon logo or instance artwork, and no
+  new route, endpoint or asset name reintroduces the mark
+  ([12-trademark.md](../../backend/docs/12-trademark.md)).
 
 ## Risks and mitigations
 

@@ -866,24 +866,79 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60993920e071b0c9b66f14e2b32740a4e27ffc82854dcd72035887f336a09a28"
 
 [[package]]
-name = "nodus-instance"
+name = "nodus-discovery"
 version = "0.1.0"
 dependencies = [
+ "gloo-net",
  "nodus-shared",
+ "nodus-state",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "url",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "nodus-instance-api"
+version = "0.1.0"
+dependencies = [
+ "nodus-instance-model",
+ "thiserror 2.0.21",
+ "url",
+]
+
+[[package]]
+name = "nodus-instance-model"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "nodus-instance-rest"
+version = "0.1.0"
+dependencies = [
+ "gloo-net",
+ "js-sys",
+ "nodus-instance-api",
+ "serde",
+ "serde_json",
+ "url",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "nodus-persist"
+version = "0.1.0"
+dependencies = [
+ "nodus-state",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "nodus-runtime"
+version = "0.1.0"
+dependencies = [
+ "nodus-instance-api",
+ "nodus-persist",
+ "nodus-shared",
+ "nodus-state",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "nodus-sdk"
 version = "0.1.0"
 dependencies = [
- "nodus-instance",
- "nodus-shared",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
+ "nodus-discovery",
+ "nodus-instance-api",
+ "nodus-persist",
+ "nodus-runtime",
+ "nodus-state",
 ]
 
 [[package]]
@@ -894,13 +949,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "nodus-state"
+version = "0.1.0"
+dependencies = [
+ "nodus-shared",
+ "serde",
+]
+
+[[package]]
 name = "nodus-web"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "js-sys",
  "leptos",
+ "nodus-discovery",
+ "nodus-instance-rest",
  "nodus-sdk",
  "nodus-shared",
+ "serde",
+ "serde_json",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

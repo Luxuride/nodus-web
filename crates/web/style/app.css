@@ -1,34 +1,28 @@
-:root {
-  --bg: #ffffff;
-  --fg: #1a1a1a;
-  --muted: #6b7280;
-  --accent: #6364ff;
-  color-scheme: light dark;
+/* The stylesheet entry point. Compiled by the Tailwind standalone CLI; the output
+ * (`tailwind.css`, git-ignored) is what `index.html` links.
+ *
+ * Three layers, in order:
+ *   1. Tailwind's own preflight and utilities;
+ *   2. daisyUI, vendored — its component classes (`btn`, `card`, `modal`, …) and
+ *      the semantic colour system built on CSS custom properties;
+ *   3. our overrides, which are tokens and layout only. Everything visual is a
+ *      daisyUI class in the markup, so a designer can read a component without
+ *      cross-referencing a stylesheet.
+ *
+ * The plugin is loaded by path rather than by package name because there is no
+ * npm in this build (see `vendor/VENDOR.md`). `themes:` names only the two themes
+ * we ship; the other 106 in the package cost nothing because the plugin emits
+ * what is referenced.
+ */
+
+@import "tailwindcss";
+
+@plugin "../../../vendor/daisyui/index.js" {
+  themes: light --default, dark --prefersdark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16181c;
-    --fg: #e7e9ea;
-    --muted: #8b98a5;
-  }
-}
+@import "./theme.css";
 
-html,
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-
-.shell {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.meta {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
+/* Tailwind scans these for class names. Pointed at the views rather than the whole
+ * crate so a class name mentioned in a doc comment does not drag in its CSS. */
+@source "../src/**/*.rs";

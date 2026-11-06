@@ -1,0 +1,136 @@
+/* daisyUI overrides and the Nodus design tokens.
+ *
+ * daisyUI 5 ships 108 themes and a semantic colour system; we do not add a theme
+ * file, we override the one it installs. Everything here is a CSS custom property,
+ * which is what makes per-instance accents possible at runtime (see
+ * `07-instances.md`): a host page sets `--nodus-accent` and the whole client follows
+ * without recompiling a stylesheet.
+ */
+
+:root {
+  /* The client's own type stack: system faces first, because a Mastodon client is
+   * opened hundreds of times a day and a webfont is 40 KB of first paint. */
+  --nodus-font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  --nodus-font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  /* Accent, overridable per instance. Fallback is daisyUI's primary. */
+  --nodus-accent: var(--color-primary);
+
+  /* Status cards are dense; the radius is smaller than daisyUI's default card so a
+   * timeline reads as a list rather than a stack of panels. */
+  --nodus-radius: 0.5rem;
+}
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --color-base-100: oklch(99% 0.003 250);
+  --color-base-200: oklch(97% 0.004 250);
+  --color-base-300: oklch(93% 0.006 250);
+  --color-base-content: oklch(28% 0.012 255);
+
+  --color-primary: oklch(58% 0.16 258);
+  --color-primary-content: oklch(99% 0.005 258);
+  --color-secondary: oklch(62% 0.12 300);
+  --color-secondary-content: oklch(99% 0.005 300);
+  --color-accent: oklch(66% 0.14 165);
+  --color-accent-content: oklch(20% 0.02 165);
+  --color-neutral: oklch(40% 0.01 255);
+  --color-neutral-content: oklch(98% 0.003 255);
+
+  --color-info: oklch(62% 0.12 230);
+  --color-success: oklch(62% 0.14 155);
+  --color-warning: oklch(78% 0.15 80);
+  --color-error: oklch(60% 0.19 25);
+
+  --radius-selector: var(--nodus-radius);
+  --radius-field: var(--nodus-radius);
+  --radius-box: var(--nodus-radius);
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-base-100: oklch(22% 0.01 255);
+  --color-base-200: oklch(19% 0.01 255);
+  --color-base-300: oklch(16% 0.01 255);
+  --color-base-content: oklch(92% 0.006 255);
+
+  --color-primary: oklch(72% 0.13 258);
+  --color-primary-content: oklch(18% 0.02 258);
+  --color-secondary: oklch(74% 0.11 300);
+  --color-secondary-content: oklch(18% 0.02 300);
+  --color-accent: oklch(74% 0.12 165);
+  --color-accent-content: oklch(18% 0.02 165);
+  --color-neutral: oklch(30% 0.01 255);
+  --color-neutral-content: oklch(92% 0.006 255);
+
+  --color-info: oklch(72% 0.1 230);
+  --color-success: oklch(72% 0.12 155);
+  --color-warning: oklch(82% 0.13 80);
+  --color-error: oklch(70% 0.16 25);
+}
+
+/* The application shell: a rail, a timeline column and, at wide widths, a context
+ * column. Written as utilities' companion because no utility can express "three
+ * columns that collapse in this order". */
+.nodus-shell {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 14rem) minmax(0, 1fr);
+  gap: 0;
+  min-height: 100dvh;
+}
+
+@media (min-width: 68rem) {
+  .nodus-shell {
+    grid-template-columns: minmax(14rem, 16rem) minmax(0, 40rem) minmax(0, 1fr);
+  }
+}
+
+.nodus-column {
+  min-width: 0;
+  border-inline-end: 1px solid var(--color-base-300);
+}
+
+/* Instance HTML arrives sanitized but unstyleable by us, so the one thing we do
+ * control is the shape of its links — underlines, because a link's affordance in a
+ * dense timeline must not rely on colour alone (WCAG 1.4.1). */
+.nodus-status-body a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.nodus-status-body p {
+  margin-block: 0 0.5rem;
+}
+
+.nodus-status-body p:last-child {
+  margin-block-end: 0;
+}
+
+/* The feed reason chip: quiet enough to read past, specific enough to answer
+ * "why am I seeing this". */
+.nodus-reason {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

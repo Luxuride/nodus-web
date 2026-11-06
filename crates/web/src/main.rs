@@ -6,48 +6,86 @@
 //! `Command` there. Scope, data layer and performance budget are specified in
 //! `docs/` in this repository; the SDK is specified in `sdk/README.md`.
 
+mod router;
+mod routes;
 mod state;
 
+use crate::routes::feed::Feed;
+use crate::routes::settings::Settings;
+use crate::routes::sign_in::SignIn;
 use crate::state::bridge::{init, revision, with_sdk};
 
 use leptos::prelude::*;
-use nodus_sdk::StreamState;
 
 fn main() {
     console_error_panic_hook::set_once();
     leptos::mount::mount_to_body(App);
 }
 
-/// Application shell.
+/// Application shell: the rail, and the screen the address bar asks for.
 #[component]
 fn App() -> impl IntoView {
     init();
-    let revision = revision();
+    // Keeps the address bar and the back button in step with the rail.
+    router::install();
 
+    let revision = revision();
+    let route = router::route();
     let signed_in = move || {
         revision.get();
         with_sdk(|sdk| sdk.state().session.get().is_some())
     };
-    let stream_label = move || {
-        revision.get();
-        match with_sdk(|sdk| sdk.state().stream.get()) {
-            StreamState::Connected => "connected",
-            StreamState::Connecting => "connecting",
-            StreamState::Reconnecting { .. } => "reconnecting",
-            StreamState::Stopped => "stopped",
-            StreamState::Disconnected => "disconnected",
-        }
-    };
 
     view! {
-        <main class="shell">
-            <h1>"nodus"</h1>
-            <p>"Client shell — see docs/ for scope and plan, sdk/README.md for the state machine."</p>
-            <p class="meta">
-                "contract " {nodus_shared::CONTRACT_VERSION}
-                " · session " {move || if signed_in() { "signed in" } else { "signed out" }}
-                " · stream " {stream_label}
-            </p>
-        </main>
+        <div class="min-h-screen bg-base-200 text-base-content">
+            <header class="border-b border-base-300 bg-base-100">
+                <div class="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 py-3">
+                    <span class="text-lg font-semibold tracking-tight">"nodus"</span>
+                    <span class="badge badge-ghost badge-sm">
+                        "contract " {nodus_shared::CONTRACT_VERSION}
+                    </span>
+                </div>
+            </header>
+            // Two columns above `sm`: the rail is navigation, not decoration, so on a
+            // narrow screen it becomes the header's only job (a single visible tab).
+            <div class="mx-auto flex w-full max-w-5xl gap-4 px-2 py-4">
+                <nav class="hidden w-44 shrink-0 sm:block">
+                    <ul class="menu w-full gap-1 rounded-box bg-base-100 p-2 shadow-sm">
+                        <li>
+                            <a
+                                class="font-medium"
+                                class:menu-active=move || route.get() == router::Route::Feed
+                                href=router::Route::Feed.path()
+                                on:click=move |event| router::link(event, router::Route::Feed)
+                            >
+                                "Feed"
+                            </a>
+                        </li>
+                        <li>
+                            <a
+                                class="font-medium"
+                                class:menu-active=move || route.get() == router::Route::Settings
+                                href=router::Route::Settings.path()
+                                on:click=move |event| router::link(event, router::Route::Settings)
+                            >
+                                "Settings"
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <main class="min-w-0 flex-1">
+                    {move || {
+                        if signed_in() {
+                            match route.get() {
+                                router::Route::Feed => view! { <Feed/> }.into_any(),
+                                router::Route::Settings => view! { <Settings/> }.into_any(),
+                            }
+                        } else {
+                            view! { <SignIn/> }.into_any()
+                        }
+                    }}
+                </main>
+            </div>
+        </div>
     }
 }

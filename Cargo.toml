@@ -15,8 +15,27 @@ repository = "https://github.com/luxuride/nodus-web"
 # documented in the SDK repository (`sdk/docs/03-contract.md`) and in `sdk/README.md`.
 [workspace.dependencies]
 nodus-shared = { path = "../sdk/crates/shared", version = "0.1.0" }
-nodus-instance = { path = "../sdk/crates/instance", version = "0.1.0" }
 nodus-sdk = { path = "../sdk/crates/sdk", version = "0.1.0" }
+# The browser transport that hosts `BrowserInstance`. The SDK facade deliberately
+# does not re-export a transport: a consumer picks `native` or `wasm` itself.
+nodus-instance-rest = { path = "../sdk/crates/instance-rest", version = "0.1.0", features = [
+    "wasm",
+] }
+# Our recommendation API, browser transport (`BrowserDiscovery`).
+nodus-discovery = { path = "../sdk/crates/discovery", version = "0.1.0", features = ["wasm"] }
+
+# Size is a product decision, not a preference: the client has a documented budget
+# (`docs/05-quality.md`). These are the settings that buy it — `opt-level = "z"`
+# before LTO because it keeps `wasm-opt` from having more to remove, and
+# `panic = "abort"` because unwinding a wasm module costs tables nobody uses.
+# `strip` is deliberately NOT set: stripping removes the `target_features` custom
+# section, wasm-bindgen then cannot tell which Wasm features are enabled, and
+# `wasm-opt` fails validation on the `memory.copy` it still emits.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

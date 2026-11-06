@@ -4,7 +4,7 @@ Status: draft · Last revised: 2026-11-06 (revision 2: the SDK owns client state
 
 ## Shape
 
-Two backends, one app:
+Two recommenders, one app:
 
 ```mermaid
 flowchart LR
@@ -83,7 +83,7 @@ Removed by the SDK split, and staying removed: `api/`, `masto/`, `cache/` and
 (the sync worker) uses the same code.
 
 `crates/web` consumes the SDK by path through the superproject submodule — see
-[08-sdk.md](../../backend/docs/08-sdk.md) and [sdk/README.md](../../sdk/README.md).
+[03-contract.md](../../sdk/docs/03-contract.md) and [sdk/README.md](../../sdk/README.md).
 
 ## Rules that keep it maintainable
 
@@ -169,5 +169,5 @@ API. Three consequences that are contract obligations, not deployment details:
    SPA fallback to `index.html` for unknown paths. A versioned deploy under
    `/v/<hash>/` is allowed and preferred because it makes rollback a CDN switch.
 
-Development: `trunk serve --port 8080` proxies `/api` to the backend on `:3000`,
+Development: `trunk serve --port 8080` proxies `/api` to the recommender on `:3000`,
 so the dev origin contains no CORS surprises.

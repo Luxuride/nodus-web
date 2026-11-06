@@ -96,7 +96,7 @@ Details that matter:
 
 No token is ever sent to our API except on `PUT /api/v1/sync/token`, where it is
 the subject of an explicit consent screen
-([09-privacy.md](../../backend/docs/09-privacy.md)).
+([08-privacy.md](../../recommender/docs/08-privacy.md)).
 
 ## Our API client (`Discovery` port)
 

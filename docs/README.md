@@ -6,16 +6,18 @@ These documents describe the **client**: a complete Mastodon web client in Rust
 Status: **draft** — written before implementation. Each document carries its own
 status line.
 
-The backend half of the design lives in [`backend/docs/`](../../backend/docs/README.md).
+The recommender half of the design lives in [`recommender/docs/`](../../recommender/docs/README.md).
 The two meet at the SDK (`sdk/`), which also **owns the client's state**: this
-client renders SDK state and dispatches commands. It has its own README
-([`sdk/README.md`](../../sdk/README.md)) and its rules are set out in
-[`backend/docs/08-sdk.md`](../../backend/docs/08-sdk.md).
+client renders SDK state and dispatches commands. Its document set is
+[`sdk/docs/`](../../sdk/docs/README.md) — read
+[02-architecture.md](../../sdk/docs/02-architecture.md) for the state model this
+client renders, and [03-contract.md](../../sdk/docs/03-contract.md) for the wire
+contract.
 
 ```text
 Nodus/          ← superproject (submodules, .devcontainer)
-├── sdk/          nodus-shared, -mastodon, -sdk · README
-├── backend/      core, store, ingest, api · docs/
+├── sdk/          nodus-shared, -instance, -sdk · docs/
+├── recommender/      core, store, ingest, api · docs/
 └── web/          this repository: crates/web · docs/ ← you are here
 ```
 
@@ -42,7 +44,7 @@ If (1) holds but (2) does not, we built a Mastodon clone with a mediocre tab. If
 
 - Markdown, one H1 per file, numbered files, `Status:` line at the top.
 - Backend behaviour is **linked, never restated**: ranking and similarity live in
-  `backend/docs/`, the wire format and client state in `sdk`.
+  `recommender/docs/`, the wire format and client state in `sdk`.
 - Any statement about "the instance" means a third-party Mastodon-compatible
   server we do not control; treat its responses as untrusted input.
 
@@ -68,6 +70,6 @@ describe compatibility. Two client obligations follow from that, and both are
 part of the release checklist in [05-quality.md](05-quality.md):
 
 - the about screen carries the disclaimer text verbatim from
-  [12-trademark.md](../../backend/docs/12-trademark.md);
+  [11-trademark.md](../../recommender/docs/11-trademark.md);
 - no Mastodon logo, wordmark or instance artwork is bundled — the client ships
   its own icon or none.

@@ -83,7 +83,7 @@ VAPID per instance), quote posts when the instance advertises them.
 Deliberately, the recommender's surface ships in the *first* usable client
 rather than after parity. The reason is sequencing risk: if the Feed arrives only
 after months of parity work, we learn nothing about whether recommendations work
-until the expensive part is finished. The feed API exists from backend M2, so
+until the expensive part is finished. The feed API exists from recommender M2, so
 the tab has something real to render.
 
 Contract dependency: the Feed tab consumes `GET /api/v1/feed/accounts` and

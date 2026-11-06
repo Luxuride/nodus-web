@@ -56,7 +56,7 @@ one-line CI tweak.
 the endpoints the client uses (instance, apps, oauth token, timelines,
 notifications, accounts, statuses, streaming stub). It makes CI deterministic,
 lets us test hostile payloads (XSS, broken HTML, weird visibility), and is
-reusable by backend integration tests. Playwright is the only Node dependency
+reusable by recommender integration tests. Playwright is the only Node dependency
 and it never enters the shipped bundle.
 
 ## CI (this repository)
@@ -80,13 +80,13 @@ bump is part of the lockfile review.
   `WEB_ORIGINS` updated together in the deploy runbook.
 - Contract compatibility: a release records the contract tag it was built
   against; the API's `min_contract` must be ≤ that tag
-  ([08-sdk.md](../../backend/docs/08-sdk.md)).
+  ([03-contract.md](../../sdk/docs/03-contract.md)).
 - Sign-out and cache-clear paths are smoke-tested in every release, because they
   are the paths that only break in production.
 - Naming and trademarks: the about screen shows the "not affiliated with Mastodon
   GmbH" disclaimer, `dist` bundles no Mastodon logo or instance artwork, and no
   new route, endpoint or asset name reintroduces the mark
-  ([12-trademark.md](../../backend/docs/12-trademark.md)).
+  ([11-trademark.md](../../recommender/docs/11-trademark.md)).
 
 ## Risks and mitigations
 
@@ -95,7 +95,7 @@ bump is part of the lockfile review.
 | Full-client scope swallows the recommender | M2 is the cut line: timelines, thread, compose, notifications, feed. Parity waits ([01-scope.md](01-scope.md)). |
 | WASM bundle exceeds budget | lazy routes from day one, gate in CI, `wasm-opt` in the pipeline |
 | Instance differences (Akkoma, GoToSocial, older Mastodon) | capability probing from `/api/v2/instance`; degrade, never crash; fixture tests per capability set |
-| Browser-held token stolen by XSS | strict CSP, no third-party scripts, sanitizer + payload tests, `SecretString`, sign-out revokes at the instance ([09-privacy.md](../../backend/docs/09-privacy.md)) |
+| Browser-held token stolen by XSS | strict CSP, no third-party scripts, sanitizer + payload tests, `SecretString`, sign-out revokes at the instance ([08-privacy.md](../../recommender/docs/08-privacy.md)) |
 | Leptos API churn | pin the version in `Cargo.toml`, upgrade deliberately per milestone, keep components thin over our state layer |
-| Browser and worker rate limits collide | the worker self-limits to 50% of the reported budget and backs off when headers show the browser consuming it ([04-ingestion.md](../../backend/docs/04-ingestion.md)) |
+| Browser and worker rate limits collide | the worker self-limits to 50% of the reported budget and backs off when headers show the browser consuming it ([04-ingestion.md](../../recommender/docs/04-ingestion.md)) |
 | Nobody switches clients (so nobody sees the Feed) | measured, not assumed: M3 exit criterion is a 5-person pilot using it as their primary client for two weeks |

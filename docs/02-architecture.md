@@ -1,6 +1,7 @@
 # 02 — Architecture
 
-Status: draft · Last revised: 2026-11-06 (revision 2: the SDK owns client state)
+Status: draft · Last revised: 2026-11-06 (revision 3: the SDK owns client state, and
+why the state store is not an actor)
 
 ## Shape
 
@@ -54,6 +55,52 @@ The split is not an implementation detail: the client must keep working when our
 API is down (timelines, compose and follows are all instance calls), and our API
 must keep working when a user's instance is slow. The Feed tab is the only view
 that degrades to an error card.
+
+### Why not an actor
+
+The reference design we borrowed most of this shape from, `nexia-nextcloud-sdk`,
+runs its state as an actor: an `OrchestratorHandle` over `mpsc::Sender<Command>` for
+input and `broadcast::Sender<Event>` for output, with the state living on its own OS
+thread inside its own tokio runtime. That is the right shape for a background sync
+daemon, and it is what we would adopt if the sync loop became one of the browser's
+concerns: a daemon has no frame budget, must survive a caller that disappears, and
+lives as long as the process rather than as long as a tab.
+
+Ours is the other shape on purpose. `Sdk` is generic over its four ports, mutates
+through synchronous `Sdk::dispatch(Command)`, and notifies through `Handle<T>`
+callbacks that run on the caller's thread. The reason is the read/write ratio: a UI
+store is read far more often than it is written — every state change re-renders a
+frame, every read is a `with` on a `RefCell` — while writes are clicks, at human
+rates. A broadcast channel would insert a queue, a task and a second scheduling
+point between a click and the pixel it changes, and would buy nothing: the
+subscriber count is the number of mounted views, and `Handle::notify` already
+collects callbacks before running them so a handler may subscribe or unsubscribe
+itself mid-notification. `mpsc` exists to cross a thread boundary; in a
+single-threaded CSR app there is no boundary to cross, and the ordering an actor
+would guarantee is one `RefCell` borrow away for free.
+
+The boundary that keeps the actor design reachable is the port boundary this
+document already argues for. If the sync loop ever moves into a web worker,
+`Persistence` and `Discovery` become worker messages, `AppState` stays where it is,
+and nothing in the state machine is edited: commands still arrive at `dispatch`, the
+bridge still adapts handles to signals, and only the transport implementations
+learn about `postMessage`. That is the test a port boundary has to pass — it should
+be possible to move a thread, a task or a worker to the other side without changing
+the trait's consumers. (The `Handle` type would have to move with the state; that is
+the seam to design when the worker arrives, and it is why nothing in the state
+machine assumes it can reach the DOM.)
+
+The honest cost is backpressure, or the absence of it. `dispatch` runs its
+subscribers synchronously on the dispatching task, so a producer that dispatches
+faster than the browser can render — a stream socket delivering a burst, or a
+replay draining a backlog — can starve a frame, and there is no queue to push back
+on. Adding one to the SDK would rebuild the actor we just argued against, so the
+mitigation belongs one layer up: the streaming consumer buffers events and coalesces
+them into a single dispatch per animation frame, bounding dispatches at one per
+frame instead of one per event. That is a UI-layer concern because only the UI knows
+what a frame is; the SDK's contribution is that coalescing is expressible at all,
+because a `Command` carries a whole page or a whole stream state rather than a
+partial mutation.
 
 ## Crate layout
 

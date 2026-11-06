@@ -1,0 +1,18 @@
+[package]
+name = "mastodon-reccom-web"
+description = "Leptos web client: Mastodon client with a recommendation Feed tab"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+mastodon-reccom-shared = { workspace = true }
+mastodon-reccom-sdk = { workspace = true }
+console_error_panic_hook = "0.1"
+leptos = { version = "0.8.23", features = ["csr"] }

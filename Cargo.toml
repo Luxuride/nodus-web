@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = ["crates/web"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "AGPL-3.0-or-later"
+publish = false
+repository = "https://github.com/luxuride/mastodon-reccom-web"
+
+# The `sdk` submodule is a sibling checkout pinned by the parent repository, so
+# plain path dependencies are exact. The wire contract and the state store are
+# documented in the backend repository (`docs/08-sdk.md`) and in `sdk/README.md`.
+[workspace.dependencies]
+mastodon-reccom-shared = { path = "../sdk/crates/shared", version = "0.1.0" }
+mastodon-reccom-mastodon = { path = "../sdk/crates/mastodon", version = "0.1.0" }
+mastodon-reccom-sdk = { path = "../sdk/crates/sdk", version = "0.1.0" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

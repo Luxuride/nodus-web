@@ -21,7 +21,7 @@ flowchart LR
     end
     MASTO -->|REST| INST[(instance)]
     MASTO -->|wss streaming| INST
-    APIC -->|"REST, CORS"| API[(nodus-api)]
+    APIC -->|"REST, CORS"| API[(nodus-feeds)]
     STATEMACHINE --- MASTO
     STATEMACHINE --- APIC
     STATEMACHINE --- IDB

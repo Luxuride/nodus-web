@@ -106,23 +106,21 @@ partial mutation.
 
 ```text
 Nodus/
-├── sdk/                  # submodule: nodus-shared, -mastodon, -sdk
+├── sdk/                  # submodule: nodus-shared, -instance-*, -state, -runtime, -sdk, -discovery
 └── web/
     ├── Cargo.toml        # workspace: crates/web; deps on ../../sdk by path
-    ├── Trunk.toml        # build target, dist, dev server + /api proxy
+    ├── Trunk.toml        # build target, dist, dev server + /api proxy, tailwind hook
     ├── rust-toolchain.toml   # stable + wasm32-unknown-unknown
+    ├── vendor/daisyUI/   # pinned daisyUI 5 plugin, loaded by path (no npm)
     └── crates/web/
         ├── Cargo.toml    # wasm-only deps
         ├── index.html    # shell: CSP meta, no inline script, wasm preload
-        ├── style/        # plain CSS, custom properties for theming
+        ├── style/        # app.css (Tailwind + @plugin + @source), theme.css (tokens only)
         └── src/
-            ├── main.rs   # mount + global providers (session, i18n, toasts)
-            ├── app.rs    # shell: layout, nav, route table, keyboard router, error boundary
+            ├── main.rs   # mount + shell: header, rail, route switch
+            ├── router.rs # hand-written: route signal, history, popstate
             ├── state/    # bridge.rs: SDK handle → revision signal (no other state lives here)
-            ├── routes/   # home, local, federated, tag, list, thread, profile,
-            │             # notifications, search, bookmarks, favourites, feed,
-            │             # settings, compose, about, sign-in
-            └── ui/       # status card, media grid, poll, avatar, editor, dialog, toast, skeleton
+            └── routes/   # feed, settings, sign-in (this milestone); the rest lands with parity
 ```
 
 Removed by the SDK split, and staying removed: `api/`, `masto/`, `cache/` and

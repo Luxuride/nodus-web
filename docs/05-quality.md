@@ -18,15 +18,21 @@ Measured on a mid-tier Android over throttled 4G, cold cache, brotli:
 | Dropped frames scrolling 300 items | < 5% on 60 Hz | manual trace, milestone |
 | Memory after 30 min of scrolling | < 150 MB | manual, milestone |
 
-Current baseline: the shell plus the SDK is **101 KB wasm / 38 KB gzipped** plus
-25 KB JS, which leaves ~835 KB of budget for the real app — comfortable for
-Leptos CSR, tight enough that careless dependencies are visible. Adding the SDK
-cost ~75 KB raw (~13 KB gzipped); the next jump will be the transports.
+Current baseline (three screens: sign-in, feed, settings): **487 KB wasm / 205 KB
+gzipped**, **42 KB JS / 7.6 KB gzipped**, **216 KB CSS / 33 KB gzipped** — about
+246 KB compressed, leaving ~650 KB of headroom. The jump from the 101 KB shell was
+the real transports (`BrowserInstance`, `BrowserDiscovery`), `serde_json`, and
+`web_sys` bindings; the CSS is daisyUI's used-component set, which is where the
+216 KB goes and why themes are capped at two.
 
 Mechanisms:
 
-- `trunk build --release` + `wasm-opt -Oz` (`--enable-bulk-memory`), `opt-level =
-  "z"`, `lto = true`, `panic = "abort"` for the wasm profile.
+- `trunk build --release` + `wasm-opt -Oz`, `opt-level = "z"`, `lto = true`,
+  `codegen-units = 1`, `panic = "abort"` in `[profile.release]`.
+- **`strip` stays off**: stripping removes the `target_features` custom section,
+  wasm-bindgen can no longer tell which Wasm features are enabled, and `wasm-opt`
+  then fails validation on the `memory.copy` it still emits (`wasm-validator
+  error … memory.copy operations require bulk memory operations`).
 - Route-level lazy components: thread, profile, settings and compose each load in
   their own chunk; the first route ships the shell, timeline, status card and feed.
 - No icon font (inline SVG sprite), no analytics, no third-party scripts, no

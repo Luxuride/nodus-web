@@ -115,7 +115,10 @@ pub(super) fn item_actions(
                         message: "Not signed in.".to_owned(),
                     }));
                 });
-                set_timeout(move || toast.set(None), Duration::from_millis(TOAST_MILLIS));
+                set_timeout(
+                    move || alive.if_alive(|| toast.set(None)),
+                    Duration::from_millis(TOAST_MILLIS),
+                );
                 return;
             };
             let report = match copy_profile_link(&host, &acct).await {
@@ -126,7 +129,13 @@ pub(super) fn item_actions(
                 Err(message) => ShareReport { ok: false, message },
             };
             alive.if_alive(|| toast.set(Some(report)));
-            set_timeout(move || toast.set(None), Duration::from_millis(TOAST_MILLIS));
+            // Timed by a browser timer, so it outlives the card: without the guard this
+            // is a write into a disposed signal, which panics inside the timer's own
+            // callback and takes the executor with it.
+            set_timeout(
+                move || alive.if_alive(|| toast.set(None)),
+                Duration::from_millis(TOAST_MILLIS),
+            );
         });
     }) as Box<dyn FnMut(MouseEvent)>;
 

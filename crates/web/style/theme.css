@@ -27,21 +27,35 @@
 
 /* The page's scrollbar is a layout participant, and daisyUI hides it while a modal is
  * open (`:root:has(.modal-open) { overflow: hidden }`). Hiding it handed every centred
- * column a scrollbar's width more room, so opening the image expander nudged the whole
- * shell sideways.
- *
- * The scrollbar is ignored rather than reserved: reserving the gutter (`scrollbar-gutter:
- * stable`, or `overflow-y: scroll`) spends that width on every page, modal or not, and
- * still leaves a visible track nobody styles. With the scrollbar out of layout, the
- * document's width no longer depends on whether one is present, so a modal costs no
- * reflow at all. Wheel, keyboard, trackpad and touch scrolling are unaffected; only the
- * track is gone. */
+ * column a scrollbar's width more room, so opening the image expander nudged the shell
+ * sideways. Reserving the gutter keeps the track on screen and makes the modal free of
+ * reflow; daisyUI's own `scrollbar-gutter: stable` only applies *while* the modal is
+ * open, which is a frame too late. */
 html {
-  scrollbar-width: none;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--color-base-content) 35%, transparent)
+    transparent;
 }
 
+/* Chromium and Safari ignore `scrollbar-*` on `html` in older versions, so the track is
+ * drawn explicitly — a thin themed bar rather than the platform's grey slab. */
 html::-webkit-scrollbar {
-  display: none;
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, var(--color-base-content) 35%, transparent);
+  border-radius: 9999px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklch, var(--color-base-content) 55%, transparent);
 }
 
 /* The canvas is the theme's, not the browser's: with the attribute swapped at runtime,

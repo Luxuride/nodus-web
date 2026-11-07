@@ -13,7 +13,7 @@ use nodus_instance::InstanceApi;
 use nodus_instance::actions::{AccountActions, Browse, MediaActions, Search, StatusActions};
 use nodus_instance::model::{
     Account, Context, Draft, HistoryEntry, List, LocalId, MediaAttachment, Notification, Page,
-    PageParams, Relationship, SearchResults, Status,
+    PageParams, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -347,4 +347,21 @@ pub async fn list_timeline(list_id: &str, after: Option<&str>) -> Result<Page<St
         None => PageParams::first(PAGE),
     };
     call(transport()?.list_timeline(list_id, params)).await
+}
+
+/// Saves the signed-in account's profile.
+///
+/// The answer is dispatched into the entity store rather than handed back to one screen:
+/// the display name shows up on the profile, the composer and every card that mentions
+/// the account, and only the store can reach all of them.
+pub async fn update_profile(display_name: String, note: String) -> Result<Account, String> {
+    let transport = transport()?;
+    let update = ProfileUpdate::new()
+        .display_name(display_name)
+        .note(note);
+    let account = call(transport.update_profile(&update)).await?;
+    super::dispatch(nodus_sdk::Command::AccountsUpserted {
+        accounts: vec![account.clone()],
+    });
+    Ok(account)
 }

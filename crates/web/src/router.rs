@@ -233,6 +233,9 @@ pub fn navigate(to: Route) {
             // `path()` builds the string, so it has to outlive the call that borrows it.
             let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
         }
+        // A new screen starts at its top: keeping the previous offset left the reader
+        // halfway down a page they had not seen yet.
+        window.scroll_to_with_x_and_y(0.0, 0.0);
     }
     current.set(to);
 }

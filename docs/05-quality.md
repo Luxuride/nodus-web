@@ -18,9 +18,9 @@ Measured on a mid-tier Android over throttled 4G, cold cache, brotli:
 | Dropped frames scrolling 300 items | < 5% on 60 Hz | manual trace, milestone |
 | Memory after 30 min of scrolling | < 150 MB | manual, milestone |
 
-Current baseline (three screens: sign-in, feed, settings): **486 KB wasm / 206 KB
-gzipped**, **42 KB JS / 7.6 KB gzipped**, **216 KB CSS / 33 KB gzipped** — about
-246 KB compressed, leaving ~650 KB of headroom. The jump from the 101 KB shell was
+Current baseline (four screens: sign-in, OAuth callback, feed, settings): **516 KB wasm /
+216 KB gzipped**, plus 45 KB JS (8 KB gzipped) and 216 KB CSS (34 KB gzipped) —
+about 258 KB compressed, leaving ~640 KB of headroom. The jump from the 101 KB shell was
 the real transports (`BrowserInstance`, `BrowserDiscovery`), `serde_json`, and
 `web_sys` bindings; the CSS is daisyUI's used-component set, which is where the
 216 KB goes and why themes are capped at two.

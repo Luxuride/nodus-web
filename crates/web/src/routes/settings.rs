@@ -23,7 +23,7 @@ pub(crate) mod tags;
 use accounts::AccountsCard;
 use profile::ProfileCard;
 use filters::FiltersCard;
-use instance::InstanceRulesCard;
+use instance::InstanceCard;
 use sensitive::SensitiveCard;
 use tabs::{SettingsTabs, Tab};
 use tags::FeaturedTagsCard;
@@ -129,7 +129,7 @@ pub fn Settings() -> impl IntoView {
             </Show>
 
             <Show when=move || tab.get() == Tab::Instance>
-                <InstanceRulesCard/>
+                <InstanceCard/>
             </Show>
 
         </section>

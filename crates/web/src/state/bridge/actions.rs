@@ -11,7 +11,8 @@ use core::future::Future;
 use nodus_instance::BrowserInstance;
 use nodus_instance::InstanceApi;
 use nodus_instance::actions::{
-    AccountActions, Browse, FilterActions, HighlightActions, MediaActions, ScheduleActions,
+    AccountActions, Browse, FilterActions, HighlightActions, InstanceMeta, MediaActions,
+    ScheduleActions,
     Search, StatusActions,
 };
 use nodus_instance::model::{
@@ -401,14 +402,9 @@ pub async fn feature_tag(name: &str) -> Result<(), String> {
     call(transport()?.feature_tag(name)).await.map(|_tag| ())
 }
 
-/// Removes a tag from the profile.
+/// Stops featuring a tag.
 pub async fn unfeature_tag(id: &str) -> Result<(), String> {
     call(transport()?.unfeature_tag(id)).await
-}
-
-/// The instance's code of conduct.
-pub async fn rules() -> Result<Vec<nodus_instance::model::Rule>, String> {
-    call(transport()?.rules()).await
 }
 
 /// Direct conversations, in the instance's order.
@@ -457,4 +453,13 @@ pub async fn cancel_scheduled(id: &str) -> Result<(), String> {
 /// Accounts the instance suggests, for finding people to follow.
 pub async fn directory(local_only: bool, offset: u32) -> Result<Vec<Account>, String> {
     call(transport()?.directory(local_only, offset)).await
+}
+
+/// What the instance says about itself: name, version, contact, rules.
+pub async fn instance_info() -> Result<nodus_instance::model::InstanceInfo, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .instance_info()
+        .await
+        .map_err(|error| error.to_string())
 }

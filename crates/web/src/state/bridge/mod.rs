@@ -192,6 +192,7 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
     let mut subscriptions = Vec::new();
     {
         let state = sdk.state();
+        subscriptions.push(state.capabilities.subscribe(bump));
         subscriptions.push(state.session.subscribe(bump));
         subscriptions.push(state.stream.subscribe(bump));
         subscriptions.push(state.feed.subscribe(bump));
@@ -202,6 +203,20 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
     // SDK is replaced, so no callback can fire against state nothing renders.
     SUBSCRIPTIONS.with_borrow_mut(|slot| *slot = subscriptions);
     INSTANCE.with_borrow_mut(|slot| *slot = Some(transport));
+
+    // Negotiate the protocol once per session. This is a question about the server,
+    // not about a screen, so it must not be asked from a render: every view reads the
+    // recorded answer and picks its path synchronously. A server that does not answer
+    // keeps the Mastodon surface, which is the answer when there is no answer.
+    wasm_bindgen_futures::spawn_local({
+        let sdk = Rc::clone(&sdk);
+        async move {
+            if let Err(error) = sdk.load_capabilities().await {
+                web_sys::console::warn_1(&format!("capabilities unavailable: {error}").into());
+            }
+        }
+    });
+
     SDK.with_borrow_mut(|slot| *slot = Some(sdk));
     revision.update(|generation| *generation += 1);
     Ok(())

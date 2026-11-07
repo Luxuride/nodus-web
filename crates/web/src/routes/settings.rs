@@ -11,10 +11,12 @@ use crate::router::{self, Route};
 use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, sign_out, with_sdk};
 
+mod accounts;
 pub(crate) mod profile;
 pub(crate) mod sensitive;
 pub(crate) mod sync;
 
+use accounts::AccountsCard;
 use profile::ProfileCard;
 use sensitive::SensitiveCard;
 
@@ -64,6 +66,7 @@ pub fn Settings() -> impl IntoView {
                 </div>
             </div>
 
+            <AccountsCard/>
             <ProfileCard/>
             <SensitiveCard/>
             <SyncCard/>

@@ -30,6 +30,7 @@ use nodus_sdk::instance_api::Instance;
 use nodus_sdk::{Command, MemoryPersistence, Sdk, Subscription, SystemClock};
 use url::Url;
 
+pub mod accounts;
 pub mod actions;
 mod feed;
 mod impressions;
@@ -60,6 +61,16 @@ type WebSdkError = nodus_sdk::SdkError<nodus_sdk::instance_api::Error, nodus_dis
 /// Where the API lives when the page has no `window` (native tests, prerender).
 const FALLBACK_API_BASE: &str = "http://127.0.0.1:3000";
 
+/// One account's SDK, transport and subscriptions.
+struct Live {
+    sdk: Rc<WebSdk>,
+    transport: BrowserInstance,
+    /// Kept alive so this account keeps receiving its own events; dropping the SDK
+    /// while these lived on would call back into a store nothing renders. Never read,
+    /// which is the point of an owning field.
+    _subscriptions: Vec<Subscription>,
+}
+
 thread_local! {
     /// The one SDK instance for this app.
     static SDK: RefCell<Option<Rc<WebSdk>>> = const { RefCell::new(None) };
@@ -78,6 +89,16 @@ thread_local! {
     static SUBSCRIPTIONS: RefCell<Vec<Subscription>> = const { RefCell::new(Vec::new()) };
     /// Whether [`init`] has wired the SDK, so a remount does not subscribe twice.
     static INSTALLED: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+    /// One installed SDK per account, so switching does not rebuild state (and does not
+    /// re-fetch a timeline a previous visit already holds). Subscriptions live here too:
+    /// an inactive account still receives socket frames for its own sessions, and those
+    /// frames land in its own store.
+    static LIVE: RefCell<std::collections::HashMap<String, Live>> = RefCell::new(std::collections::HashMap::new());
+    /// The SDK built by the last [`install`], before it has an account to belong to.
+    ///
+    /// The host and token arrive before the session does — `sign_in` is what learns the
+    /// account id — so the SDK waits here until [`register`] can name it.
+    static PENDING: RefCell<Option<Live>> = const { RefCell::new(None) };
 }
 
 /// The Feed tab's request state, which belongs to the view and not to the SDK.
@@ -246,8 +267,15 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
     let transport =
         transport.with_stream_sink(wasm_bindgen::JsCast::unchecked_into(sink.into_js_value()));
 
-    SUBSCRIPTIONS.with_borrow_mut(|slot| *slot = subscriptions);
-    INSTANCE.with_borrow_mut(|slot| *slot = Some(transport));
+    SUBSCRIPTIONS.with_borrow_mut(|slot| *slot = Vec::new());
+    INSTANCE.with_borrow_mut(|slot| *slot = Some(transport.clone()));
+    PENDING.with_borrow_mut(|slot| {
+        *slot = Some(Live {
+            sdk: Rc::clone(&sdk),
+            transport,
+            _subscriptions: subscriptions,
+        });
+    });
 
     // Negotiate the protocol once per session. This is a question about the server,
     // not about a screen, so it must not be asked from a render: every view reads the
@@ -265,6 +293,84 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
     SDK.with_borrow_mut(|slot| *slot = Some(sdk));
     revision.update(|generation| *generation += 1);
     Ok(())
+}
+
+/// Names the SDK built by [`install`] and keeps it for switching.
+///
+/// Called once the session is known: the host and token arrive first, the account id
+/// only when the instance answers, and an account the switcher cannot name is an
+/// account the user cannot return to.
+pub fn register(account: accounts::Account) {
+    let key = account.key();
+    let live = PENDING.with_borrow_mut(Option::take);
+    if let Some(live) = live {
+        LIVE.with_borrow_mut(|all| {
+            all.insert(key.clone(), live);
+        });
+    }
+    let mut list = accounts::load();
+    accounts::insert(&mut list, account);
+    accounts::store(&list);
+    accounts::set_active(Some(&key));
+    revision().update(|generation| *generation += 1);
+}
+
+/// The accounts this browser holds, oldest first.
+#[must_use]
+pub fn account_list() -> Vec<accounts::Account> {
+    accounts::load()
+}
+
+/// The key of the account on screen.
+#[must_use]
+pub fn active_key() -> Option<String> {
+    accounts::active()
+}
+
+/// Show another account without signing out of this one.
+///
+/// The SDK is already built, so switching is a pointer move: the timeline the previous
+/// visit loaded is exactly what the SDK should keep holding.
+///
+/// # Errors
+///
+/// Returns a message when the account has no installed SDK, which happens after a
+/// reload: records are on disk, SDKs are not, and the caller must reinstall instead.
+pub fn switch(key: &str) -> Result<(), String> {
+    let live = LIVE.with_borrow(|all| {
+        all.get(key)
+            .map(|live| (Rc::clone(&live.sdk), live.transport.clone()))
+    });
+    let Some((sdk, transport)) = live else {
+        return Err("That account needs its session restored first.".to_owned());
+    };
+    INSTANCE.with_borrow_mut(|slot| *slot = Some(transport));
+    SDK.with_borrow_mut(|slot| *slot = Some(sdk));
+    accounts::set_active(Some(key));
+    forget_feed_id();
+    revision().update(|generation| *generation += 1);
+    Ok(())
+}
+
+/// Forget one account, and fall back to another if it was the one on screen.
+pub fn forget(key: &str) {
+    LIVE.with_borrow_mut(|all| {
+        all.remove(key);
+    });
+    let mut list = accounts::load();
+    list.retain(|account| account.key() != key);
+    accounts::store(&list);
+    if active_key().as_deref() == Some(key) {
+        match list.first() {
+            Some(next) if switch(&next.key()).is_ok() => {}
+            _ => {
+                accounts::set_active(None);
+                SDK.with_borrow_mut(|slot| *slot = None);
+                INSTANCE.with_borrow_mut(|slot| *slot = None);
+                revision().update(|generation| *generation += 1);
+            }
+        }
+    }
 }
 
 /// The current SDK, if [`init`] has installed one.

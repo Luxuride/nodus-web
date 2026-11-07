@@ -17,6 +17,7 @@ mod theme;
 use crate::router::Route;
 use crate::routes::account::AccountView;
 use crate::routes::callback::Callback;
+use crate::routes::compose::panel::{self as compose_panel, ComposerPanel};
 use crate::routes::compose::{Compose, ComposeEdit};
 use crate::routes::feed::Feed;
 use crate::routes::home::Home;
@@ -37,6 +38,7 @@ fn main() {
     // Before the first mount, so app-lifetime signals have no owner to be disposed
     // with (see `routes::settings::sync::install`).
     crate::routes::settings::sync::install();
+    compose_panel::install();
     // Same reason: the revision signal is written by socket frames and ticks, which
     // outlive every screen, so it must not belong to one.
     crate::state::bridge::install_reactive_root();
@@ -86,30 +88,37 @@ fn App() -> impl IntoView {
             </header>
             // Two columns above `sm`: the rail is navigation, not decoration, so on a
             // narrow screen it becomes the header's only job (a single visible tab).
-            <div class="mx-auto flex w-full max-w-5xl gap-4 px-2 py-4">
+            // Desktop: rail, composer, content. Narrower: composer above the rail,
+            // rail above the content — writing is still one press away, and nothing
+            // pushes the timeline off-screen.
+            <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row">
+                <Show when=move || signed_in.get() && compose_panel::open().get()>
+                    <div class="order-1 w-full xl:order-2 xl:w-80 xl:shrink-0">
+                        <ComposerPanel/>
+                    </div>
+                </Show>
                 <Show when=move || signed_in.get()>
-                <nav class="hidden w-44 shrink-0 sm:block">
-                    <ul class="menu w-full gap-1 rounded-box bg-base-100 p-2 shadow-sm">
-                        <RailItem label="Feed" route=Route::Feed/>
+                <nav class="order-2 w-full xl:order-1 xl:w-44 xl:shrink-0">
+                    <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
                         <RailItem label="Home" route=Route::Home/>
+                        <RailItem label="Feed" route=Route::Feed/>
                         <RailItem label="Notifications" route=Route::Notifications/>
                         <RailItem label="Search" route=Route::Search/>
                         <RailItem label="Saved" route=Route::Saved/>
                         <RailItem label="Lists" route=Route::Lists/>
-                        <a
-                            class="btn btn-primary btn-sm"
-                            href=Route::Compose.path()
-                            on:click=move |event| {
-                                router::link(event, Route::Compose);
-                            }
-                        >
-                            "Compose"
-                        </a>
+                        <li>
+                            <button
+                                class="btn btn-primary btn-sm w-full"
+                                on:click=move |_: web_sys::MouseEvent| compose_panel::toggle()
+                            >
+                                "Compose"
+                            </button>
+                        </li>
                         <RailItem label="Settings" route=Route::Settings/>
                     </ul>
                 </nav>
                 </Show>
-                <main class="min-w-0 flex-1">
+                <main class="order-3 min-w-0 flex-1">
                     {move || {
                         // The callback comes first, before the signed-in gate: the
                         // instance redirects here while the app is still signed out, and

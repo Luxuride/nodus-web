@@ -13,6 +13,7 @@ use crate::state::bridge::actions;
 
 mod attachments;
 mod form;
+pub(crate) mod panel;
 
 use form::ComposeForm;
 

@@ -108,10 +108,16 @@ pub async fn sign_in(host: &str, token: &str) -> Result<(), String> {
 
 /// Signs out: forgets the stored session and tells the SDK.
 pub fn sign_out() {
-    clear_session();
     let Some(sdk) = handle() else {
+        clear_session();
         return;
     };
+    // The account being signed out is the one on screen, and it is the only one this
+    // gesture may forget: the others keep their tokens and their SDKs.
+    if let Some(key) = super::active_key() {
+        super::forget(&key);
+    }
+    clear_session();
     wasm_bindgen_futures::spawn_local(async move {
         // `sign_out` dispatches `SignedOut` before awaiting the cache clear, so the
         // UI flips on the next microtask; a cache failure has nothing left to show.
@@ -160,6 +166,14 @@ pub async fn load_sync_consent() -> Result<(), String> {
 pub fn save_session(host: &str, token: &str, session: &Session) {
     record::store(host, token, &session.account_id, &session.acct);
     record::remember_host(host);
+    // Keep the account in the switcher too, so the next visit can offer it without a
+    // second sign-in. The SDK that was just installed is now named.
+    super::register(super::accounts::Account {
+        host: host.to_owned(),
+        token: token.to_owned(),
+        id: session.account_id.clone(),
+        acct: session.acct.clone(),
+    });
 }
 
 /// The instance this browser last read from.

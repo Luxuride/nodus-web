@@ -54,7 +54,7 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
                 // be the overlay, and a veil over a blur reads as a bug rather than a gate.
                 <button
                     type="button"
-                    class="absolute inset-0 flex cursor-pointer items-center justify-center bg-transparent transition-colors hover:bg-base-300/20"
+                    class="absolute inset-0 flex cursor-pointer items-center justify-center bg-transparent"
                     on:click=move |_| set_revealed.set(true)
                 >
                     <span class="rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm transition-transform hover:scale-105">
@@ -91,9 +91,18 @@ fn count_label(status: &Status) -> String {
 fn MediaGrid(items: Signal<Vec<MediaAttachment>>, hidden: bool) -> impl IntoView {
     // Collected outside the macro: a turbofish inside `view!` ends the tag early.
     let rows = move || items.get().into_iter().enumerate().collect::<Vec<_>>();
+    // The grid must be exactly as wide as the pictures it holds, or a centred label lands
+    // in the gap beside a lone image.
+    let columns = move || {
+        if items.get().len() == 1 {
+            "grid grid-cols-1 gap-2"
+        } else {
+            "grid grid-cols-2 gap-2"
+        }
+    };
 
     view! {
-        <ul class="grid grid-cols-2 gap-2" aria-hidden=hidden.to_string()>
+        <ul class=columns aria-hidden=hidden.to_string()>
             <For each=rows key=|(_, media)| media.id.clone() let:entry>
                 <MediaTile items=items media=entry.1 interactive=!hidden blurred=hidden/>
             </For>

@@ -29,10 +29,11 @@ pub fn follow_system() {
 
     // The listener lives as long as the page, so it is leaked rather than stored: there
     // is nothing to unregister it from.
-    let listener =
-        Closure::<dyn FnMut(web_sys::MediaQueryListEvent)>::new(move |event: web_sys::MediaQueryListEvent| {
+    let listener = Closure::<dyn FnMut(web_sys::MediaQueryListEvent)>::new(
+        move |event: web_sys::MediaQueryListEvent| {
             apply(&document, event.matches());
-        });
+        },
+    );
     let _ = media.add_event_listener_with_callback("change", listener.as_ref().unchecked_ref());
     listener.forget();
 }

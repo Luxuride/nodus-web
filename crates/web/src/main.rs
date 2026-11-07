@@ -8,10 +8,10 @@
 
 mod media;
 mod router;
-mod scroll;
-mod theme;
 mod routes;
+mod scroll;
 mod state;
+mod theme;
 
 use crate::router::Route;
 use crate::routes::account::AccountView;

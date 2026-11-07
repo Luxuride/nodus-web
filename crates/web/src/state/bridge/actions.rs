@@ -356,9 +356,7 @@ pub async fn list_timeline(list_id: &str, after: Option<&str>) -> Result<Page<St
 /// the account, and only the store can reach all of them.
 pub async fn update_profile(display_name: String, note: String) -> Result<Account, String> {
     let transport = transport()?;
-    let update = ProfileUpdate::new()
-        .display_name(display_name)
-        .note(note);
+    let update = ProfileUpdate::new().display_name(display_name).note(note);
     let account = call(transport.update_profile(&update)).await?;
     super::dispatch(nodus_sdk::Command::AccountsUpserted {
         accounts: vec![account.clone()],

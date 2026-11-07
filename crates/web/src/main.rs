@@ -7,6 +7,7 @@
 //! `docs/` in this repository; the SDK is specified in `sdk/README.md`.
 
 mod media;
+mod public;
 mod router;
 mod routes;
 mod scroll;
@@ -26,7 +27,7 @@ use crate::routes::saved::Saved;
 use crate::routes::search::Search;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
-use crate::routes::status::Thread;
+use crate::routes::status::{PublicThread, Thread};
 use crate::state::bridge::{init, revision, with_sdk};
 
 use leptos::prelude::*;
@@ -141,6 +142,11 @@ fn App() -> impl IntoView {
                             Route::Settings if signed_in => view! { <Settings/> }.into_any(),
                             Route::Thread(id) if signed_in => {
                                 view! { <Thread id=id/> }.into_any()
+                            }
+                            // A shared link works for a reader with no session: it names
+                            // the host, so the post is fetched from there anonymously.
+                            Route::PublicThread { host, id } => {
+                                view! { <PublicThread host=host id=id/> }.into_any()
                             }
                             Route::Account(id) if signed_in => {
                                 view! { <AccountView id=id/> }.into_any()

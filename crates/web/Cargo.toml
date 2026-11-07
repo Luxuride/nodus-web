@@ -27,6 +27,10 @@ url = "2"
 # feature: responses are read with the browser's own parser, so this adds no crate
 # to the bundle that the transports did not already pull in.
 gloo-net = { version = "0.6", default-features = false, features = ["http"] }
+# Anonymous reads parse a whole Mastodon payload, so the wire types rather than a
+# hand-written reader: `serde` was already in the tree, only not linked here.
+serde = { workspace = true }
+serde_json = { workspace = true }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"

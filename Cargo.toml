@@ -14,6 +14,8 @@ repository = "https://github.com/nodus-social/nodus-web"
 # plain path dependencies are exact. The wire contract and the state store are
 # documented in the SDK repository (`sdk/docs/03-contract.md`) and in `sdk/README.md`.
 [workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 nodus-shared = { path = "../sdk/crates/shared", version = "0.1.0" }
 nodus-sdk = { path = "../sdk/crates/sdk", version = "0.1.0" }
 # The browser transport that hosts `BrowserInstance`. The SDK facade deliberately

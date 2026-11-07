@@ -11,6 +11,7 @@ mod thread;
 
 pub use self::thread::Thread;
 use nodus_instance::model::Status;
+pub use public::PublicThread;
 
 use super::format::{display_name, relative_time};
 use crate::router::{self, Route};
@@ -19,6 +20,7 @@ mod body;
 mod footer;
 mod menu;
 mod poll;
+mod public;
 mod reply;
 pub(crate) mod sensitive;
 

@@ -40,6 +40,11 @@ pub enum Route {
     Home,
     /// One status with its ancestors and replies.
     Thread(String),
+    /// The same post, read anonymously from the instance that hosts it.
+    ///
+    /// A share link outlives a session, so it cannot carry our own id: the host is part of
+    /// the address because the post is fetched from *that* instance, by the reader.
+    PublicThread { host: String, id: String },
     /// One account's profile and statuses.
     Account(String),
     /// Notifications for the signed-in account.
@@ -85,6 +90,7 @@ impl Route {
             Self::Feed => "/".to_owned(),
             Self::Home => "/home".to_owned(),
             Self::Thread(id) => format!("/status/{id}"),
+            Self::PublicThread { host, id } => format!("/status/{host}/{id}"),
             Self::Account(id) => format!("/accounts/{id}"),
             Self::Notifications => "/notifications".to_owned(),
             Self::Search => "/search".to_owned(),
@@ -119,9 +125,18 @@ impl Route {
         if trimmed == CALLBACK_PATH {
             return Self::OauthCallback;
         }
-        if let Some(id) = trimmed.strip_prefix("/status/") {
-            if !id.is_empty() {
-                return Self::Thread(id.to_owned());
+        if let Some(rest) = trimmed.strip_prefix("/status/") {
+            // `/status/{host}/{id}` is the shareable form; `/status/{id}` stays the
+            // in-session one, because an id alone says nothing about where to read it.
+            if let Some((host, id)) = rest.split_once('/') {
+                if !host.is_empty() && !id.is_empty() {
+                    return Self::PublicThread {
+                        host: host.to_owned(),
+                        id: id.to_owned(),
+                    };
+                }
+            } else if !rest.is_empty() {
+                return Self::Thread(rest.to_owned());
             }
         }
         if let Some(id) = trimmed.strip_prefix("/accounts/") {

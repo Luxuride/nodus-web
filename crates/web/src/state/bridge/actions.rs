@@ -12,8 +12,8 @@ use nodus_instance::BrowserInstance;
 use nodus_instance::InstanceApi;
 use nodus_instance::actions::{AccountActions, Browse, Search, StatusActions};
 use nodus_instance::model::{
-    Account, Context, Draft, HistoryEntry, LocalId, Notification, Page, PageParams, Relationship,
-    SearchResults, Status,
+    Account, Context, Draft, HistoryEntry, List, LocalId, Notification, Page, PageParams,
+    Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -233,4 +233,49 @@ pub async fn bookmarks(after: Option<&str>) -> Result<Page<Status>, String> {
         None => PageParams::first(PAGE),
     };
     call(transport()?.bookmarks(params)).await
+}
+
+/// The account's lists.
+pub async fn lists() -> Result<Vec<List>, String> {
+    call(transport()?.lists()).await
+}
+
+/// Creates a list and returns it.
+pub async fn create_list(title: &str) -> Result<List, String> {
+    call(transport()?.create_list(title)).await
+}
+
+/// Renames a list.
+pub async fn rename_list(id: &str, title: &str) -> Result<List, String> {
+    call(transport()?.rename_list(id, title)).await
+}
+
+/// Deletes a list; the people on it stay followed.
+pub async fn delete_list(id: &str) -> Result<(), String> {
+    call(transport()?.delete_list(id)).await
+}
+
+/// The accounts on a list.
+pub async fn list_accounts(id: &str) -> Result<Vec<Account>, String> {
+    call(transport()?.list_accounts(id)).await
+}
+
+/// Adds to or removes from a list, which differ only in the verb.
+pub async fn set_list_member(list_id: &str, account_id: &str, member: bool) -> Result<(), String> {
+    let transport = transport()?;
+    let accounts = [LocalId(account_id.to_owned())];
+    if member {
+        call(transport.add_to_list(list_id, &accounts)).await
+    } else {
+        call(transport.remove_from_list(list_id, &accounts)).await
+    }
+}
+
+/// One page of a list timeline.
+pub async fn list_timeline(list_id: &str, after: Option<&str>) -> Result<Page<Status>, String> {
+    let params = match after {
+        Some(cursor) => PageParams::after(cursor, PAGE),
+        None => PageParams::first(PAGE),
+    };
+    call(transport()?.list_timeline(list_id, params)).await
 }

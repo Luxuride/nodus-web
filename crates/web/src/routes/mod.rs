@@ -6,6 +6,7 @@ pub mod callback;
 pub mod feed;
 pub mod format;
 pub mod home;
+pub mod lists;
 pub mod notifications;
 pub mod saved;
 pub mod search;

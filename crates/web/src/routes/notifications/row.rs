@@ -19,6 +19,7 @@ fn describe(kind: NotificationKind) -> &'static str {
         NotificationKind::Status => "posted",
         NotificationKind::AdminSignUp => "A new account signed up",
         NotificationKind::AdminReport => "A report needs review",
+        NotificationKind::Unknown => "Something happened",
     }
 }
 

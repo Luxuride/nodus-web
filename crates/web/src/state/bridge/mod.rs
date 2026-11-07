@@ -31,12 +31,14 @@ use nodus_sdk::{Command, MemoryPersistence, Sdk, Subscription, SystemClock};
 use url::Url;
 
 mod feed;
+mod impressions;
 mod posts;
 mod session;
 
 // Re-exported so every call site keeps saying `bridge::<verb>`: the split into
 // files is a reading aid, not a new API surface.
 pub use feed::{follow_item, not_interested, reload_feed, unfollow_item};
+pub use impressions::report_impressions;
 pub use posts::{load_posts_once, posts_ui, reload_posts};
 pub use session::{set_sync, sign_in, sign_out};
 

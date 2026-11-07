@@ -6,7 +6,7 @@
 
 use leptos::prelude::*;
 
-use super::{handle, with_sdk};
+use super::{handle, report_impressions, with_sdk};
 
 /// UI state for the post list, kept apart from [`FeedUi`](super::FeedUi) so the two
 /// tabs cannot dim or error each other.
@@ -51,7 +51,11 @@ pub fn reload_posts(cursor: Option<String>) {
     ui.error.set(None);
     wasm_bindgen_futures::spawn_local(async move {
         match sdk.load_posts(cursor.as_deref()).await {
-            Ok(_) => ui.error.set(None),
+            Ok(feed) => {
+                ui.error.set(None);
+                let shown: Vec<i64> = feed.items.iter().map(|item| item.item_id).collect();
+                report_impressions(&feed.feed_id, &shown);
+            }
             Err(error) => ui.error.set(Some(error.to_string())),
         }
         ui.refreshing.set(false);

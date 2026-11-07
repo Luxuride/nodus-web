@@ -1,6 +1,6 @@
-//! Hand-written routing: two screens, so no router dependency.
+//! Hand-written routing: three screens, so no router dependency.
 //!
-//! `leptos_router` is not a dependency of this crate and two routes do not justify
+//! `leptos_router` is not a dependency of this crate and three routes do not justify
 //! it: the current route is one `RwSignal`, links push a history entry, and a
 //! `popstate` listener (the back/forward buttons) re-reads the address bar.
 //!
@@ -11,6 +11,8 @@ use std::cell::RefCell;
 
 use leptos::ev::MouseEvent;
 use leptos::prelude::*;
+
+use crate::state::oauth::CALLBACK_PATH;
 
 thread_local! {
     /// The current route; created on first read from the address bar.
@@ -26,6 +28,9 @@ pub enum Route {
     Feed,
     /// Instance, sync consent and sign-out.
     Settings,
+    /// Where the instance returns the browser after authorization. The query string
+    /// carries the code and `state`, so this route is matched regardless of sign-in.
+    OauthCallback,
 }
 
 impl Route {
@@ -35,13 +40,20 @@ impl Route {
         match self {
             Self::Feed => "/",
             Self::Settings => "/settings",
+            // The OAuth flow registers this path as `redirect_uris`; sharing the
+            // constant is what keeps the address bar and the registered URI identical.
+            Self::OauthCallback => CALLBACK_PATH,
         }
     }
 
     /// The route for an address-bar pathname; unknown paths fall back to the feed.
     #[must_use]
     pub fn from_path(path: &str) -> Self {
-        match path.trim_end_matches('/') {
+        let path = path.trim_end_matches('/');
+        if path == CALLBACK_PATH {
+            return Self::OauthCallback;
+        }
+        match path {
             "/settings" => Self::Settings,
             _ => Self::Feed,
         }

@@ -10,6 +10,7 @@ mod router;
 mod routes;
 mod state;
 
+use crate::routes::callback::Callback;
 use crate::routes::feed::Feed;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
@@ -75,13 +76,16 @@ fn App() -> impl IntoView {
                 </nav>
                 <main class="min-w-0 flex-1">
                     {move || {
-                        if signed_in() {
-                            match route.get() {
-                                router::Route::Feed => view! { <Feed/> }.into_any(),
-                                router::Route::Settings => view! { <Settings/> }.into_any(),
+                        // The callback comes first, before the signed-in gate: the
+                        // instance redirects here while the app is still signed out, and
+                        // this screen is what turns the code into a session.
+                        match route.get() {
+                            router::Route::OauthCallback => view! { <Callback/> }.into_any(),
+                            router::Route::Feed if signed_in() => view! { <Feed/> }.into_any(),
+                            router::Route::Settings if signed_in() => {
+                                view! { <Settings/> }.into_any()
                             }
-                        } else {
-                            view! { <SignIn/> }.into_any()
+                            _ => view! { <SignIn/> }.into_any(),
                         }
                     }}
                 </main>

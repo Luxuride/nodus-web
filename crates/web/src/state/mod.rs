@@ -5,3 +5,4 @@
 //! framework and the state machine meet.
 
 pub mod bridge;
+pub mod oauth;

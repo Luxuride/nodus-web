@@ -19,17 +19,26 @@ nodus-instance-rest = { workspace = true }
 nodus-discovery = { workspace = true }
 console_error_panic_hook = "0.1"
 leptos = { version = "0.8.23", features = ["csr"] }
-# `localStorage` session record (milestone 1; PKCE replaces it — see bridge.rs).
+# `localStorage` session record, holding the token that sign-in produced.
 # Hand-encoded on purpose: `serde_json` is in the bundle anyway through `gloo-net`,
 # so this is not a size decision — it is one obvious format in one obvious place.
 url = "2"
+# The two form-encoded `POST`s of the OAuth flow (`state/oauth/api.rs`). No JSON
+# feature: responses are read with the browser's own parser, so this adds no crate
+# to the bundle that the transports did not already pull in.
+gloo-net = { version = "0.6", default-features = false, features = ["http"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
+    # PKCE: `get_random_values_with_u8_array` and `subtle.digest`.
+    "Crypto",
     "History",
     "Location",
     "Storage",
+    "SubtleCrypto",
     "Url",
+    # Reading the OAuth callback's `?code=…&state=…`.
+    "UrlSearchParams",
     "Window",
 ] }

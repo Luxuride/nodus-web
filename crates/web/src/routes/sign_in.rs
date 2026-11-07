@@ -1,42 +1,52 @@
-//! Sign-in: paste an instance host and an access token.
+//! Sign-in: authorize against the instance, with token pasting as the fallback.
 //!
-//! This is deliberately the smallest thing that works. There is no OAuth redirect
-//! yet: the user creates a token on their instance and pastes it, and the app
-//! verifies it before it saves or uses anything. Browser sign-in (dynamic client
-//! registration, PKCE, revocable tokens in `IndexedDB`) is the next milestone, per
-//! `web/docs/03-data-layer.md`.
+//! The primary path is the browser flow in [`crate::state::oauth`]: register the
+//! client, send the browser to the instance, come back through `/oauth/callback`.
+//! The user never types a credential here — the instance's own consent page is the
+//! only place a password is entered, and this app never sees it.
+//!
+//! The token form underneath is the escape hatch for instances whose authorization
+//! endpoint this client cannot use (older or unusual forks, http-only deployments,
+//! locked-down instances that refuse app registration). It is kept small and folded
+//! away so it cannot be mistaken for the normal path.
 
 use leptos::ev::SubmitEvent;
 use leptos::prelude::*;
 
 use crate::state::bridge::{feed_ui, sign_in};
+use crate::state::oauth;
 
 /// The sign-in screen.
 #[component]
 pub fn SignIn() -> impl IntoView {
+    // One signal for the instance: both forms point at the same instance, and an
+    // address typed into either field is what the other submits.
     let host = RwSignal::new(String::new());
     let token = RwSignal::new(String::new());
-    let error = RwSignal::new(None::<String>);
-    let busy = RwSignal::new(false);
+    let authorize_error = RwSignal::new(None::<String>);
+    let token_error = RwSignal::new(None::<String>);
+    let authorizing = RwSignal::new(false);
+    let pasting = RwSignal::new(false);
     // A stored session that failed to restore explains itself here, where the user
     // can act on it.
     let startup_error = feed_ui().error;
 
-    let submit = move |event: SubmitEvent| {
+    let authorize = move |event: SubmitEvent| {
         event.prevent_default();
-        if busy.get_untracked() {
+        if authorizing.get_untracked() {
             return;
         }
-        busy.set(true);
-        error.set(None);
+        authorizing.set(true);
+        authorize_error.set(None);
         let host = host.get_untracked();
-        let token = token.get_untracked();
         wasm_bindgen_futures::spawn_local(async move {
-            match sign_in(&host, &token).await {
-                Ok(()) => {}
-                Err(message) => error.set(Some(message)),
+            // `Ok` means the browser is already navigating to the instance, so the
+            // spinner deliberately stays on: putting the button back would invite a
+            // second authorization request while the first is in flight.
+            if let Err(message) = oauth::begin(&host).await {
+                authorize_error.set(Some(message));
+                authorizing.set(false);
             }
-            busy.set(false);
         });
     };
 
@@ -46,9 +56,9 @@ pub fn SignIn() -> impl IntoView {
                 <div class="card-body gap-4">
                     <h1 class="card-title">"Sign in"</h1>
                     <p class="text-sm opacity-70">
-                        "Paste a token from your instance for now; browser sign-in lands with the PKCE milestone."
+                        "Authorize this app on your instance. Approval happens on your instance's own page, and the access token it returns can be revoked there at any time."
                     </p>
-                    <form class="flex flex-col gap-3" on:submit=submit>
+                    <form class="flex flex-col gap-3" on:submit=authorize>
                         <label class="form-control w-full">
                             <span class="label-text mb-1 text-sm">"Instance"</span>
                             <input
@@ -58,38 +68,116 @@ pub fn SignIn() -> impl IntoView {
                                 autocomplete="url"
                                 prop:value=move || host.get()
                                 on:input=move |event| host.set(event_target_value(&event))
-                                disabled=move || busy.get()
-                            />
-                        </label>
-                        <label class="form-control w-full">
-                            <span class="label-text mb-1 text-sm">"Access token"</span>
-                            <input
-                                class="input input-bordered w-full"
-                                type="password"
-                                autocomplete="off"
-                                prop:value=move || token.get()
-                                on:input=move |event| token.set(event_target_value(&event))
-                                disabled=move || busy.get()
+                                disabled=move || authorizing.get() || pasting.get()
                             />
                         </label>
                         <button
                             class="btn btn-primary mt-2"
                             type="submit"
-                            disabled=move || busy.get()
+                            disabled=move || authorizing.get() || pasting.get()
                         >
-                            <Show when=move || busy.get()>
+                            <Show when=move || authorizing.get()>
                                 <span class="loading loading-spinner loading-xs"></span>
                             </Show>
-                            "Sign in"
+                            "Authorize"
                         </button>
                     </form>
-                    {move || error.get().or_else(|| startup_error.get()).map(|message| view! {
+                    {move || authorize_error.get().or_else(|| startup_error.get()).map(|message| view! {
                         <div class="alert alert-soft alert-error text-sm" role="alert">
                             <span>{message}</span>
                         </div>
                     })}
+                    <TokenEscapeHatch
+                        host=host
+                        token=token
+                        error=token_error
+                        authorizing=authorizing
+                        pasting=pasting
+                    />
                 </div>
             </div>
         </section>
+    }
+}
+
+/// The token form, folded away under a disclosure.
+///
+/// Split out of [`SignIn`] so the primary path stays readable: a reader of the
+/// main view should not have to scroll past the escape hatch to understand what
+/// signing in normally does.
+#[component]
+fn TokenEscapeHatch(
+    host: RwSignal<String>,
+    token: RwSignal<String>,
+    error: RwSignal<Option<String>>,
+    authorizing: RwSignal<bool>,
+    pasting: RwSignal<bool>,
+) -> impl IntoView {
+    let submit = move |event: SubmitEvent| {
+        event.prevent_default();
+        if pasting.get_untracked() {
+            return;
+        }
+        pasting.set(true);
+        error.set(None);
+        let host = host.get_untracked();
+        let token = token.get_untracked();
+        wasm_bindgen_futures::spawn_local(async move {
+            if let Err(message) = sign_in(&host, &token).await {
+                error.set(Some(message));
+            }
+            pasting.set(false);
+        });
+    };
+
+    view! {
+        <details class="mt-2 border-t border-base-300 pt-3">
+            <summary class="cursor-pointer text-sm opacity-70">
+                "Advanced: sign in with an access token"
+            </summary>
+            <p class="mt-2 text-xs opacity-60">
+                "For an instance that does not support browser sign-in. Create a token in your instance's development settings with the read, write and follow scopes, then paste it here."
+            </p>
+            <form class="mt-2 flex flex-col gap-3" on:submit=submit>
+                <label class="form-control w-full">
+                    <span class="label-text mb-1 text-sm">"Instance"</span>
+                    <input
+                        class="input input-bordered input-sm w-full"
+                        type="text"
+                        placeholder="mastodon.social"
+                        autocomplete="url"
+                        prop:value=move || host.get()
+                        on:input=move |event| host.set(event_target_value(&event))
+                        disabled=move || authorizing.get() || pasting.get()
+                    />
+                </label>
+                <label class="form-control w-full">
+                    <span class="label-text mb-1 text-sm">"Access token"</span>
+                    <input
+                        class="input input-bordered w-full"
+                        type="password"
+                        autocomplete="off"
+                        prop:value=move || token.get()
+                        on:input=move |event| token.set(event_target_value(&event))
+                        disabled=move || authorizing.get() || pasting.get()
+                    />
+                </label>
+                <button
+                    class="btn btn-secondary mt-1"
+                    type="submit"
+                    disabled=move || authorizing.get() || pasting.get()
+                >
+                    <Show when=move || pasting.get()>
+                        <span class="loading loading-spinner loading-xs"></span>
+                    </Show>
+                    "Sign in with token"
+                </button>
+            </form>
+            {move || error.get().map(|message| view! {
+                <div class="alert alert-soft alert-error mt-2 text-sm" role="alert">
+                    <span>{message}</span>
+                </div>
+            })}
+        </details>
     }
 }

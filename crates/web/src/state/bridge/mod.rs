@@ -199,6 +199,10 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
         subscriptions.push(state.stream.subscribe(bump));
         subscriptions.push(state.feed.subscribe(bump));
         subscriptions.push(state.timelines.subscribe(bump));
+        // Entities, for the same reason as pages: a status that arrives on the socket,
+        // or is favourited in another tab, must repaint every screen showing it.
+        subscriptions.push(state.statuses.subscribe(bump));
+        subscriptions.push(state.accounts.subscribe(bump));
         // `sync` is a consent the *server* holds and the card's button is the only
         // writer, so without this subscription the toggle kept rendering the value it
         // read on mount until the operator reloaded the page.
@@ -207,6 +211,20 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
 
     // Dropping the previous vector unsubscribes from the previous SDK, before that
     // SDK is replaced, so no callback can fire against state nothing renders.
+    // Every socket frame is applied by the SDK before a view sees it: an event that
+    // arrived on the wire has to land in the same store a page reads, or the screen
+    // holding the status cannot repaint from it.
+    let sink = wasm_bindgen::closure::Closure::<dyn FnMut(wasm_bindgen::JsValue)>::new({
+        let sdk = Rc::clone(&sdk);
+        move |frame: wasm_bindgen::JsValue| {
+            if let Some(text) = frame.as_string() {
+                sdk.apply_frame(&text);
+            }
+        }
+    });
+    let transport =
+        transport.with_stream_sink(wasm_bindgen::JsCast::unchecked_into(sink.into_js_value()));
+
     SUBSCRIPTIONS.with_borrow_mut(|slot| *slot = subscriptions);
     INSTANCE.with_borrow_mut(|slot| *slot = Some(transport));
 

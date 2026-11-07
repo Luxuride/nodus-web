@@ -21,6 +21,28 @@ mod buttons;
 mod initial;
 mod options;
 
+/// Applies the account's posting defaults, without disturbing typing.
+///
+/// The request is best effort: a composer that cannot reach `/api/v1/preferences`
+/// still has to let the reader post, so a failure leaves the built-in defaults in
+/// place rather than blocking the form.
+fn start_from_preferences(
+    set_visibility: WriteSignal<nodus_instance::model::Visibility>,
+    set_sensitive: WriteSignal<bool>,
+) {
+    let alive = crate::state::alive::Alive::new();
+    leptos::task::spawn_local(async move {
+        if let Ok(preferences) = crate::state::bridge::notices::preferences().await {
+            let visibility = preferences.visibility();
+            let sensitive = preferences.posting_default_sensitive;
+            alive.if_alive(|| {
+                set_visibility.set(visibility);
+                set_sensitive.set(sensitive);
+            });
+        }
+    });
+}
+
 /// The form. `initial` turns it into an editor.
 #[component]
 #[expect(
@@ -40,6 +62,11 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     let media = RwSignal::new(Vec::<MediaAttachment>::new());
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
+
+    // A new post starts from the account's preferences; an edit starts from the post.
+    if editing.get_value().is_none() {
+        start_from_preferences(set_visibility, set_sensitive);
+    }
 
     let submit = move |()| {
         let body = text.get_untracked();

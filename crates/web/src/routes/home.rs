@@ -5,10 +5,13 @@
 //! so returning to this screen paints immediately instead of starting from a
 //! spinner.
 
+mod banner;
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
 
+use self::banner::Banner;
 use crate::routes::status::StatusCard;
 use crate::state::alive::Alive;
 use crate::state::bridge::{revision, timeline};
@@ -109,6 +112,8 @@ pub fn Home() -> impl IntoView {
                     </button>
                 </For>
             </div>
+
+            <Banner/>
 
             {move || error.get().map(|message| view! {
                 <div class="alert alert-error py-2 text-sm" role="alert">

@@ -93,11 +93,24 @@ pub fn navigate(to: Route) {
 ///
 /// `event` is taken by value because that is what Leptos hands a listener; a
 /// borrow would add `&` at every call site and buy nothing.
+///
+/// A modified or non-primary click is left alone. The `href` is real, so
+/// <kbd>ctrl</kbd>/<kbd>cmd</kbd>-click, middle-click and "open in new tab" must do what
+/// the browser does with it — swallowing those is how a single-page app quietly stops
+/// supporting the one thing people do to links they want to keep.
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Leptos listeners receive the event by value"
 )]
 pub fn link(event: MouseEvent, to: Route) {
+    if event.button() != 0
+        || event.meta_key()
+        || event.ctrl_key()
+        || event.shift_key()
+        || event.alt_key()
+    {
+        return;
+    }
     event.prevent_default();
     navigate(to);
 }

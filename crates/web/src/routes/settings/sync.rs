@@ -8,6 +8,7 @@
 
 use leptos::prelude::*;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::{load_sync_consent, revision, set_sync, with_sdk};
 
 /// The sync consent, with the button that turns it on or off.
@@ -38,6 +39,7 @@ pub fn SyncCard() -> impl IntoView {
         busy.set(true);
         result.set(None);
         let enable = !consent().enabled;
+        let alive = Alive::new();
         wasm_bindgen_futures::spawn_local(async move {
             let message = match set_sync(enable, false).await {
                 Ok(()) if enable => "Background sync is on. The server keeps an encrypted copy \
@@ -48,8 +50,10 @@ pub fn SyncCard() -> impl IntoView {
                 Err(error) if enable => format!("Could not enable background sync: {error}"),
                 Err(error) => format!("Could not turn background sync off: {error}"),
             };
-            result.set(Some(message));
-            busy.set(false);
+            alive.if_alive(|| {
+                result.set(Some(message));
+                busy.set(false);
+            });
         });
     };
 

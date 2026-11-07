@@ -13,6 +13,7 @@ use self::initial::Initial;
 use self::options::ComposerOptions;
 use super::attachments::Attachments;
 use crate::router::{self, Route};
+use crate::state::alive::Alive;
 use crate::state::bridge::actions::{self, NewStatus};
 
 // Named `buttons`, not `actions`: the bridge module is already `actions` in this file.
@@ -59,6 +60,7 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
         };
         status.sensitive = sensitive.get_untracked();
         let editing = editing.get_value();
+        let alive = Alive::new();
         set_busy.set(true);
         set_error.set(None);
         spawn_local(async move {
@@ -67,8 +69,10 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
                 None => actions::publish(&status).await,
             };
             if let Err(message) = answer {
-                set_error.set(Some(message));
-                set_busy.set(false);
+                alive.if_alive(|| {
+                    set_error.set(Some(message));
+                    set_busy.set(false);
+                });
                 return;
             }
             // An edit lands on the thread, which shows the new revision; a fresh status has
@@ -77,7 +81,7 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
                 Some(id) => Route::Thread(id.clone()),
                 None => Route::Home,
             });
-            set_busy.set(false);
+            alive.if_alive(|| set_busy.set(false));
         });
     };
 

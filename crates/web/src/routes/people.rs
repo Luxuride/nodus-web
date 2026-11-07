@@ -8,6 +8,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::Account;
 
 use crate::router::{self, Route};
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// How the list was produced.
@@ -68,10 +69,6 @@ async fn page(
 
 /// One paged list of accounts.
 #[component]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "a Leptos component receives its props by value"
-)]
 pub fn PeopleList(
     #[prop(into)]
     /// Whose list to read. Ignored for mutes and blocks, which are always the viewer's.
@@ -83,47 +80,48 @@ pub fn PeopleList(
     let (cursor, set_cursor) = signal(None::<String>);
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
+    let alive = Alive::new();
 
-    let load = {
-        let id = id.clone();
-        move |after: Option<String>| {
-            let id = id.clone();
-            set_loading.set(true);
+    // `StoredValue` rather than a captured `String`: with only `Copy` captures the
+    // closure below is `Copy` too, so the effect and the "load more" button can share it.
+    let id = StoredValue::new(id);
+
+    let load = move |after: Option<String>| {
+        let id = id.get_value();
+
+        set_loading.set(true);
+        spawn_local(async move {
+            match page(kind, &id, after.as_deref()).await {
+                Ok((found, next)) => alive.if_alive(|| {
+                    set_cursor.set(next);
+                    set_accounts.update(|list| list.extend(found));
+                }),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            }
+            alive.if_alive(|| set_loading.set(false));
+        });
+    };
+
+    Effect::new(move |_| load(None));
+
+    let more = move |_| load(cursor.get_untracked());
+
+    let undo = {
+        move |account_id: String| {
             spawn_local(async move {
-                match page(kind, &id, after.as_deref()).await {
-                    Ok((found, next)) => {
-                        set_cursor.set(next);
-                        set_accounts.update(|list| list.extend(found));
-                    }
-                    Err(message) => set_error.set(Some(message)),
+                let answer = match kind {
+                    Kind::Mutes => actions::mute(&account_id, false).await.map(drop),
+                    Kind::Blocks => actions::block(&account_id, false).await.map(drop),
+                    Kind::Followers | Kind::Following => Ok(()),
+                };
+                match answer {
+                    Ok(()) => alive.if_alive(|| {
+                        set_accounts.update(|list| list.retain(|item| item.id != account_id));
+                    }),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
-                set_loading.set(false);
             });
         }
-    };
-
-    {
-        let load = load.clone();
-        Effect::new(move |_| load(None));
-    }
-
-    let more = {
-        let load = load.clone();
-        move |_| load(cursor.get_untracked())
-    };
-
-    let undo = move |account_id: String| {
-        spawn_local(async move {
-            let answer = match kind {
-                Kind::Mutes => actions::mute(&account_id, false).await.map(drop),
-                Kind::Blocks => actions::block(&account_id, false).await.map(drop),
-                Kind::Followers | Kind::Following => Ok(()),
-            };
-            match answer {
-                Ok(()) => set_accounts.update(|list| list.retain(|item| item.id != account_id)),
-                Err(message) => set_error.set(Some(message)),
-            }
-        });
     };
 
     view! {
@@ -173,7 +171,7 @@ pub fn PeopleList(
                 <button
                     class="btn btn-ghost btn-sm w-full"
                     disabled=move || loading.get()
-                    on:click=more.clone()
+                    on:click=more
                 >
                     "Load more"
                 </button>

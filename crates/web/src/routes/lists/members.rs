@@ -9,6 +9,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::Account;
 
 use self::add::AddPeople;
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 mod add;
@@ -21,43 +22,52 @@ pub fn Members(list_id: ReadSignal<Option<String>>) -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
     // Bumped by the add panel: membership changed elsewhere, so the roster is stale.
     let (refresh, set_refresh) = signal(0_u32);
+    let alive = Alive::new();
 
-    let remove = move |account_id: String| {
-        let Some(id) = list_id.get_untracked() else {
-            return;
-        };
-        set_busy.set(true);
-        set_error.set(None);
-        spawn_local(async move {
-            match actions::set_list_member(&id, &account_id, false).await {
-                // The effect reloads the roster: the removal is already on the list.
-                Ok(()) => set_refresh.update(|count| *count += 1),
-                Err(message) => set_error.set(Some(message)),
-            }
-            set_busy.set(false);
-        });
+    let remove = {
+        move |account_id: String| {
+            let Some(id) = list_id.get_untracked() else {
+                return;
+            };
+
+            set_busy.set(true);
+            set_error.set(None);
+            spawn_local(async move {
+                match actions::set_list_member(&id, &account_id, false).await {
+                    // The effect reloads the roster: the removal is already on the list.
+                    Ok(()) => alive.if_alive(|| set_refresh.update(|count| *count += 1)),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+                }
+                alive.if_alive(|| set_busy.set(false));
+            });
+        }
     };
 
-    let reload = move || {
-        let Some(id) = list_id.get_untracked() else {
-            set_members.set(Vec::new());
-            return;
-        };
-        spawn_local(async move {
-            match actions::list_accounts(&id).await {
-                Ok(found) => set_members.set(found),
-                Err(message) => set_error.set(Some(message)),
-            }
-        });
+    let reload = {
+        move || {
+            let Some(id) = list_id.get_untracked() else {
+                set_members.set(Vec::new());
+                return;
+            };
+
+            spawn_local(async move {
+                match actions::list_accounts(&id).await {
+                    Ok(found) => alive.if_alive(|| set_members.set(found)),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+                }
+            });
+        }
     };
 
     // Reload on every selection change, not just on mount: the panel has one prop and it
     // is the only thing that makes the contents stale.
-    Effect::new(move |_| {
-        list_id.get();
-        refresh.get();
-        reload();
-    });
+    {
+        Effect::new(move |_| {
+            list_id.get();
+            refresh.get();
+            reload();
+        });
+    }
 
     view! {
         <Show when=move || list_id.get().is_some()>

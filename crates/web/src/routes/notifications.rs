@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Notification;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 mod pending;
@@ -24,42 +25,48 @@ pub fn Notifications() -> impl IntoView {
     let (cursor, set_cursor) = signal(None::<String>);
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
+    let alive = Alive::new();
 
     Effect::new(move |_| {
         spawn_local(async move {
             match actions::notifications(None).await {
-                Ok(page) => {
+                Ok(page) => alive.if_alive(|| {
                     set_items.set(page.items);
                     set_cursor.set(page.next_max_id);
-                }
-                Err(message) => set_error.set(Some(message)),
+                }),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
     });
 
     // A request that was just answered must disappear, so the list is re-read rather than
     // patched: the instance is the one that knows whether it was accepted.
-    let reload = Callback::new(move |()| {
-        spawn_local(async move {
-            if let Ok(page) = actions::notifications(None).await {
-                set_items.set(page.items);
-                set_cursor.set(page.next_max_id);
-            }
-        });
-    });
+    let reload = {
+        Callback::new(move |()| {
+            spawn_local(async move {
+                if let Ok(page) = actions::notifications(None).await {
+                    alive.if_alive(|| {
+                        set_items.set(page.items);
+                        set_cursor.set(page.next_max_id);
+                    });
+                }
+            });
+        })
+    };
 
     let more = move |_| {
         let after = cursor.get_untracked();
+
         set_loading.set(true);
         spawn_local(async move {
             match actions::notifications(after.as_deref()).await {
-                Ok(page) => {
+                Ok(page) => alive.if_alive(|| {
                     set_items.update(|items| items.extend(page.items));
                     set_cursor.set(page.next_max_id);
-                }
-                Err(message) => set_error.set(Some(message)),
+                }),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_loading.set(false);
+            alive.if_alive(|| set_loading.set(false));
         });
     };
 

@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// A text box that publishes a public reply to `parent` and hands the answer back.
@@ -26,17 +27,20 @@ pub(super) fn ReplyBox(
             return;
         }
         let parent = parent.clone();
+        let alive = Alive::new();
         set_posting.set(true);
         set_error.set(None);
         spawn_local(async move {
             match actions::publish(&actions::NewStatus::reply(text, &parent)).await {
                 Ok(reply) => {
-                    set_draft.set(String::new());
-                    set_replies.update(|replies| replies.push(reply));
+                    alive.if_alive(|| {
+                        set_draft.set(String::new());
+                        set_replies.update(|replies| replies.push(reply));
+                    });
                 }
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_posting.set(false);
+            alive.if_alive(|| set_posting.set(false));
         });
     };
 

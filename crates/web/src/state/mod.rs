@@ -4,5 +4,6 @@
 //! directly, so the single-threaded bridge stays the only place where the
 //! framework and the state machine meet.
 
+pub mod alive;
 pub mod bridge;
 pub mod oauth;

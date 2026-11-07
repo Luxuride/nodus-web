@@ -149,6 +149,14 @@ Removed by the SDK split, and staying removed: `api/`, `masto/`, `cache/` and
    one base URL, one error mapping, one place that attaches `X-Contract-Version`.
 6. **No `unsafe`, no `innerHTML` of untrusted text.** Sanitization is a single
    function in `ui/` ([04-ui.md](04-ui.md)).
+7. **No signal write after an `await` without an `Alive` guard.** A response can
+   arrive after the screen that asked for it is gone, and writing then is a panic in
+   `reactive_graph` (`Tried to access a reactive value that has already been
+   disposed`) — which unwinds inside a task poll and poisons `js-sys`'s executor, so
+   the whole page stops reacting. `crate::state::alive::Alive::new()` in the
+   component body plus `alive.if_alive(|| set_x.set(..))` around each post-`await`
+   write is the rule; it is a flag rather than `try_update` because the write sites
+   must also skip the work the write would trigger.
 
 ## Routing
 

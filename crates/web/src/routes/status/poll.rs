@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 mod option;
@@ -47,14 +48,15 @@ pub fn PollView(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> im
             set_error.set(Some("Pick an option first.".to_owned()));
             return;
         }
+        let alive = Alive::new();
         set_busy.set(true);
         set_error.set(None);
         spawn_local(async move {
             match actions::vote(&poll_id, &choices).await {
-                Ok(status) => set_shown.set(status),
-                Err(message) => set_error.set(Some(message)),
+                Ok(status) => alive.if_alive(|| set_shown.set(status)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_busy.set(false);
+            alive.if_alive(|| set_busy.set(false));
         });
     };
 

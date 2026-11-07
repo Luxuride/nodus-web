@@ -9,6 +9,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
 use super::super::status::StatusCard;
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// A list timeline, or nothing when no list is selected.
@@ -20,12 +21,13 @@ pub fn ListTimeline(list_id: ReadSignal<Option<String>>) -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
 
     let load = move |id: String, after: Option<String>| {
+        let alive = Alive::new();
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
             match actions::list_timeline(&id, after.as_deref()).await {
                 Ok(page) => {
-                    set_cursor.set(page.next_max_id);
+                    alive.if_alive(|| set_cursor.set(page.next_max_id));
                     let fresh: Vec<Status> = page
                         .items
                         .into_iter()
@@ -36,11 +38,11 @@ pub fn ListTimeline(list_id: ReadSignal<Option<String>>) -> impl IntoView {
                                 .any(|seen| seen.id == status.id)
                         })
                         .collect();
-                    set_statuses.update(|list| list.extend(fresh));
+                    alive.if_alive(|| set_statuses.update(|list| list.extend(fresh)));
                 }
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_loading.set(false);
+            alive.if_alive(|| set_loading.set(false));
         });
     };
 

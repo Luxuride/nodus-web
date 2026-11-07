@@ -10,6 +10,7 @@ use nodus_instance::model::Account;
 use super::request::FollowRequestActions;
 use crate::router::{self, Route};
 use crate::routes::format::display_name;
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// The requests, empty when there are none.
@@ -21,13 +22,15 @@ pub fn PendingRequests(set_error: WriteSignal<Option<String>>) -> impl IntoView 
     // Reloading is a counter rather than a closure: the answer handler cannot call a
     // closure that is still being defined, and an effect on the counter re-reads the list.
     let refresh = move || set_pending.update(|count| *count += 1);
+    let alive = Alive::new();
 
     Effect::new(move |_| {
         pending.get();
+
         spawn_local(async move {
             match actions::follow_requests().await {
-                Ok(found) => set_requests.set(found),
-                Err(message) => set_error.set(Some(message)),
+                Ok(found) => alive.if_alive(|| set_requests.set(found)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
     });

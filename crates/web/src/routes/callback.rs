@@ -7,6 +7,7 @@
 use leptos::prelude::*;
 
 use crate::router::{Route, link, navigate};
+use crate::state::alive::Alive;
 use crate::state::bridge;
 use crate::state::oauth;
 
@@ -22,6 +23,10 @@ pub fn Callback() -> impl IntoView {
         .unwrap_or_default();
     strip_query();
 
+    // The exchange outlives this screen whenever the operator navigates away while it
+    // runs, so the failure branch has to check before it writes.
+    let alive = Alive::new();
+
     wasm_bindgen_futures::spawn_local(async move {
         match oauth::finish(&search).await {
             Ok((host, token)) => {
@@ -30,10 +35,10 @@ pub fn Callback() -> impl IntoView {
                 // write the same two lines twice.
                 match bridge::sign_in(&host, &token).await {
                     Ok(()) => navigate(Route::Feed),
-                    Err(message) => error.set(Some(message)),
+                    Err(message) => alive.if_alive(|| error.set(Some(message))),
                 }
             }
-            Err(message) => error.set(Some(message)),
+            Err(message) => alive.if_alive(|| error.set(Some(message))),
         }
     });
 

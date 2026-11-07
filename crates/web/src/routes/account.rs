@@ -10,6 +10,7 @@ use nodus_instance::model::{Account, Relationship, Status};
 
 use super::people::{Kind, PeopleList};
 use super::status::StatusCard;
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 use tabs::AccountTabs;
 
@@ -74,6 +75,7 @@ pub fn AccountView(id: String) -> impl IntoView {
     let (loading, set_loading) = signal(false);
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
+    let alive = Alive::new();
 
     // `StoredValue` rather than a captured `String`: two `Show` bodies read the id, and
     // a value captured by move would make each of them `FnOnce`.
@@ -83,28 +85,33 @@ pub fn AccountView(id: String) -> impl IntoView {
     Effect::new(move |_| {
         // One clone per request: the three calls run in parallel and each owns its id.
         let for_account = account_id.clone();
+
         spawn_local(async move {
             match actions::account(&for_account).await {
-                Ok(found) => set_account.set(Some(found)),
-                Err(message) => set_error.set(Some(message)),
+                Ok(found) => alive.if_alive(|| set_account.set(Some(found))),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
         let for_relationship = account_id.clone();
+
         spawn_local(async move {
             match actions::relationship(&for_relationship).await {
-                Ok(Some(found)) => set_relationship.set(Some(found)),
+                Ok(Some(found)) => alive.if_alive(|| set_relationship.set(Some(found))),
                 Ok(None) => {}
                 Err(message) => set_error.set(Some(message)),
             }
         });
         let for_statuses = account_id.clone();
+
         spawn_local(async move {
             match actions::account_statuses(&for_statuses, None).await {
                 Ok(page) => {
-                    set_statuses.set(page.items);
-                    set_cursor.set(page.next_max_id);
+                    alive.if_alive(|| {
+                        set_statuses.set(page.items);
+                        set_cursor.set(page.next_max_id);
+                    });
                 }
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
     });
@@ -117,15 +124,16 @@ pub fn AccountView(id: String) -> impl IntoView {
             set_loading.set(true);
             let id = id.clone();
             let after = cursor.get_untracked();
+
             spawn_local(async move {
                 match actions::account_statuses(&id, after.as_deref()).await {
-                    Ok(page) => {
+                    Ok(page) => alive.if_alive(|| {
                         set_statuses.update(|statuses| statuses.extend(page.items));
                         set_cursor.set(page.next_max_id);
-                    }
-                    Err(message) => set_error.set(Some(message)),
+                    }),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
-                set_loading.set(false);
+                alive.if_alive(|| set_loading.set(false));
             });
         })
     };

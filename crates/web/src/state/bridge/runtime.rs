@@ -26,6 +26,16 @@ use super::SDK;
 /// hidden for a long time, and a minute costs nothing because nothing runs.
 const IDLE_SLEEP: Duration = Duration::from_secs(60);
 
+/// Shortest time the loop will ever wait.
+///
+/// `Driver::next_wake` answers `Some(0)` when work is due now, which is the right
+/// answer for a caller that owns a thread. In a browser it is a trap: a due plan that
+/// the SDK declines to act on (signed out, or a cycle that records no attempt) stays
+/// due, and a zero-delay loop starves the main thread — the page keeps rendering
+/// nothing, so clicks appear to do nothing at all. One second of guaranteed yielding
+/// bounds that at one tick a second and keeps painting.
+const MIN_TICK: Duration = Duration::from_secs(1);
+
 thread_local! {
     /// The driver's budget, kept out of the SDK because it describes the *process*.
     static DRIVER: RefCell<Option<Driver>> = const { RefCell::new(None) };
@@ -41,6 +51,11 @@ pub fn start() {
     DRIVER.with_borrow_mut(|slot| *slot = Some(driver));
 
     spawn_local(async move {
+        // Counts ticks that were due the moment they started. A run of them means the
+        // plan is stuck on a flag the SDK cannot clear; the floor below keeps the page
+        // alive and this warning is what makes the situation visible in a console.
+        let mut immediate = 0_u32;
+        let mut warned = false;
         loop {
             let due = DRIVER.with_borrow(|slot| {
                 slot.as_ref()
@@ -49,8 +64,18 @@ pub fn start() {
 
             let sleep_for = due.map_or(IDLE_SLEEP, |wait| wait.min(IDLE_SLEEP));
             if !sleep_for.is_zero() {
-                sleep_millis(sleep_for).await;
+                immediate = 0;
+                sleep_millis(sleep_for.max(MIN_TICK)).await;
                 continue;
+            }
+
+            immediate = immediate.saturating_add(1);
+            if immediate >= 10 && !warned {
+                warned = true;
+                web_sys::console::warn_1(
+                    &"nodus: the background tick is due on every wake without making progress"
+                        .into(),
+                );
             }
 
             // Due. Take the driver out so the SDK can borrow it mutably while the
@@ -60,8 +85,12 @@ pub fn start() {
                 return;
             };
             let Some(sdk) = SDK.with_borrow(std::clone::Clone::clone) else {
+                // Not installed yet, so this tick cannot act. Put the driver back and
+                // wait rather than returning: a loop that exits here would never
+                // restart, and the whole point of the tick is that it outlives a mount.
                 DRIVER.with_borrow_mut(|slot| *slot = Some(driver));
-                return;
+                sleep_millis(MIN_TICK).await;
+                continue;
             };
 
             // No session, nothing to refresh: the driver keeps its budget and the
@@ -74,7 +103,9 @@ pub fn start() {
             }
 
             DRIVER.with_borrow_mut(|slot| *slot = Some(driver));
-            sleep_millis(sleep_for).await;
+            // Always yield after acting: the next plan may still be due, and the frame
+            // has to be painted before another tick is allowed to start.
+            sleep_millis(MIN_TICK).await;
         }
     });
 }

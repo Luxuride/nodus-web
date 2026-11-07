@@ -12,6 +12,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{Account, Status, Tag};
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 mod results;
@@ -34,19 +35,22 @@ pub fn Search() -> impl IntoView {
         if text.trim().is_empty() {
             return;
         }
+        let alive = Alive::new();
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
             match actions::search(text.trim(), true).await {
                 Ok(found) => {
-                    set_accounts.set(found.accounts);
-                    set_statuses.set(found.statuses);
-                    set_tags.set(found.hashtags);
-                    set_searched.set(true);
+                    alive.if_alive(|| {
+                        set_accounts.set(found.accounts);
+                        set_statuses.set(found.statuses);
+                        set_tags.set(found.hashtags);
+                        set_searched.set(true);
+                    });
                 }
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_loading.set(false);
+            alive.if_alive(|| set_loading.set(false));
         });
     };
 

@@ -11,6 +11,7 @@ use leptos::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::MouseEvent;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::{follow_item, not_interested, unfollow_item, with_sdk};
 
 use super::share::{ShareReport, TOAST_MILLIS, copy_profile_link};
@@ -40,6 +41,7 @@ pub(super) fn item_actions(
     busy: RwSignal<bool>,
     error: RwSignal<Option<String>>,
     toast: RwSignal<Option<ShareReport>>,
+    alive: Alive,
 ) -> ItemActions {
     let follow = {
         let account_id = account_id.clone();
@@ -50,11 +52,12 @@ pub(super) fn item_actions(
             busy.set(true);
             error.set(None);
             let account_id = account_id.clone();
+
             spawn_local(async move {
                 let result = follow_item(item_id, &account_id).await;
-                busy.set(false);
+                alive.if_alive(|| busy.set(false));
                 if let Err(message) = result {
-                    error.set(Some(message));
+                    alive.if_alive(|| error.set(Some(message)));
                 }
             });
         }) as Box<dyn FnMut(MouseEvent)>
@@ -68,12 +71,13 @@ pub(super) fn item_actions(
             }
             busy.set(true);
             let account_id = account_id.clone();
+
             spawn_local(async move {
                 // Failure surfaces in the Feed tab's alert, not here: the follow
                 // flip remounts this card (see `Feed`'s list key), so a message
                 // held in `error` would be dropped before it could be read.
                 unfollow_item(account_id).await;
-                busy.set(false);
+                alive.if_alive(|| busy.set(false));
             });
         }) as Box<dyn FnMut(MouseEvent)>
     };
@@ -84,11 +88,12 @@ pub(super) fn item_actions(
         }
         busy.set(true);
         error.set(None);
+
         spawn_local(async move {
             let result = not_interested(item_id).await;
-            busy.set(false);
+            alive.if_alive(|| busy.set(false));
             if let Err(message) = result {
-                error.set(Some(message));
+                alive.if_alive(|| error.set(Some(message)));
             }
         });
     }) as Box<dyn FnMut(MouseEvent)>;
@@ -99,14 +104,17 @@ pub(super) fn item_actions(
         // Read at click time, not at render time: the session may have finished
         // restoring after this card was built.
         let host = with_sdk(|sdk| sdk.state().session.get().map(|session| session.host));
+
         spawn_local(async move {
             let Some(host) = host else {
-                toast.set(Some(ShareReport {
-                    ok: false,
-                    // The same sentence `share` uses: a card cannot be copied
-                    // without the instance the profile lives on.
-                    message: "Not signed in.".to_owned(),
-                }));
+                alive.if_alive(|| {
+                    toast.set(Some(ShareReport {
+                        ok: false,
+                        // The same sentence `share` uses: a card cannot be copied
+                        // without the instance the profile lives on.
+                        message: "Not signed in.".to_owned(),
+                    }));
+                });
                 set_timeout(move || toast.set(None), Duration::from_millis(TOAST_MILLIS));
                 return;
             };
@@ -117,7 +125,7 @@ pub(super) fn item_actions(
                 },
                 Err(message) => ShareReport { ok: false, message },
             };
-            toast.set(Some(report));
+            alive.if_alive(|| toast.set(Some(report)));
             set_timeout(move || toast.set(None), Duration::from_millis(TOAST_MILLIS));
         });
     }) as Box<dyn FnMut(MouseEvent)>;

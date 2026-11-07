@@ -7,6 +7,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::List;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// A selectable list with its two edits.
@@ -23,6 +24,7 @@ pub fn ListRow(
     let title = list.title.clone();
     let (editing, set_editing) = signal(false);
     let (draft, set_draft) = signal(title.clone());
+    let alive = Alive::new();
 
     let select = move |_| set_selected.set(Some(id.clone()));
 
@@ -35,12 +37,13 @@ pub fn ListRow(
                 return;
             }
             let id = id.clone();
+
             spawn_local(async move {
                 match actions::rename_list(&id, name.trim()).await {
-                    Ok(_) => set_editing.set(false),
-                    Err(message) => set_error.set(Some(message)),
+                    Ok(_) => alive.if_alive(|| set_editing.set(false)),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
-                reload.run(());
+                alive.if_alive(|| reload.run(()));
             });
         })
     };
@@ -49,16 +52,17 @@ pub fn ListRow(
         let id = list.id.clone();
         Callback::new(move |()| {
             let id = id.clone();
+
             spawn_local(async move {
                 match actions::delete_list(&id).await {
-                    Ok(()) => {
+                    Ok(()) => alive.if_alive(|| {
                         if selected.get_untracked().as_deref() == Some(id.as_str()) {
                             set_selected.set(None);
                         }
-                    }
-                    Err(message) => set_error.set(Some(message)),
+                    }),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
-                reload.run(());
+                alive.if_alive(|| reload.run(()));
             });
         })
     };

@@ -7,6 +7,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// Two buttons and the failure text for them.
@@ -21,11 +22,13 @@ pub fn FollowRequestActions(
     set_error: WriteSignal<Option<String>>,
 ) -> impl IntoView {
     let (busy, set_busy) = signal(false);
+    let alive = Alive::new();
 
     let answer = {
         let account_id = account_id.clone();
         move |accept: bool| {
             let account_id = account_id.clone();
+
             set_busy.set(true);
             spawn_local(async move {
                 let result = if accept {
@@ -36,10 +39,10 @@ pub fn FollowRequestActions(
                     actions::reject_follow_request(&account_id).await
                 };
                 match result {
-                    Ok(()) => on_done.run(()),
-                    Err(message) => set_error.set(Some(message)),
+                    Ok(()) => alive.if_alive(|| on_done.run(())),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
-                set_busy.set(false);
+                alive.if_alive(|| set_busy.set(false));
             });
         }
     };

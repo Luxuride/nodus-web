@@ -8,6 +8,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
 use crate::router::{self, Route};
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// Edit and delete, for the author.
@@ -16,6 +17,7 @@ pub fn StatusMenu(
     shown: ReadSignal<Status>,
     set_error: WriteSignal<Option<String>>,
 ) -> impl IntoView {
+    let alive = Alive::new();
     let mine = move || {
         let status = shown.get();
         actions::viewer_id().is_some_and(|id| id == status.account.id)
@@ -33,7 +35,7 @@ pub fn StatusMenu(
             match actions::delete_status(&status.id).await {
                 // The status has no page left to show, and every list holding it is stale.
                 Ok(()) => router::navigate(Route::Home),
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
     };

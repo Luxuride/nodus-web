@@ -9,6 +9,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::{Page, Status};
 
 use super::status::StatusCard;
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// Which shelf is showing.
@@ -46,12 +47,13 @@ pub fn Saved() -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
 
     let load = move |which: Shelf, after: Option<String>| {
+        let alive = Alive::new();
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
             match page(which, after.as_deref()).await {
                 Ok(page) => {
-                    set_cursor.set(page.next_max_id);
+                    alive.if_alive(|| set_cursor.set(page.next_max_id));
                     // Collect first: filtering against the same list we are extending
                     // would borrow it twice.
                     let fresh: Vec<Status> = page
@@ -64,11 +66,11 @@ pub fn Saved() -> impl IntoView {
                                 .any(|seen| seen.id == status.id)
                         })
                         .collect();
-                    set_statuses.update(|list| list.extend(fresh));
+                    alive.if_alive(|| set_statuses.update(|list| list.extend(fresh)));
                 }
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_loading.set(false);
+            alive.if_alive(|| set_loading.set(false));
         });
     };
 

@@ -11,6 +11,7 @@ use nodus_instance::model::Status;
 
 use super::menu::StatusMenu;
 use crate::router::{self, Route};
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// Counts on the left, actions on the right.
@@ -22,6 +23,8 @@ pub fn CardFooter(
     set_busy: WriteSignal<bool>,
     set_error: WriteSignal<Option<String>>,
 ) -> impl IntoView {
+    let alive = Alive::new();
+
     view! {
         <footer class="flex items-center justify-between gap-2 border-t border-base-200 pt-2">
             <span class="text-xs opacity-60">
@@ -56,12 +59,13 @@ pub fn CardFooter(
                         let want = !shown.get_untracked().reblogged;
                         set_busy.set(true);
                         set_error.set(None);
+
                         spawn_local(async move {
                             match actions::reblog(&id, want).await {
-                                Ok(status) => set_shown.set(status),
-                                Err(message) => set_error.set(Some(message)),
+                                Ok(status) => alive.if_alive(|| set_shown.set(status)),
+                                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                             }
-                            set_busy.set(false);
+                            alive.if_alive(|| set_busy.set(false));
                         });
                     }
                 >
@@ -76,12 +80,13 @@ pub fn CardFooter(
                         let want = !shown.get_untracked().favourited;
                         set_busy.set(true);
                         set_error.set(None);
+
                         spawn_local(async move {
                             match actions::favourite(&id, want).await {
-                                Ok(status) => set_shown.set(status),
-                                Err(message) => set_error.set(Some(message)),
+                                Ok(status) => alive.if_alive(|| set_shown.set(status)),
+                                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                             }
-                            set_busy.set(false);
+                            alive.if_alive(|| set_busy.set(false));
                         });
                     }
                 >
@@ -96,12 +101,13 @@ pub fn CardFooter(
                         let want = !shown.get_untracked().bookmarked;
                         set_busy.set(true);
                         set_error.set(None);
+
                         spawn_local(async move {
                             match actions::bookmark(&id, want).await {
-                                Ok(status) => set_shown.set(status),
-                                Err(message) => set_error.set(Some(message)),
+                                Ok(status) => alive.if_alive(|| set_shown.set(status)),
+                                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                             }
-                            set_busy.set(false);
+                            alive.if_alive(|| set_busy.set(false));
                         });
                     }
                 >

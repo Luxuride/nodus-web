@@ -9,6 +9,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
 use super::StatusCard;
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 use super::reply::ReplyBox;
@@ -24,26 +25,31 @@ pub fn Thread(id: String) -> impl IntoView {
     let (ancestors, set_ancestors) = signal(Vec::<Status>::new());
     let (replies, set_replies) = signal(Vec::<Status>::new());
     let (error, set_error) = signal(None::<String>);
+    let alive = Alive::new();
 
     let root = id.clone();
     Effect::new(move |_| {
         let for_status = root.clone();
+
         spawn_local(async move {
             match actions::status(&for_status).await {
-                Ok(found) => set_status.set(Some(found)),
-                Err(message) => set_error.set(Some(message)),
+                Ok(found) => alive.if_alive(|| set_status.set(Some(found))),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
         let for_thread = root.clone();
+
         spawn_local(async move {
             match actions::thread(&for_thread).await {
                 Ok(context) => {
-                    set_ancestors.set(context.ancestors);
-                    set_replies.set(context.descendants);
+                    alive.if_alive(|| {
+                        set_ancestors.set(context.ancestors);
+                        set_replies.set(context.descendants);
+                    });
                 }
                 // The status is already on screen; a failed context is a note, not a
                 // blank page.
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
     });

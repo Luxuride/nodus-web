@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 mod attachments;
@@ -34,11 +35,12 @@ pub fn ComposeEdit(id: String) -> impl IntoView {
     {
         let id = id.clone();
         Effect::new(move |_| {
+            let alive = Alive::new();
             let id = id.clone();
             spawn_local(async move {
                 match actions::status(&id).await {
-                    Ok(found) => set_status.set(Some(found)),
-                    Err(message) => set_error.set(Some(message)),
+                    Ok(found) => alive.if_alive(|| set_status.set(Some(found))),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
             });
         });

@@ -6,6 +6,7 @@ use nodus_shared::AccountItem;
 use super::actions::{ItemActions, item_actions};
 use super::reason::{follower_label, reason_line, reason_title, sample_followers_line};
 use super::share::ShareReport;
+use crate::state::alive::Alive;
 use crate::state::bridge::{begin_impression, finish_impression};
 
 /// One ranked account: who it is, why it is here, and the three actions.
@@ -45,6 +46,10 @@ pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
     begin_impression(item_id);
     on_cleanup(move || finish_impression(item_id));
 
+    // The card can be unmounted by a follow flip while one of its requests is in
+    // flight, so the handlers need the flag rather than the signals alone.
+    let alive = Alive::new();
+
     let busy = RwSignal::new(false);
     let error = RwSignal::new(None::<String>);
     let toast = RwSignal::new(None::<ShareReport>);
@@ -53,34 +58,23 @@ pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
         unfollow,
         not_interested,
         copy,
-    } = item_actions(item_id, account_id, acct.clone(), busy, error, toast);
+    } = item_actions(item_id, account_id, acct.clone(), busy, error, toast, alive);
 
-    let follow_button = if already_following {
-        view! {
-            <button
-                class="btn btn-ghost btn-sm"
-                title="Undo this follow"
-                disabled=move || busy.get()
-                on:click=unfollow
-            >
-                "Following"
-            </button>
-        }
-        .into_any()
+    // One button instead of two `view!` branches: the difference is a label, a class
+    // and which handler runs, and three lines of metadata beat twenty of duplication.
+    let (follow_label, follow_class) = if already_following {
+        ("Following", "btn btn-ghost btn-sm")
     } else {
-        view! {
-            <button
-                class="btn btn-primary btn-sm"
-                disabled=move || busy.get()
-                on:click=follow
-            >
-                <Show when=move || busy.get()>
-                    <span class="loading loading-spinner loading-xs"></span>
-                </Show>
-                "Follow"
-            </button>
+        ("Follow", "btn btn-primary btn-sm")
+    };
+    let mut follow = follow;
+    let mut unfollow = unfollow;
+    let follow_click = move |event: leptos::ev::MouseEvent| {
+        if already_following {
+            unfollow(event);
+        } else {
+            follow(event);
         }
-        .into_any()
     };
 
     view! {
@@ -113,7 +107,12 @@ pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
                     >
                         "Not interested"
                     </button>
-                    {follow_button}
+                    <button class=follow_class disabled=move || busy.get() on:click=follow_click>
+                        <Show when=move || busy.get() && !already_following>
+                            <span class="loading loading-spinner loading-xs"></span>
+                        </Show>
+                        {follow_label}
+                    </button>
                 </div>
                 {move || error.get().map(|message| view! {
                     <p class="text-sm text-error" role="alert">{message}</p>

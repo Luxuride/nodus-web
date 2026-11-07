@@ -9,6 +9,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
 use crate::routes::status::StatusCard;
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// Which timeline a tab shows.
@@ -46,32 +47,36 @@ pub fn Home() -> impl IntoView {
     let (timelines, set_timelines) = signal(Timelines::default());
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
+    let alive = Alive::new();
 
     let load = move |kind: Tab, after: Option<String>| {
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
             let appending = after.is_some();
+
             let page = match (kind, after) {
                 (Tab::Home, cursor) => actions::home_page(cursor.as_deref()).await,
                 (Tab::Local, cursor) => actions::public_page(cursor.as_deref(), true).await,
                 (Tab::Federated, cursor) => actions::public_page(cursor.as_deref(), false).await,
             };
             match page {
-                Ok(page) => set_timelines.update(|timelines| {
-                    // A new tab starts from nothing; "load more" appends. The cursor is
-                    // the only difference, and the caller knows which it asked for.
-                    if !appending {
-                        timelines.statuses.clear();
-                    }
-                    timelines
-                        .statuses
-                        .extend(dedupe(page.items, &timelines.statuses));
-                    timelines.cursor = page.next_max_id;
+                Ok(page) => alive.if_alive(|| {
+                    set_timelines.update(|timelines| {
+                        // A new tab starts from nothing; "load more" appends. The cursor is
+                        // the only difference, and the caller knows which it asked for.
+                        if !appending {
+                            timelines.statuses.clear();
+                        }
+                        timelines
+                            .statuses
+                            .extend(dedupe(page.items, &timelines.statuses));
+                        timelines.cursor = page.next_max_id;
+                    });
                 }),
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_loading.set(false);
+            alive.if_alive(|| set_loading.set(false));
         });
     };
 

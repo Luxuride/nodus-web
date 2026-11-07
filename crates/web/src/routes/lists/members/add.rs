@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{Account, SearchResults};
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// A search box that adds the account you pick.
@@ -20,39 +21,46 @@ pub fn AddPeople(
     let (query, set_query) = signal(String::new());
     let (candidates, set_candidates) = signal(Vec::<Account>::new());
     let (busy, set_busy) = signal(false);
+    let alive = Alive::new();
 
-    let search = move |()| {
-        let text = query.get_untracked();
-        if text.trim().is_empty() {
-            set_candidates.set(Vec::new());
-            return;
-        }
-        set_busy.set(true);
-        spawn_local(async move {
-            match actions::search(text.trim(), true).await {
-                Ok(SearchResults { accounts, .. }) => set_candidates.set(accounts),
-                Err(message) => set_error.set(Some(message)),
+    let search = {
+        move |()| {
+            let text = query.get_untracked();
+            if text.trim().is_empty() {
+                set_candidates.set(Vec::new());
+                return;
             }
-            set_busy.set(false);
-        });
+
+            set_busy.set(true);
+            spawn_local(async move {
+                match actions::search(text.trim(), true).await {
+                    Ok(SearchResults { accounts, .. }) => {
+                        alive.if_alive(|| set_candidates.set(accounts));
+                    }
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+                }
+                alive.if_alive(|| set_busy.set(false));
+            });
+        }
     };
 
     let add = move |account_id: String| {
         let Some(id) = list_id.get_untracked() else {
             return;
         };
+
         set_busy.set(true);
         set_error.set(None);
         spawn_local(async move {
             match actions::set_list_member(&id, &account_id, true).await {
                 Ok(()) => {
-                    set_query.set(String::new());
-                    set_candidates.set(Vec::new());
+                    alive.if_alive(|| set_query.set(String::new()));
+                    alive.if_alive(|| set_candidates.set(Vec::new()));
                     on_add.run(());
                 }
-                Err(message) => set_error.set(Some(message)),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            set_busy.set(false);
+            alive.if_alive(|| set_busy.set(false));
         });
     };
 

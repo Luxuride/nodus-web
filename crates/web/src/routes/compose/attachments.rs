@@ -10,6 +10,7 @@ use nodus_instance::model::MediaAttachment;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
 /// Reads a picked file into bytes and its declared MIME type.
@@ -46,6 +47,7 @@ pub fn Attachments(
         if picked.is_empty() {
             return;
         }
+        let alive = Alive::new();
         set_uploading.set(true);
         set_error.set(None);
         spawn_local(async move {
@@ -59,14 +61,16 @@ pub fn Attachments(
                             mime
                         };
                         match actions::upload_media(bytes, mime, Some(name)).await {
-                            Ok(attachment) => media.update(|list| list.push(attachment)),
-                            Err(message) => set_error.set(Some(message)),
+                            Ok(attachment) => {
+                                alive.if_alive(|| media.update(|list| list.push(attachment)));
+                            }
+                            Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                         }
                     }
-                    Err(message) => set_error.set(Some(message)),
+                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
             }
-            set_uploading.set(false);
+            alive.if_alive(|| set_uploading.set(false));
         });
     };
 

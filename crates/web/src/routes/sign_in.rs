@@ -13,6 +13,7 @@
 use leptos::ev::SubmitEvent;
 use leptos::prelude::*;
 
+use crate::state::alive::Alive;
 use crate::state::bridge::{feed_ui, sign_in};
 use crate::state::oauth;
 
@@ -43,13 +44,16 @@ pub fn SignIn(#[prop(optional)] note: Option<&'static str>) -> impl IntoView {
         authorizing.set(true);
         authorize_error.set(None);
         let host = host.get_untracked();
+        let alive = Alive::new();
         wasm_bindgen_futures::spawn_local(async move {
             // `Ok` means the browser is already navigating to the instance, so the
             // spinner deliberately stays on: putting the button back would invite a
             // second authorization request while the first is in flight.
             if let Err(message) = oauth::begin(&host).await {
-                authorize_error.set(Some(message));
-                authorizing.set(false);
+                alive.if_alive(|| {
+                    authorize_error.set(Some(message));
+                    authorizing.set(false);
+                });
             }
         });
     };
@@ -129,11 +133,12 @@ fn TokenEscapeHatch(
         error.set(None);
         let host = host.get_untracked();
         let token = token.get_untracked();
+        let alive = Alive::new();
         wasm_bindgen_futures::spawn_local(async move {
             if let Err(message) = sign_in(&host, &token).await {
-                error.set(Some(message));
+                alive.if_alive(|| error.set(Some(message)));
             }
-            pasting.set(false);
+            alive.if_alive(|| pasting.set(false));
         });
     };
 

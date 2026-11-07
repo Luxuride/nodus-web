@@ -3,7 +3,7 @@
 use super::instance_transport;
 use nodus_instance::actions::AdminActions;
 use nodus_instance::model::{
-    AdminAccount, Announcement, DomainBlock, DomainSeverity, ModerationAction, Report, ReportState,
+    AdminAccount, AdminMeasure, Announcement, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Relay, Report, ReportState,
 };
 
 /// How many rows a moderation screen asks for.
@@ -125,6 +125,78 @@ pub async fn delete_announcement(id: &str) -> Result<(), String> {
     let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .delete_announcement(id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Dashboard counts for the last `days` days.
+///
+/// The two dates are computed here rather than in the SDK: `js_sys::Date` is the only
+/// clock this crate has, and the API wants `YYYY-MM-DD` strings.
+pub async fn measures(keys: &[&str], days: f64) -> Result<Vec<AdminMeasure>, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    let end = js_sys::Date::new_0();
+    let start = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(
+        end.get_time() - days * 86_400_000.0,
+    ));
+    transport
+        .measures(keys, &day(&start), &day(&end))
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// The day part of an instant, which is what the measures endpoint accepts.
+fn day(date: &js_sys::Date) -> String {
+    String::from(date.to_iso_string()).chars().take(10).collect()
+}
+
+/// Relays this instance follows.
+pub async fn relays() -> Result<Vec<Relay>, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport.relays().await.map_err(|error| error.to_string())
+}
+
+/// Asks a relay to forward public posts here.
+pub async fn add_relay(inbox_url: &str) -> Result<Relay, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .add_relay(inbox_url)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Stops following a relay.
+pub async fn remove_relay(id: &str) -> Result<(), String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .remove_relay(id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Domains allowed through a general block.
+pub async fn domain_allows() -> Result<Vec<DomainAllow>, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .domain_allows(PAGE)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Lets a domain through.
+pub async fn create_domain_allow(domain: &str) -> Result<DomainAllow, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .create_domain_allow(domain)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Withdraws an allow.
+pub async fn delete_domain_allow(id: &str) -> Result<(), String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .delete_domain_allow(id)
         .await
         .map_err(|error| error.to_string())
 }

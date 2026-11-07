@@ -13,11 +13,13 @@ use self::accounts::AccountList;
 use self::announcements::Announcements;
 use self::domains::DomainList;
 use self::reports::ReportQueue;
+use self::server::Server;
 
 mod accounts;
 mod announcements;
 mod domains;
 mod reports;
+mod server;
 
 /// Which list is on screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,14 +28,16 @@ enum Tab {
     Accounts,
     Domains,
     Announcements,
+    Server,
 }
 
 impl Tab {
-    const ALL: [Self; 4] = [
+    const ALL: [Self; 5] = [
         Self::Reports,
         Self::Accounts,
         Self::Domains,
         Self::Announcements,
+        Self::Server,
     ];
 
     const fn label(self) -> &'static str {
@@ -42,6 +46,7 @@ impl Tab {
             Self::Accounts => "Accounts",
             Self::Domains => "Domains",
             Self::Announcements => "Announcements",
+            Self::Server => "Server",
         }
     }
 }
@@ -93,6 +98,7 @@ pub fn Admin() -> impl IntoView {
                     Tab::Accounts => view! { <AccountList/> }.into_any(),
                     Tab::Domains => view! { <DomainList/> }.into_any(),
                     Tab::Announcements => view! { <Announcements/> }.into_any(),
+                    Tab::Server => view! { <Server/> }.into_any(),
                 }}
             </Show>
         </section>

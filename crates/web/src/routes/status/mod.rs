@@ -23,6 +23,7 @@ mod poll;
 mod public;
 mod reply;
 pub(crate) mod sensitive;
+mod share;
 
 use body::StatusBody;
 use footer::CardFooter;

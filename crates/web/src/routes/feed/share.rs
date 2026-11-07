@@ -30,13 +30,32 @@ pub(super) struct ShareReport {
 ///
 /// The error is a user-facing sentence, because the caller only has the toast to
 /// say anything with: a refused permission and a missing window look the same to it.
-pub(super) async fn copy_profile_link(host: &str, acct: &str) -> Result<(), String> {
+pub(crate) async fn copy_profile_link(host: &str, acct: &str) -> Result<(), String> {
     let url = profile_url(host, acct).ok_or_else(|| "Not signed in.".to_owned())?;
+    write_clipboard(&url).await
+}
+
+/// Copies a link to one post.
+///
+/// The link names the *instance* and points at `/s/…`, the server-rendered page, not at
+/// the app route. A chat client fetching the app route gets an empty shell — no `og:` tags,
+/// no preview — while `/s/…` describes the post to a crawler and shows it to a person.
+pub(crate) async fn copy_post_link(host: &str, id: &str) -> Result<(), String> {
+    let origin = web_sys::window()
+        .ok_or_else(|| "This browser has no window.".to_owned())?
+        .location()
+        .origin()
+        .map_err(|_| "This browser cannot build a link.".to_owned())?;
+    write_clipboard(&format!("{origin}/s/{host}/{id}")).await
+}
+
+/// The one place that touches the clipboard.
+async fn write_clipboard(url: &str) -> Result<(), String> {
     let clipboard = web_sys::window()
         .ok_or_else(|| "This browser has no clipboard access.".to_owned())?
         .navigator()
         .clipboard();
-    wasm_bindgen_futures::JsFuture::from(clipboard.write_text(&url))
+    wasm_bindgen_futures::JsFuture::from(clipboard.write_text(url))
         .await
         .map_err(|_| "The browser refused clipboard access.".to_owned())?;
     Ok(())

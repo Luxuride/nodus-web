@@ -16,7 +16,7 @@ mod item;
 mod people;
 pub mod posts;
 mod reason;
-mod share;
+pub(crate) mod share;
 
 /// Which list the Feed tab shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

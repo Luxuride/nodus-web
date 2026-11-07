@@ -10,6 +10,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
 use super::menu::StatusMenu;
+use super::share::ShareButton;
 use crate::router::{self, Route};
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
@@ -113,6 +114,7 @@ pub fn CardFooter(
                 >
                     "Bookmark"
                 </button>
+                <ShareButton shown=shown set_error=set_error/>
             </div>
         </footer>
     }

@@ -33,7 +33,7 @@ pub fn Feed() -> impl IntoView {
     // Read once so the counts and any refresh affordance in the header agree with
     // whichever list is rendered below.
     let revision = revision();
-    let tab = RwSignal::new(Tab::People);
+    let tab = RwSignal::new(Tab::Posts);
 
     view! {
         <section class="mx-auto w-full max-w-2xl px-4 py-6">

@@ -36,6 +36,7 @@ mod impressions;
 mod posts;
 mod runtime;
 mod session;
+pub mod timeline;
 
 // Re-exported so every call site keeps saying `bridge::<verb>`: the split into
 // files is a reading aid, not a new API surface.

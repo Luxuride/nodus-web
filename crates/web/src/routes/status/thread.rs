@@ -11,6 +11,7 @@ use nodus_instance::model::Status;
 use super::StatusCard;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
+use crate::state::bridge::timeline;
 
 use super::reply::ReplyBox;
 
@@ -33,7 +34,12 @@ pub fn Thread(id: String) -> impl IntoView {
 
         spawn_local(async move {
             match actions::status(&for_status).await {
-                Ok(found) => alive.if_alive(|| set_status.set(Some(found))),
+                Ok(found) => {
+                    // The thread's status becomes SDK state like any other, so a card
+                    // that shows it elsewhere is already correct.
+                    timeline::upsert(vec![found.clone()]);
+                    alive.if_alive(|| set_status.set(Some(found)));
+                }
                 Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
@@ -42,6 +48,9 @@ pub fn Thread(id: String) -> impl IntoView {
         spawn_local(async move {
             match actions::thread(&for_thread).await {
                 Ok(context) => {
+                    let mut all = context.ancestors.clone();
+                    all.extend(context.descendants.clone());
+                    timeline::upsert(all);
                     alive.if_alive(|| {
                         set_ancestors.set(context.ancestors);
                         set_replies.set(context.descendants);

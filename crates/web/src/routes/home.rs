@@ -1,18 +1,19 @@
-//! The home timeline, with the public ones beside it.
+//! The home, local and federated timelines, rendered out of SDK state.
 //!
-//! The SDK owns the cursor; this view owns the statuses it rendered. They are two
-//! different questions — "where do I resume" versus "what is on screen" — and a failed
-//! fetch must not lose the cursor while a successful one must not duplicate a status.
+//! The page owns no list. It reads what the SDK holds, asks it to fill what is
+//! missing or stale, and continues the same cursor when the reader asks for more —
+//! so returning to this screen paints immediately instead of starting from a
+//! spinner.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::Status;
+use nodus_sdk::Timeline;
 
 use crate::routes::status::StatusCard;
 use crate::state::alive::Alive;
-use crate::state::bridge::actions;
+use crate::state::bridge::{revision, timeline};
 
-/// Which timeline a tab shows.
+/// Which timeline the tabs ask for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Tab {
     Home,
@@ -28,133 +29,131 @@ impl Tab {
             Self::Federated => "Federated",
         }
     }
+
+    fn timeline(self) -> Timeline {
+        match self {
+            Self::Home => Timeline::Home,
+            Self::Local => Timeline::Local,
+            Self::Federated => Timeline::Federated,
+        }
+    }
 }
 
-/// A timeline page and the cursor that continues it.
-///
-/// `Clone` because a signal hands out a copy, and the clone is what makes the view
-/// independent of the buffer the next page will append to.
-#[derive(Debug, Clone, Default)]
-struct Timelines {
-    statuses: Vec<Status>,
-    cursor: Option<String>,
-}
-
-/// The home timeline.
+/// A timeline with its tabs.
 #[component]
 pub fn Home() -> impl IntoView {
+    let revision = revision();
     let (tab, set_tab) = signal(Tab::Home);
-    let (timelines, set_timelines) = signal(Timelines::default());
-    // Starts true: until the first request is issued, "nothing yet" is a
-    // guess, and a guess renders as an empty state that flickers.
+    // A request is in flight. Starts true because the first thing that happens is
+    // that request: "empty" before it is a guess, not a fact.
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 
-    let load = move |kind: Tab, after: Option<String>| {
+    let which = move || tab.get().timeline();
+    let held = move || {
+        revision.get();
+        timeline::read(which(), None)
+    };
+
+    // Runs on mount and on every tab change. `ensure` answers from state when the
+    // page is inside its TTL, so switching tabs costs nothing after the first visit.
+    Effect::new(move |_| {
+        let which = which();
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            let appending = after.is_some();
-
-            let page = match (kind, after) {
-                (Tab::Home, cursor) => actions::home_page(cursor.as_deref()).await,
-                (Tab::Local, cursor) => actions::public_page(cursor.as_deref(), true).await,
-                (Tab::Federated, cursor) => actions::public_page(cursor.as_deref(), false).await,
-            };
-            match page {
-                Ok(page) => alive.if_alive(|| {
-                    set_timelines.update(|timelines| {
-                        // A new tab starts from nothing; "load more" appends. The cursor is
-                        // the only difference, and the caller knows which it asked for.
-                        if !appending {
-                            timelines.statuses.clear();
-                        }
-                        timelines
-                            .statuses
-                            .extend(dedupe(page.items, &timelines.statuses));
-                        timelines.cursor = page.next_max_id;
-                    });
+            match timeline::ensure(which, None, None).await {
+                Ok(_) => alive.if_alive(|| set_loading.set(false)),
+                Err(message) => alive.if_alive(|| {
+                    set_error.set(Some(message));
+                    set_loading.set(false);
                 }),
-                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            alive.if_alive(|| set_loading.set(false));
+        });
+    });
+
+    let load_more = move || {
+        let which = which();
+        let Some(cursor) = held().1 else {
+            return;
+        };
+        set_loading.set(true);
+        set_error.set(None);
+        spawn_local(async move {
+            match timeline::ensure(which, None, Some(cursor)).await {
+                Ok(_) => alive.if_alive(|| set_loading.set(false)),
+                Err(message) => alive.if_alive(|| {
+                    set_error.set(Some(message));
+                    set_loading.set(false);
+                }),
+            }
         });
     };
 
-    // The first page, once; a later read of the same tab must not refetch what is
-    // already on screen.
-    Effect::new(move |_| {
-        let kind = tab.get();
-        let empty = timelines.with(|timelines| timelines.statuses.is_empty());
-        if empty {
-            load(kind, None);
-        }
-    });
-
     view! {
-        <section class="flex flex-col gap-3">
+        <div class="flex flex-col gap-3">
             <div role="tablist" class="tabs tabs-box w-fit">
-                <For each=|| [Tab::Home, Tab::Local, Tab::Federated] key=|tab| format!("{tab:?}") let:kind>
+                <For
+                    each=|| [Tab::Home, Tab::Local, Tab::Federated]
+                    key=|tab| format!("{tab:?}")
+                    let:kind
+                >
                     <button
                         role="tab"
                         class="tab"
                         class:tab-active=move || tab.get() == kind
-                        on:click=move |_| {
-                            set_timelines.set(Timelines::default());
-                            set_tab.set(kind);
-                            load(kind, None);
-                        }
+                        on:click=move |_| set_tab.set(kind)
                     >
                         {kind.label()}
                     </button>
                 </For>
             </div>
 
-            <Show when=move || loading.get() && timelines.get().statuses.is_empty()>
-                <p class="text-sm opacity-60">"Loading…"</p>
+            {move || error.get().map(|message| view! {
+                <div class="alert alert-error py-2 text-sm" role="alert">
+                    <span>{message}</span>
+                </div>
+            })}
+
+            // Unknown is not empty: the note below appears only once a load has
+            // finished and still found nothing.
+            <Show when=move || loading.get() && held().0.is_empty()>
+                <div class="flex justify-center py-6">
+                    <span class="loading loading-spinner loading-md"></span>
+                </div>
             </Show>
 
-            <ul class="flex flex-col gap-3">
-                <For
-                    each=move || timelines.get().statuses
-                    key=|status| status.id.clone()
-                    let:status
-                >
-                    <StatusCard status=status/>
-                </For>
-            </ul>
+            <For
+                each=move || held().0
+                key=|status| status.id.clone()
+                let:status
+            >
+                <StatusCard status=status/>
+            </For>
 
-            <Show when=move || !timelines.get().statuses.is_empty()>
+            <Show when=move || {
+                !loading.get() && held().0.is_empty() && error.get().is_none()
+            }>
+                <div class="card border border-base-300 bg-base-100">
+                    <div class="card-body items-center p-6 text-center">
+                        <h2 class="card-title text-base">"Nothing here yet"</h2>
+                        <p class="text-sm opacity-70">
+                            "This timeline is empty. Following a few accounts fills it."
+                        </p>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || held().1.is_some()>
                 <button
                     class="btn btn-ghost btn-sm w-full"
-                    disabled=move || loading.get() || timelines.get().cursor.is_none()
-                    on:click=move |_| {
-                        let kind = tab.get_untracked();
-                        let cursor = timelines.get_untracked().cursor;
-                        load(kind, cursor);
-                    }
+                    disabled=move || loading.get()
+                    on:click=move |_| load_more()
                 >
-                    {move || {
-                        if loading.get() { "Loading…" } else { "Load more" }
-                    }}
+                    {move || if loading.get() { "Loading…" } else { "Load more" }}
                 </button>
             </Show>
-
-            <Show when=move || error.get().is_some()>
-                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-            </Show>
-        </section>
+        </div>
     }
-}
-
-/// Drops statuses already on screen, keeping the incoming order.
-///
-/// Instances overlap pages when something new arrives between two requests, and a
-/// duplicate key in a keyed list is a Leptos panic, not a cosmetic bug.
-fn dedupe(incoming: Vec<Status>, existing: &[Status]) -> Vec<Status> {
-    incoming
-        .into_iter()
-        .filter(|status| !existing.iter().any(|seen| seen.id == status.id))
-        .collect()
 }

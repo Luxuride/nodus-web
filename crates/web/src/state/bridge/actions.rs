@@ -38,34 +38,6 @@ async fn call<T>(
 /// assumed" is how a timeline skips or repeats an entry.
 pub const PAGE: u16 = 20;
 
-/// Pages a home timeline.
-pub async fn home_page(after: Option<&str>) -> Result<Page<Status>, String> {
-    let transport = transport()?;
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport.timeline(nodus_instance::model::StreamKind::User, params)).await
-}
-
-/// Pages a public timeline; `local` keeps it to this instance.
-pub async fn public_page(after: Option<&str>, local: bool) -> Result<Page<Status>, String> {
-    let transport = transport()?;
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport.timeline(
-        if local {
-            nodus_instance::model::StreamKind::Local
-        } else {
-            nodus_instance::model::StreamKind::Federated
-        },
-        params,
-    ))
-    .await
-}
-
 /// One status.
 pub async fn status(id: &str) -> Result<Status, String> {
     call(transport()?.status(id)).await

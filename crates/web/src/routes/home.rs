@@ -6,12 +6,16 @@
 //! spinner.
 
 mod banner;
+mod tabs;
 
 use leptos::prelude::*;
+
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
 
 use self::banner::Banner;
+use self::tabs::TimelineTabs;
 use crate::routes::status::StatusCard;
 use crate::state::alive::Alive;
 use crate::state::bridge::{revision, timeline};
@@ -30,6 +34,15 @@ impl Tab {
             Self::Home => "Home",
             Self::Local => "Local",
             Self::Federated => "Federated",
+        }
+    }
+
+    /// What the tab holds, for the tooltip: "Local" alone does not say whose local.
+    fn hint(self) -> &'static str {
+        match self {
+            Self::Home => "Accounts you follow",
+            Self::Local => "Posts from accounts on this instance",
+            Self::Federated => "Posts this instance has received from elsewhere",
         }
     }
 
@@ -96,22 +109,8 @@ pub fn Home() -> impl IntoView {
 
     view! {
         <div class="flex flex-col gap-3">
-            <div role="tablist" class="tabs tabs-box w-fit">
-                <For
-                    each=|| [Tab::Home, Tab::Local, Tab::Federated]
-                    key=|tab| format!("{tab:?}")
-                    let:kind
-                >
-                    <button
-                        role="tab"
-                        class="tab"
-                        class:tab-active=move || tab.get() == kind
-                        on:click=move |_| set_tab.set(kind)
-                    >
-                        {kind.label()}
-                    </button>
-                </For>
-            </div>
+            <PageHeader title="Home" description="Your home timeline, with the local and federated ones beside it."/>
+            <TimelineTabs tab=tab set_tab=set_tab/>
 
             <Banner/>
 

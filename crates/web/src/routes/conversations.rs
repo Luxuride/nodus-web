@@ -6,6 +6,8 @@
 mod row;
 
 use leptos::prelude::*;
+
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::Conversation;
 
@@ -103,7 +105,7 @@ pub fn Conversations() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-3">
-            <h1 class="text-lg font-semibold">"Messages"</h1>
+            <PageHeader title="Messages" description="Direct conversations with other accounts. Opening one marks it read."/>
 
             <Show when=move || loading.get()>
                 <p class="text-sm opacity-60">"Loading conversations…"</p>

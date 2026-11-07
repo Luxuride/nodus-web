@@ -17,6 +17,7 @@ use super::format::{display_name, relative_time};
 use crate::router::{self, Route};
 
 mod body;
+mod chips;
 mod footer;
 mod menu;
 mod poll;

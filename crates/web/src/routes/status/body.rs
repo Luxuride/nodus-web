@@ -6,6 +6,7 @@
 use leptos::prelude::*;
 use nodus_instance::model::{MediaAttachment, MediaKind, Status};
 
+use super::chips::StatusChips;
 use super::poll::PollView;
 use super::sensitive;
 use crate::routes::feed::posts::plain_text;
@@ -44,6 +45,8 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
                 {move || plain_text(&shown.get().content)}
             </p>
         </Show>
+
+        <StatusChips shown=shown/>
 
         <Show when=move || hidden()>
             // Blurred *and* labelled: a blur alone leaves the reader guessing whether the

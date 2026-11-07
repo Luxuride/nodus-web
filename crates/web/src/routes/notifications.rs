@@ -5,6 +5,8 @@
 //! link; nothing here fetches a status the instance already inlined.
 
 use leptos::prelude::*;
+
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::Notification;
 
@@ -74,6 +76,7 @@ pub fn Notifications() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-3">
+            <PageHeader title="Notifications" description="Mentions, boosts, favourites and follow requests for this account."/>
             <PendingRequests set_error=set_error/>
 
             <Show when=move || cursor.get().is_some()>

@@ -9,6 +9,9 @@
 //! over the same value.
 
 use leptos::prelude::*;
+
+use crate::router;
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::{Account, Status, Tag};
 
@@ -54,8 +57,18 @@ pub fn Search() -> impl IntoView {
         });
     };
 
+    // A hashtag or mention chip links here with `?q=`, so the question arrives with the
+    // click; asking the reader to retype it would make the chip decorative.
+    if let Some(seed) = router::query_param("q") {
+        if query.get_untracked().is_empty() {
+            set_query.set(seed);
+            run(());
+        }
+    }
+
     view! {
         <section class="flex flex-col gap-3">
+            <PageHeader title="Search" description="Accounts, posts and hashtags, including ones this instance does not host."/>
             <form
                 class="flex items-center gap-2"
                 on:submit=move |event| {

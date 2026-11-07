@@ -5,6 +5,8 @@
 //! full page produces a `next_max_id`, and that id is what "Load more" sends back.
 
 use leptos::prelude::*;
+
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::{Page, Status};
 
@@ -86,6 +88,7 @@ pub fn Saved() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-3">
+            <PageHeader title="Saved" description="Your favourites and bookmarks, newest first."/>
             <div role="tablist" class="tabs tabs-box w-fit">
                 <For
                     each=|| [Shelf::Favourites, Shelf::Bookmarks]

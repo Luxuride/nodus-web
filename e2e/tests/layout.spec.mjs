@@ -12,7 +12,7 @@ async function railLabels(page) {
     .then((labels) => labels.map((label) => label.trim().split('\n')[0]).filter(Boolean))
 }
 
-test('the rail reads Home, Feed, then the rest, with Compose before Settings', async ({ page }) => {
+test('the rail groups reading, finding and library, with Compose before Settings', async ({ page }) => {
   await stubApi(page)
   await signedIn(page)
   await page.goto('/')
@@ -21,8 +21,20 @@ test('the rail reads Home, Feed, then the rest, with Compose before Settings', a
   await expect(page.getByRole('link', { name: 'Home' })).toBeVisible()
 
   const labels = await railLabels(page)
-  expect(labels.indexOf('Home')).toBeLessThan(labels.indexOf('Feed'))
-  expect(labels.indexOf('Compose')).toBeLessThan(labels.indexOf('Settings'))
+  const order = [
+    'Feed', 'Home', 'Messages', 'Notifications',
+    'Search', 'People',
+    'Saved', 'Scheduled', 'Lists',
+    'Compose', 'Settings',
+  ]
+  const positions = order.map((label) => labels.indexOf(label))
+  expect(positions).not.toContain(-1)
+  // Ascending positions: the groups are in reading order, not insertion order.
+  expect([...positions].sort((left, right) => left - right)).toEqual(positions)
+
+  // The section titles are `hidden xl:block`, so on a narrow window they are present but
+  // not visible; presence is what this test is about, the responsive rule is Tailwind's.
+  await expect(page.locator('nav li.menu-title')).toHaveText(['Read', 'Find', 'Library', 'Account'])
 })
 
 test('a rail click is a client-side navigation, not a page load', async ({ page }) => {

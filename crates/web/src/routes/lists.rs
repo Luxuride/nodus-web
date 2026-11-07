@@ -6,6 +6,8 @@
 //! knowing about the other.
 
 use leptos::prelude::*;
+
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::List;
 
@@ -82,6 +84,7 @@ pub fn Lists() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-4">
+            <PageHeader title="Lists" description="Hand-picked accounts, each with a timeline of its own."/>
             <NewListForm
                 title=title
                 set_title=set_title

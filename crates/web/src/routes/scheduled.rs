@@ -7,6 +7,8 @@ mod form;
 mod row;
 
 use leptos::prelude::*;
+
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::ScheduledStatus;
 
@@ -52,7 +54,7 @@ pub fn Scheduled() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-3">
-            <h1 class="text-lg font-semibold">"Scheduled"</h1>
+            <PageHeader title="Scheduled" description="Posts waiting to be published, and the form that adds to them."/>
 
             <ScheduleForm set_error=set_error on_queued=Callback::new(move |()| reload())/>
 

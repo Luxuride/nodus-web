@@ -13,6 +13,7 @@ mod routes;
 mod scroll;
 mod state;
 mod theme;
+mod ui;
 
 use crate::router::Route;
 use crate::routes::account::AccountView;
@@ -32,6 +33,7 @@ use crate::routes::search::Search;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
 use crate::routes::status::{PublicThread, Thread};
+use crate::ui::icons::Icon;
 use crate::state::bridge::{init, revision, with_sdk};
 
 use leptos::prelude::*;
@@ -103,24 +105,33 @@ fn App() -> impl IntoView {
                 <Show when=move || signed_in.get()>
                 <nav class="order-2 w-full xl:order-1 xl:w-44 xl:shrink-0">
                     <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
-                        <RailItem label="Home" route=Route::Home/>
-                        <RailItem label="Feed" route=Route::Feed/>
-                        <RailItem label="Messages" route=Route::Messages/>
-                        <RailItem label="Notifications" route=Route::Notifications/>
-                        <RailItem label="Search" route=Route::Search/>
-                        <RailItem label="People" route=Route::Directory/>
-                        <RailItem label="Saved" route=Route::Saved/>
-                        <RailItem label="Scheduled" route=Route::Scheduled/>
-                        <RailItem label="Lists" route=Route::Lists/>
-                        <li>
+                        <li class="menu-title hidden xl:block">"Read"</li>
+                        <RailItem label="Feed" icon=Icon::Sparkle hint="Posts picked for you, ranked by the backend" route=Route::Feed/>
+                        <RailItem label="Home" icon=Icon::Home hint="Your home, local and federated timelines" route=Route::Home/>
+                        <RailItem label="Messages" icon=Icon::Mail hint="Direct conversations" route=Route::Messages/>
+                        <RailItem label="Notifications" icon=Icon::Bell hint="Mentions, boosts, favourites and follow requests" route=Route::Notifications/>
+
+                        <li class="menu-title hidden xl:block">"Find"</li>
+                        <RailItem label="Search" icon=Icon::Search hint="Accounts, posts and hashtags, including remote ones" route=Route::Search/>
+                        <RailItem label="People" icon=Icon::Users hint="Accounts this instance suggests" route=Route::Directory/>
+
+                        <li class="menu-title hidden xl:block">"Library"</li>
+                        <RailItem label="Saved" icon=Icon::Bookmark hint="Your favourites and bookmarks" route=Route::Saved/>
+                        <RailItem label="Scheduled" icon=Icon::Clock hint="Posts waiting to be published" route=Route::Scheduled/>
+                        <RailItem label="Lists" icon=Icon::List hint="Hand-picked accounts with a timeline each" route=Route::Lists/>
+
+                        <li class="mt-1">
                             <button
-                                class="btn btn-primary btn-sm w-full"
+                                class="btn btn-primary btn-sm w-full gap-2"
+                                title="Write a status, or schedule one"
                                 on:click=move |_: web_sys::MouseEvent| compose_panel::toggle()
                             >
+                                <Icon icon=Icon::Pen/>
                                 "Compose"
                             </button>
                         </li>
-                        <RailItem label="Settings" route=Route::Settings/>
+                        <li class="menu-title hidden xl:block">"Account"</li>
+                        <RailItem label="Settings" icon=Icon::Settings hint="Profile, tags, filters, sync and this instance" route=Route::Settings/>
                     </ul>
                 </nav>
                 </Show>
@@ -251,7 +262,12 @@ fn App() -> impl IntoView {
 /// two closures; a route with an argument cannot be `Copy`, and leaking one to avoid the
 /// clones would be a worse trade.
 #[component]
-fn RailItem(label: &'static str, route: Route) -> impl IntoView {
+fn RailItem(
+    label: &'static str,
+    icon: Icon,
+    hint: &'static str,
+    route: Route,
+) -> impl IntoView {
     let current = router::route();
     let marker = route.clone();
     let target = route.clone();
@@ -261,12 +277,16 @@ fn RailItem(label: &'static str, route: Route) -> impl IntoView {
             <a
                 // Full width, so the whole row is the hit area: a rail whose padding does
                 // nothing reads as a rail whose buttons are broken.
-                class="block w-full font-medium"
+                class="flex w-full items-center gap-2 font-medium"
+                // The hint is what a label cannot say: "Saved" does not tell you it holds
+                // both favourites and bookmarks.
+                title=hint
                 class:menu-active=move || current.get() == marker
                 href=path
                 on:click=move |event| router::link(event, target.clone())
             >
-                {label}
+                <Icon icon=icon/>
+                <span class="truncate">{label}</span>
             </a>
         </li>
     }

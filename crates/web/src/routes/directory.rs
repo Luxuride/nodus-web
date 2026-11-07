@@ -1,6 +1,8 @@
 //! People the instance suggests.
 
 use leptos::prelude::*;
+
+use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::Account;
 
@@ -59,7 +61,7 @@ pub fn Directory() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-3">
-            <h1 class="text-lg font-semibold">"People"</h1>
+            <PageHeader title="People" description="Accounts this instance suggests. Pick the ones worth following."/>
 
             <div role="tablist" class="tabs tabs-box w-fit">
                 <button

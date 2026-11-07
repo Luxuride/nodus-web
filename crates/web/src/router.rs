@@ -336,3 +336,41 @@ fn current_pathname() -> String {
         window.location().pathname().unwrap_or_default()
     })
 }
+
+/// One value from the address bar's query string.
+///
+/// Read once by a screen that can be arrived at with a question already asked — a hashtag
+/// chip links to `/search?q=%23rust`, and an empty search box would throw the question
+/// away. Percent escapes are decoded for `%`, `#`, `@` and spaces, which is what a chip and
+/// a keyboard produce; anything else is left as written rather than guessed at.
+#[must_use]
+pub fn query_param(name: &str) -> Option<String> {
+    let search = web_sys::window()?.location().search().ok()?;
+    let pairs = search.strip_prefix('?')?;
+    for pair in pairs.split('&') {
+        let (key, value) = pair.split_once('=')?;
+        if key == name {
+            return Some(decode_query(value));
+        }
+    }
+    None
+}
+
+/// Decodes the escapes a link built in this app produces.
+fn decode_query(value: &str) -> String {
+    let mut decoded = String::with_capacity(value.len());
+    let mut rest = value;
+    while let Some(index) = rest.find('%') {
+        decoded.push_str(&rest[..index]);
+        let escape = rest.get(index + 1..index + 3).and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        if let Some(character) = escape.and_then(|byte| char::from_u32(u32::from(byte))) {
+            decoded.push(character);
+            rest = &rest[index + 3..];
+        } else {
+            decoded.push('%');
+            rest = &rest[index + 1..];
+        }
+    }
+    decoded.push_str(rest);
+    decoded.replace('+', " ")
+}

@@ -6,6 +6,8 @@
 //! successful request).
 
 use leptos::prelude::*;
+
+use crate::ui::icons::Icon;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
@@ -31,10 +33,7 @@ pub fn CardFooter(
             <span class="text-xs opacity-60">
                 {move || {
                     let status = shown.get();
-                    format!(
-                        "{} boosts · {} favourites · {} replies",
-                        status.reblogs_count, status.favourites_count, status.replies_count,
-                    )
+                    format!("{} replies", status.replies_count)
                 }}
             </span>
             <div class="flex items-center gap-1">
@@ -44,8 +43,10 @@ pub fn CardFooter(
                     on:click=move |event| {
                         router::link(event, super::thread_route(&shown.get_untracked().id));
                     }
+                    title="Reply to this post"
                 >
-                    "Reply"
+                    <Icon icon=Icon::Reply/>
+                    <span class="ml-1">"Reply"</span>
                 </a>
                 <Show when=move || shown.get().edited_at.is_some()>
                     <span class="text-xs opacity-50">"edited"</span>
@@ -69,8 +70,10 @@ pub fn CardFooter(
                             alive.if_alive(|| set_busy.set(false));
                         });
                     }
+                    title=move || if shown.get().reblogged { "Undo boost" } else { "Boost to your followers" }
                 >
-                    "Boost"
+                    <Icon icon=Icon::Repeat/>
+                    <span class="ml-1 tabular-nums">{move || shown.get().reblogs_count}</span>
                 </button>
                 <button
                     class="btn btn-ghost btn-sm"
@@ -90,8 +93,10 @@ pub fn CardFooter(
                             alive.if_alive(|| set_busy.set(false));
                         });
                     }
+                    title=move || if shown.get().favourited { "Remove from favourites" } else { "Add to favourites" }
                 >
-                    "Favourite"
+                    <Icon icon=Icon::Star/>
+                    <span class="ml-1 tabular-nums">{move || shown.get().favourites_count}</span>
                 </button>
                 <button
                     class="btn btn-ghost btn-sm"
@@ -111,8 +116,9 @@ pub fn CardFooter(
                             alive.if_alive(|| set_busy.set(false));
                         });
                     }
+                    title=move || if shown.get().bookmarked { "Remove from bookmarks" } else { "Save for later" }
                 >
-                    "Bookmark"
+                    <Icon icon=Icon::Bookmark/>
                 </button>
                 <ShareButton shown=shown set_error=set_error/>
             </div>

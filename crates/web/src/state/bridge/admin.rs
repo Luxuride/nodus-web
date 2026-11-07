@@ -1,9 +1,9 @@
 //! Moderation calls, and the one question that decides whether to show them.
 
 use super::instance_transport;
-use nodus_instance::actions::AdminActions;
+use nodus_instance::actions::{AdminActions, RegistrationActions};
 use nodus_instance::model::{
-    AdminAccount, AdminMeasure, Announcement, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Relay, Report, ReportState,
+    AdminAccount, AdminMeasure, Invite, Announcement, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Relay, Report, ReportState,
 };
 
 /// How many rows a moderation screen asks for.
@@ -197,6 +197,60 @@ pub async fn delete_domain_allow(id: &str) -> Result<(), String> {
     let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .delete_domain_allow(id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// The invites this account may hand out.
+pub async fn invites() -> Result<Vec<Invite>, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport.invites(PAGE).await.map_err(|error| error.to_string())
+}
+
+/// Creates an invite. `max_uses` of `None` is unlimited; `expires_in` is in seconds.
+pub async fn create_invite(
+    max_uses: Option<u32>,
+    expires_in: Option<u64>,
+) -> Result<Invite, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .create_invite(max_uses, expires_in, false)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Revokes an invite, so its link stops working.
+pub async fn revoke_invite(id: &str) -> Result<(), String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .revoke_invite(id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Accounts waiting for a moderator to decide.
+pub async fn pending_accounts() -> Result<Vec<AdminAccount>, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .pending_accounts(PAGE)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Lets an account in.
+pub async fn approve_account(id: &str) -> Result<AdminAccount, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .approve_account(id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Refuses an account.
+pub async fn reject_account(id: &str) -> Result<AdminAccount, String> {
+    let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .reject_account(id)
         .await
         .map_err(|error| error.to_string())
 }

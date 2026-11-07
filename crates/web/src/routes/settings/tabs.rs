@@ -12,17 +12,19 @@ pub enum Tab {
     Filters,
     Tags,
     Instance,
+    Administration,
 }
 
 impl Tab {
     /// Every section, in the order a reader is likely to want them.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Account,
         Self::Profile,
         Self::Privacy,
         Self::Filters,
         Self::Tags,
         Self::Instance,
+        Self::Administration,
     ];
 
     pub fn label(self) -> &'static str {
@@ -33,6 +35,7 @@ impl Tab {
             Self::Filters => "Filters",
             Self::Tags => "Tags",
             Self::Instance => "Instance",
+            Self::Administration => "Administration",
         }
     }
 
@@ -45,6 +48,7 @@ impl Tab {
             Self::Filters => "Words and phrases to hide or warn about",
             Self::Tags => "Hashtags pinned to your profile",
             Self::Instance => "The rules this instance publishes",
+            Self::Administration => "Invites, pending approvals and the moderation screens",
         }
     }
 }

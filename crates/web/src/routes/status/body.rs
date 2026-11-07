@@ -95,9 +95,9 @@ fn MediaGrid(items: Signal<Vec<MediaAttachment>>, hidden: bool) -> impl IntoView
     // in the gap beside a lone image.
     let columns = move || {
         if items.get().len() == 1 {
-            "grid grid-cols-1 gap-2"
+            "grid grid-cols-1 items-start gap-2"
         } else {
-            "grid grid-cols-2 gap-2"
+            "grid grid-cols-2 items-start gap-2"
         }
     };
 
@@ -162,7 +162,7 @@ fn MediaTile(
     };
 
     view! {
-        <li class="overflow-hidden rounded-box">
+        <li class="self-start overflow-hidden rounded-box">
             <Show when=move || is_image && interactive>
                 // A click expands in place, on the picture the reader pointed at.
                 <button type="button" class="w-full cursor-zoom-in" on:click=open_viewer>

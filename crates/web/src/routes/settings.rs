@@ -11,7 +11,7 @@ use crate::router::{self, Route};
 use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, sign_out, with_sdk};
 
-mod sync;
+pub(crate) mod sync;
 
 /// The settings screen.
 #[component]

@@ -22,43 +22,36 @@ mod authorize;
 mod confirm;
 mod decide;
 
-/// The card's own state, kept outside the component *and* outside its owner.
+/// The card's own state, created once, outside every component.
 ///
-/// A route re-render disposes the screen's owner, so a signal created inside the
-/// component is destroyed with it: writing to it afterwards panics with "Tried to access
-/// a reactive value that has already been disposed" and, because that panic unwinds
-/// inside a `spawn_local` poll, it poisons the executor and nothing else on the page
-/// runs. That is why the dialog appeared to open and vanish, and why the button then
-/// looked inert.
+/// A `RwSignal` belongs to the owner that was current when it was created, and a route
+/// change disposes that owner. Creating these lazily on first render therefore handed
+/// the *second* visit to Settings three disposed handles, and reading one panicked with
+/// "Tried to access a reactive value that has already been disposed" — inside a
+/// `spawn_local` poll, which poisons the executor and freezes the page.
 ///
-/// The three signals therefore live under an owner this module keeps alive for the life
-/// of the page. Three signals for the page's lifetime is the price of a dialog that
-/// survives the screen that opened it.
+/// [`install`] runs from `main` before the first mount, where no owner exists, so these
+/// signals have no owner and no navigation can dispose them.
 struct SyncUi {
-    /// Keeps `confirming`, `busy` and `result` from being disposed with the card.
-    _owner: leptos::prelude::Owner,
     confirming: RwSignal<Option<Intent>>,
     busy: RwSignal<bool>,
     result: RwSignal<Option<String>>,
 }
 
 thread_local! {
-    static UI: SyncUi = {
-        let owner = leptos::prelude::Owner::new();
-        let (confirming, busy, result) = owner.with(|| {
-            (
-                RwSignal::new(None::<Intent>),
-                RwSignal::new(false),
-                RwSignal::new(None::<String>),
-            )
-        });
-        SyncUi {
-            _owner: owner,
-            confirming,
-            busy,
-            result,
-        }
+    static UI: SyncUi = SyncUi {
+        confirming: RwSignal::new(None),
+        busy: RwSignal::new(false),
+        result: RwSignal::new(None),
     };
+}
+
+/// Creates the card's signals while no component owner is current.
+///
+/// Must be called from `main`, before `mount_to_body`: called from a component, the
+/// signals would belong to that component and die with it.
+pub fn install() {
+    UI.with(|_| ());
 }
 
 /// The shared handles, cheap to copy.

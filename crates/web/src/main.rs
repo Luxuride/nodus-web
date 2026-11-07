@@ -30,6 +30,9 @@ use leptos::prelude::*;
 
 fn main() {
     console_error_panic_hook::set_once();
+    // Before the first mount, so app-lifetime signals have no owner to be disposed
+    // with (see `routes::settings::sync::install`).
+    crate::routes::settings::sync::install();
     leptos::mount::mount_to_body(App);
     // Started after the mount so the first render never waits on a network tick.
     crate::state::bridge::start_background_tick();

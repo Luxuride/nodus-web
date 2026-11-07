@@ -26,8 +26,16 @@ pub fn reload_feed(cursor: Option<String>) {
     let ui = feed_ui();
     ui.refreshing.set(true);
     ui.error.set(None);
+    // A refresh names the snapshot it is leaving behind, so the server ranks again
+    // instead of handing the same list back inside its reuse window; "Load more" is a
+    // read of that snapshot and must not be mistaken for one.
+    let superseding = cursor.is_none().then(existing_feed_id).flatten();
     wasm_bindgen_futures::spawn_local(async move {
-        match sdk.load_feed(cursor.as_deref()).await {
+        let result = match superseding {
+            Some(feed_id) => sdk.refresh_feed(&feed_id).await,
+            None => sdk.load_feed(cursor.as_deref()).await,
+        };
+        match result {
             Ok(feed) => remember_feed(&feed),
             Err(error) => ui.error.set(Some(error.to_string())),
         }

@@ -48,15 +48,19 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
         <Show when=move || hidden()>
             // Blurred *and* labelled: a blur alone leaves the reader guessing whether the
             // hidden thing is a photo, a chart or a joke, which is worse than a warning.
-            <div class="relative overflow-hidden rounded-box bg-base-300">
+            <div class="relative overflow-hidden rounded-box">
                 <MediaGrid items=Signal::derive(move || shown.get().media_attachments) hidden=true/>
+                // Only a label and a click target: the sharpest thing on screen should not
+                // be the overlay, and a veil over a blur reads as a bug rather than a gate.
                 <button
                     type="button"
-                    class="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-base-300/60"
+                    class="absolute inset-0 flex items-center justify-center bg-transparent"
                     on:click=move |_| set_revealed.set(true)
                 >
-                    <span class="text-sm font-medium">"Sensitive content"</span>
-                    <span class="text-xs opacity-70">{move || count_label(&shown.get())}</span>
+                    <span class="rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm">
+                        <span class="block text-sm font-medium">"Sensitive content"</span>
+                        <span class="block text-xs opacity-70">{move || count_label(&shown.get())}</span>
+                    </span>
                 </button>
             </div>
         </Show>
@@ -91,7 +95,7 @@ fn MediaGrid(items: Signal<Vec<MediaAttachment>>, hidden: bool) -> impl IntoView
     view! {
         <ul class="grid grid-cols-2 gap-2" aria-hidden=hidden.to_string()>
             <For each=rows key=|(_, media)| media.id.clone() let:entry>
-                <MediaTile items=items media=entry.1 interactive=!hidden/>
+                <MediaTile items=items media=entry.1 interactive=!hidden blurred=hidden/>
             </For>
         </ul>
     }
@@ -102,7 +106,12 @@ fn MediaGrid(items: Signal<Vec<MediaAttachment>>, hidden: bool) -> impl IntoView
 /// The strings live in signals rather than locals because `Show`'s children closure must
 /// be `Fn`: a `String` captured by value makes it `FnOnce`, and a signal is `Copy`.
 #[component]
-fn MediaTile(items: Signal<Vec<MediaAttachment>>, media: MediaAttachment, interactive: bool) -> impl IntoView {
+fn MediaTile(
+    items: Signal<Vec<MediaAttachment>>,
+    media: MediaAttachment,
+    interactive: bool,
+    blurred: bool,
+) -> impl IntoView {
     let is_image = media.kind == MediaKind::Image;
     let kind = media.kind;
     let id = StoredValue::new(media.id.clone());
@@ -133,8 +142,13 @@ fn MediaTile(items: Signal<Vec<MediaAttachment>>, media: MediaAttachment, intera
         crate::media::expand(pictures, position);
     };
 
+    // Inline rather than a utility class: the gate must survive a stylesheet that
+    // predates it, and a filter is one declaration.
+    let blur = if blurred { "blur(22px)" } else { "none" };
+
     view! {
-        <li>
+        // Clipped: a blur without `overflow-hidden` bleeds past the tile edge.
+        <li class="overflow-hidden rounded-box" style:filter=blur>
             <Show when=move || is_image && interactive>
                 // A click expands in place, on the picture the reader pointed at.
                 <button type="button" class="w-full cursor-zoom-in" on:click=open_viewer>

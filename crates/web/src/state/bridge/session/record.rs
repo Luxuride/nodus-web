@@ -10,25 +10,35 @@ const SESSION_KEY: &str = "nodus.session";
 
 /// Marks the storage format, so a future change signs the user in again instead of
 /// silently misparsing a record written by an older build.
-const SESSION_FORMAT: &str = "nodus-session/1";
+///
+/// Version 2 added the account: the record now says *who* this browser is signed in
+/// as, so the first paint can render the signed-in app instead of a sign-in screen
+/// while the token is being checked. Version 1 records are ignored, which costs one
+/// sign-in.
+const SESSION_FORMAT: &str = "nodus-session/2";
 
 /// The stored record for a signed-in session.
 ///
-/// It carries no account name: restoring asks the instance who the token belongs to
-/// (`Sdk::sign_in`), so a remembered `acct` could only ever disagree with the truth.
+/// The account fields are what the instance reported when the session was created.
+/// They are a claim, not the truth: the token is what the instance checks, so a
+/// stale `acct` can only make the header cosmetically wrong, never grant access.
 #[derive(Debug, Clone)]
 pub(super) struct StoredSession {
     /// Instance host, as the user typed it.
     pub(super) host: String,
     /// OAuth bearer token for the instance and for the recommendation API.
     pub(super) token: String,
+    /// Account id on that instance, as reported at sign-in.
+    pub(super) account_id: String,
+    /// `user@host`, for the header.
+    pub(super) acct: String,
 }
 
 /// Writes the record. A storage failure (full, disabled, private mode) is not
 /// fatal: the session works for this page load and the next one asks again.
-pub(super) fn store(host: &str, token: &str) {
+pub(super) fn store(host: &str, token: &str, account_id: &str, acct: &str) {
     if let Some(storage) = local_storage() {
-        let _ = storage.set_item(SESSION_KEY, &encode(host, token));
+        let _ = storage.set_item(SESSION_KEY, &encode(host, token, account_id, acct));
     }
 }
 
@@ -47,13 +57,13 @@ pub(super) fn load() -> Option<StoredSession> {
 
 /// Serializes the record.
 ///
-/// Three lines: the prefix, the host, the token, with `%`, `\n` and `\r` escaped as
+/// Four lines: the prefix, the host, the token, the account, with `%`, `\n` and `\r` escaped as
 /// `%25`, `%0A`, `%0D`. That is the whole format, and it is hand-written on purpose:
 /// this is the only structured value the client stores, and it is not worth a
 /// serialization framework for two strings.
-fn encode(host: &str, token: &str) -> String {
+fn encode(host: &str, token: &str, account_id: &str, acct: &str) -> String {
     let mut out = String::from(SESSION_FORMAT);
-    for field in [host, token] {
+    for field in [host, token, account_id, acct] {
         out.push('\n');
         for ch in field.chars() {
             match ch {
@@ -75,11 +85,18 @@ fn decode(raw: &str) -> Option<StoredSession> {
     }
     let host = unescape(lines.next()?)?;
     let token = unescape(lines.next()?)?;
+    let account_id = unescape(lines.next()?)?;
+    let acct = unescape(lines.next()?)?;
     // A record without a token is not a session, whatever else it says.
     if token.is_empty() {
         return None;
     }
-    Some(StoredSession { host, token })
+    Some(StoredSession {
+        host,
+        token,
+        account_id,
+        acct,
+    })
 }
 
 /// Reverses the escaping in [`encode`]; `None` on a malformed escape.

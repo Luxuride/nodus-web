@@ -8,6 +8,7 @@
 use leptos::prelude::*;
 use nodus_instance::BrowserInstance;
 use nodus_sdk::instance_api::{Instance, InstanceApi};
+use nodus_sdk::state::Session;
 
 use self::record::StoredSession;
 use super::feed::load_first_page;
@@ -31,7 +32,30 @@ pub(super) fn restore_saved() {
     if install(&instance, &stored.token).is_err() {
         return;
     }
+    adopt(&stored);
     restore(stored);
+}
+
+/// Shows the remembered session before the instance has confirmed it.
+///
+/// Without this the app renders the sign-in screen from first paint until
+/// `verify_credentials` answers, which is the flash the user sees on every reload.
+/// The record is the browser's own memory of a session the instance granted; the
+/// token is what the instance actually checks, so adopting it can only ever be
+/// cosmetic between one request and the next.
+fn adopt(stored: &StoredSession) {
+    if stored.account_id.is_empty() {
+        return;
+    }
+    let Some(sdk) = handle() else {
+        return;
+    };
+    sdk.adopt_session(Session {
+        host: stored.host.clone(),
+        account_id: stored.account_id.clone(),
+        acct: stored.acct.clone(),
+        scopes: scopes(),
+    });
 }
 
 /// Signs in with a pasted token and loads the first page of the feed.
@@ -66,12 +90,13 @@ pub async fn sign_in(host: &str, token: &str) -> Result<(), String> {
     };
     let ui = feed_ui();
     ui.error.set(None);
-    sdk.sign_in(host, scopes())
+    let session = sdk
+        .sign_in(host, scopes())
         .await
         .map_err(|error| error.to_string())?;
     // After `sign_in`, because the account handle it returns is what a restored
     // session needs to display before its first request.
-    save_session(host, token);
+    save_session(host, token, &session);
 
     ui.refreshing.set(true);
     load_first_page(&sdk, ui).await;
@@ -129,8 +154,53 @@ pub async fn load_sync_consent() -> Result<(), String> {
 ///
 /// A storage failure (full, disabled, private mode) is not fatal: the session
 /// works for this page load and the next one asks for the token again.
-pub fn save_session(host: &str, token: &str) {
-    record::store(host, token);
+pub fn save_session(host: &str, token: &str, session: &Session) {
+    record::store(host, token, &session.account_id, &session.acct);
+}
+
+/// Starts a *separate* authorization for background sync (D37).
+///
+/// The service registers its own application and asks the user to approve it, so the
+/// token it stores is scoped to what it does (`read`) instead of being a copy of this
+/// browser's token. Returns the instance URL to send the user to.
+///
+/// # Errors
+///
+/// A message fit for inline display: not signed in, the request failed, or the service
+/// answered something that is not a URL.
+pub async fn authorize_sync() -> Result<String, String> {
+    let Some(stored) = record::load() else {
+        return Err("Sign in on this browser first.".to_owned());
+    };
+    let base = super::api_base().ok_or_else(|| "No API base URL.".to_owned())?;
+    let response = gloo_net::http::Request::post(
+        base.join("api/v1/sync/authorize")
+            .map_err(|error| error.to_string())?
+            .as_str(),
+    )
+    .header("authorization", &format!("Bearer {}", stored.token))
+    .header("x-instance-host", &stored.host)
+    .header("x-contract-version", nodus_shared::CONTRACT_VERSION)
+    .send()
+    .await
+    .map_err(|error| format!("Could not reach the service: {error}"))?;
+    if !response.ok() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("The service answered {status}: {body}"));
+    }
+    // The browser's own parser, as everywhere else in this crate: one field is not
+    // worth a deserializer in the bundle.
+    let body = response
+        .text()
+        .await
+        .map_err(|error| format!("The answer could not be read: {error}"))?;
+    let parsed = js_sys::JSON::parse(&body)
+        .map_err(|_| "The service did not answer with JSON.".to_owned())?;
+    js_sys::Reflect::get(&parsed, &wasm_bindgen::JsValue::from_str("url"))
+        .ok()
+        .and_then(|url| url.as_string())
+        .ok_or_else(|| "The service did not answer with an authorize URL.".to_owned())
 }
 
 /// Forgets the stored session. Does not touch the SDK; see [`sign_out`] for that.
@@ -155,7 +225,14 @@ fn restore(stored: StoredSession) {
     ui.refreshing.set(true);
     wasm_bindgen_futures::spawn_local(async move {
         match sdk.sign_in(&stored.host, scopes()).await {
-            Ok(_) => load_first_page(&sdk, ui).await,
+            Ok(session) => {
+                // The instance is the authority: if the account behind the token
+                // changed, the record (and the header drawn from it) follows.
+                if session.account_id != stored.account_id || session.acct != stored.acct {
+                    save_session(&stored.host, &stored.token, &session);
+                }
+                load_first_page(&sdk, ui).await;
+            }
             Err(error) => {
                 // A token the instance rejected is dead: forget it so the next boot
                 // does not replay it. Anything else (offline, server down) keeps it,

@@ -16,17 +16,48 @@ use leptos::prelude::*;
 
 use self::confirm::{ConfirmDialog, Intent};
 use crate::state::alive::Alive;
-use crate::state::bridge::{load_sync_consent, revision, set_sync, with_sdk};
+use crate::state::bridge::{load_sync_consent, revision, with_sdk};
 
+mod authorize;
 mod confirm;
+mod decide;
+
+/// The card's own state, kept outside the component.
+///
+/// A route change or a state notification re-renders the screen, and a signal created
+/// inside the component would start again from "no dialog": the modal would open and
+/// close in the same frame, and the message explaining the result would vanish. These
+/// three are the only things the card owns, so they live as long as the page does.
+struct SyncUi {
+    confirming: RwSignal<Option<Intent>>,
+    busy: RwSignal<bool>,
+    result: RwSignal<Option<String>>,
+}
+
+thread_local! {
+    static UI: SyncUi = SyncUi {
+        confirming: RwSignal::new(None),
+        busy: RwSignal::new(false),
+        result: RwSignal::new(None),
+    };
+}
+
+fn ui() -> SyncUi {
+    UI.with(|ui| SyncUi {
+        confirming: ui.confirming,
+        busy: ui.busy,
+        result: ui.result,
+    })
+}
 
 /// The sync consent, with the button that turns it on or off.
 #[component]
 pub fn SyncCard() -> impl IntoView {
     let revision = revision();
-    let busy = RwSignal::new(false);
-    let result = RwSignal::new(None::<String>);
-    let confirming = RwSignal::new(None::<Intent>);
+    let ui = ui();
+    let busy = ui.busy;
+    let result = ui.result;
+    let confirming = ui.confirming;
 
     // What the server holds, not what this tab remembers.
     let consent = move || {
@@ -43,29 +74,7 @@ pub fn SyncCard() -> impl IntoView {
     });
 
     let run = move |intent: Intent| {
-        if busy.get_untracked() {
-            return;
-        }
-        let alive = Alive::new();
-        confirming.set(None);
-        busy.set(true);
-        result.set(None);
-        wasm_bindgen_futures::spawn_local(async move {
-            let enable = intent.enables();
-            let message = match set_sync(enable, false).await {
-                Ok(()) if enable => "Background sync is on. The server keeps an encrypted copy \
-                                     of your token and syncs your follows for you."
-                    .to_owned(),
-                Ok(()) => "Background sync is off, and the server deleted its copy of your token."
-                    .to_owned(),
-                Err(error) if enable => format!("Could not enable background sync: {error}"),
-                Err(error) => format!("Could not turn background sync off: {error}"),
-            };
-            alive.if_alive(|| {
-                result.set(Some(message));
-                busy.set(false);
-            });
-        });
+        decide::run(intent, confirming, result, busy, Alive::new());
     };
 
     // What the button asks for: the opposite of what the server currently holds.

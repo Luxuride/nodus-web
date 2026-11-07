@@ -20,10 +20,8 @@ nodus-discovery = { workspace = true }
 console_error_panic_hook = "0.1"
 leptos = { version = "0.8.23", features = ["csr"] }
 # `localStorage` session record (milestone 1; PKCE replaces it — see bridge.rs).
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-# The API base is built with `web_sys::Url` but handed to the transports as a
-# `url::Url`, so the two cannot disagree about a trailing slash.
+# Hand-encoded on purpose: `serde_json` is in the bundle anyway through `gloo-net`,
+# so this is not a size decision — it is one obvious format in one obvious place.
 url = "2"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

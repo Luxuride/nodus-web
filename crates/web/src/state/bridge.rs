@@ -311,22 +311,8 @@ pub async fn not_interested(item_id: i64) -> Result<(), String> {
 /// A storage failure (full, disabled, private mode) is not fatal: the session
 /// works for this page load and the next one asks for the token again.
 pub fn save_session(host: &str, token: &str) {
-    let acct = handle().map_or_else(String::new, |sdk| {
-        sdk.state()
-            .session
-            .get()
-            .map_or_else(String::new, |session| session.acct)
-    });
-    let record = StoredSession {
-        host: host.to_owned(),
-        acct,
-        token: token.to_owned(),
-    };
-    let Ok(json) = serde_json::to_string(&record) else {
-        return;
-    };
     if let Some(storage) = local_storage() {
-        let _ = storage.set_item(SESSION_KEY, &json);
+        let _ = storage.set_item(SESSION_KEY, &encode_session(host, token));
     }
 }
 
@@ -339,14 +325,80 @@ pub fn clear_session() {
 }
 
 /// The `localStorage` record for a signed-in session.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+///
+/// It carries no account name: restoring asks the instance who the token belongs to
+/// (`Sdk::sign_in`), so a remembered `acct` could only ever disagree with the truth.
+#[derive(Debug, Clone)]
 struct StoredSession {
     /// Instance host, as the user typed it.
     host: String,
-    /// `user@host` of the account, for display before the first request returns.
-    acct: String,
     /// OAuth bearer token for the instance and for the recommendation API.
     token: String,
+}
+
+/// Marks the storage format, so a future change signs the user in again instead of
+/// silently misparsing a record written by an older build.
+const SESSION_FORMAT: &str = "nodus-session/1";
+
+/// Serializes the session record.
+///
+/// Three lines: the prefix, the host, the token, with `%`, `\n` and `\r` escaped as
+/// `%25`, `%0A`, `%0D`. That is the whole format, and it is hand-written on purpose:
+/// this is the only structured value the client stores, and it is not worth a
+/// serialization framework for two strings.
+fn encode_session(host: &str, token: &str) -> String {
+    let mut out = String::from(SESSION_FORMAT);
+    for field in [host, token] {
+        out.push('\n');
+        for ch in field.chars() {
+            match ch {
+                '%' => out.push_str("%25"),
+                '\n' => out.push_str("%0A"),
+                '\r' => out.push_str("%0D"),
+                other => out.push(other),
+            }
+        }
+    }
+    out
+}
+
+/// Parses a record written by [`encode_session`], rejecting anything else.
+fn decode_session(raw: &str) -> Option<StoredSession> {
+    let mut lines = raw.split('\n');
+    if lines.next()? != SESSION_FORMAT {
+        return None;
+    }
+    let host = unescape(lines.next()?)?;
+    let token = unescape(lines.next()?)?;
+    // A record without a token is not a session, whatever else it says.
+    if token.is_empty() {
+        return None;
+    }
+    Some(StoredSession { host, token })
+}
+
+/// Reverses the escaping in [`encode_session`]; `None` on a malformed escape.
+fn unescape(field: &str) -> Option<String> {
+    let mut out = String::with_capacity(field.len());
+    let mut chars = field.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '%' {
+            out.push(ch);
+            continue;
+        }
+        let high = chars.next()?;
+        let low = chars.next()?;
+        let byte = u8::from_str_radix(&format!("{high}{low}"), 16).ok()?;
+        out.push(match byte {
+            b'%' => '%',
+            b'\n' => '\n',
+            b'\r' => '\r',
+            // Only the three escapes this format defines round-trip; anything else
+            // is a record we did not write.
+            _ => return None,
+        });
+    }
+    Some(out)
 }
 
 /// Re-establishes a stored session without blocking the first paint.
@@ -460,7 +512,7 @@ fn scopes() -> Vec<String> {
 /// The stored session, if there is a well-formed one.
 fn load_session() -> Option<StoredSession> {
     let raw = local_storage()?.get_item(SESSION_KEY).ok()??;
-    serde_json::from_str(&raw).ok()
+    decode_session(&raw)
 }
 
 /// `localStorage`, when the browser allows it (it throws in some private modes).

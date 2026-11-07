@@ -967,8 +967,6 @@ dependencies = [
  "nodus-instance-rest",
  "nodus-sdk",
  "nodus-shared",
- "serde",
- "serde_json",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",

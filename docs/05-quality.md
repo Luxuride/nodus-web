@@ -18,7 +18,7 @@ Measured on a mid-tier Android over throttled 4G, cold cache, brotli:
 | Dropped frames scrolling 300 items | < 5% on 60 Hz | manual trace, milestone |
 | Memory after 30 min of scrolling | < 150 MB | manual, milestone |
 
-Current baseline (three screens: sign-in, feed, settings): **487 KB wasm / 205 KB
+Current baseline (three screens: sign-in, feed, settings): **486 KB wasm / 206 KB
 gzipped**, **42 KB JS / 7.6 KB gzipped**, **216 KB CSS / 33 KB gzipped** — about
 246 KB compressed, leaving ~650 KB of headroom. The jump from the 101 KB shell was
 the real transports (`BrowserInstance`, `BrowserDiscovery`), `serde_json`, and
@@ -44,6 +44,42 @@ Mechanisms:
 The gate: CI builds, gzips, compares against the budget table, and **fails the
 build** over budget. Raising a budget is a reviewed change to this file, not a
 one-line CI tweak.
+
+### Measured alternatives (2026-11-07)
+
+Every number below is the same pipeline (`cargo build --release`, then
+`wasm-bindgen --target web`, then `wasm-opt -Oz`), so the deltas are real:
+
+| Variant | wasm raw | wasm gzipped | gzipped delta |
+| --- | --- | --- | --- |
+| stable, current profile | 485 367 | 205 649 | — |
+| nightly `-Zbuild-std=std,panic_abort` + `-Cpanic=immediate-abort` | 440 541 | 188 242 | **−8.5%** |
+
+Notes that cost time to learn:
+
+- `-Zbuild-std` is a **cargo** flag, not a `RUSTFLAGS` one: putting it in
+  `RUSTFLAGS` fails with `error: unknown unstable option: build-std`.
+- `-Zbuild-std-features=panic_immediate_abort` no longer works; current nightlies
+  say `panic_immediate_abort is now a real panic strategy! Enable it with
+  panic = "immediate-abort"` — i.e. `-Cpanic=immediate-abort` plus `-Zbuild-std`.
+- **Not adopted.** 17 KB gzipped does not buy a permanently pinned nightly, a
+  `rust-src` component and a second toolchain in every CI job, on a bundle that
+  already sits at 27% of its budget. Revisit if the gate gets tight.
+- `serde_json` cannot be removed by removing our own use of it: it arrives through
+  `gloo-net` (and `leptos_server` via `codee`/`server_fn`). Dropping it means
+  dropping `gloo-net` for hand-rolled `web_sys::fetch` transports, which is the
+  single largest remaining lever and a refactor, not a flag.
+
+### Why Trunk and not `cargo-leptos`
+
+For a CSR-only app the two run the same pipeline: build wasm, run `wasm-bindgen`,
+run `wasm-opt`, hash assets. `cargo-leptos` adds what we deliberately do not use —
+the SSR/hydration dual build, server functions, and `cargo leptos watch`'s reload
+— while replacing a working `Trunk.toml` with a `[package.metadata.leptos]`
+section and a `site-root` layout. Neither tool changes the numbers above, because
+both call the same `rustc`, the same profile and the same `wasm-opt -Oz`. If SSR
+lands for public pages (see `02-architecture.md`, D8), `cargo-leptos` becomes the
+right tool, because at that point there are two builds to keep in step.
 
 ## Testing layers
 

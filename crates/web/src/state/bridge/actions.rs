@@ -11,7 +11,8 @@ use core::future::Future;
 use nodus_instance::BrowserInstance;
 use nodus_instance::InstanceApi;
 use nodus_instance::actions::{
-    AccountActions, Browse, FilterActions, HighlightActions, MediaActions, Search, StatusActions,
+    AccountActions, Browse, FilterActions, HighlightActions, MediaActions, ScheduleActions,
+    Search, StatusActions,
 };
 use nodus_instance::model::{
     Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId, MediaAttachment,
@@ -427,4 +428,28 @@ pub async fn mark_conversation_read(id: &str) -> Result<(), String> {
 /// Mutes or unmutes a conversation.
 pub async fn mute_conversation(id: &str, muted: bool) -> Result<Conversation, String> {
     call(transport()?.mute_conversation(id, muted)).await
+}
+
+/// Everything waiting to be published.
+pub async fn scheduled() -> Result<Vec<nodus_instance::model::ScheduledStatus>, String> {
+    call(transport()?.scheduled()).await
+}
+
+/// Queues a draft for `at`, in RFC 3339.
+pub async fn schedule(text: &str, visibility: nodus_instance::model::Visibility, at: &str) -> Result<(), String> {
+    let draft = Draft {
+        text: text.to_owned(),
+        visibility,
+        in_reply_to_id: None,
+        idempotency_key: Some(format!("nodus-{}", js_sys::Date::now())),
+        media_ids: Vec::new(),
+        spoiler_text: String::new(),
+        sensitive: false,
+    };
+    call(transport()?.schedule(&draft, at)).await.map(|_queued| ())
+}
+
+/// Cancels a queued post.
+pub async fn cancel_scheduled(id: &str) -> Result<(), String> {
+    call(transport()?.cancel_scheduled(id)).await
 }

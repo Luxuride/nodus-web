@@ -13,6 +13,7 @@ pub mod lists;
 pub mod notifications;
 pub mod people;
 pub mod saved;
+pub mod scheduled;
 pub mod search;
 pub mod settings;
 pub mod sign_in;

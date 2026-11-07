@@ -26,6 +26,7 @@ use crate::routes::lists::Lists;
 use crate::routes::notifications::Notifications;
 use crate::routes::people::{Kind, PeopleList};
 use crate::routes::saved::Saved;
+use crate::routes::scheduled::Scheduled;
 use crate::routes::search::Search;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
@@ -107,6 +108,7 @@ fn App() -> impl IntoView {
                         <RailItem label="Notifications" route=Route::Notifications/>
                         <RailItem label="Search" route=Route::Search/>
                         <RailItem label="Saved" route=Route::Saved/>
+                        <RailItem label="Scheduled" route=Route::Scheduled/>
                         <RailItem label="Lists" route=Route::Lists/>
                         <li>
                             <button
@@ -142,6 +144,7 @@ fn App() -> impl IntoView {
                             }
                             Route::Search if signed_in => view! { <Search/> }.into_any(),
                             Route::Saved if signed_in => view! { <Saved/> }.into_any(),
+                            Route::Scheduled if signed_in => view! { <Scheduled/> }.into_any(),
                             Route::Compose if signed_in => view! { <Compose/> }.into_any(),
                             Route::ComposeEdit(id) if signed_in => {
                                 view! { <ComposeEdit id=id/> }.into_any()
@@ -187,6 +190,9 @@ fn App() -> impl IntoView {
                             Route::Saved => {
                                 view! { <SignIn note="Sign in to see what you saved."/> }
                                     .into_any()
+                            }
+                            Route::Scheduled => {
+                                view! { <SignIn note="Sign in to schedule a post."/> }.into_any()
                             }
                             Route::Lists => {
                                 view! { <SignIn note="Sign in to manage your lists."/> }.into_any()

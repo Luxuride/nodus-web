@@ -53,6 +53,8 @@ pub enum Route {
     Search,
     /// Favourites and bookmarks.
     Saved,
+    /// Posts waiting to be published.
+    Scheduled,
     /// Hand-picked accounts with a timeline each.
     Lists,
     /// Writing a new status.
@@ -102,6 +104,7 @@ impl Route {
             Self::Notifications => "/notifications".to_owned(),
             Self::Search => "/search".to_owned(),
             Self::Saved => "/saved".to_owned(),
+            Self::Scheduled => "/scheduled".to_owned(),
             Self::Lists => "/lists".to_owned(),
             Self::Compose => "/compose".to_owned(),
             Self::ComposeEdit(id) => format!("/compose/{id}"),
@@ -169,6 +172,7 @@ impl Route {
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,
             "/saved" => Self::Saved,
+            "/scheduled" => Self::Scheduled,
             "/lists" => Self::Lists,
             "/compose" => Self::Compose,
             "/mutes" => Self::Mutes,

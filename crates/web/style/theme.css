@@ -25,6 +25,32 @@
   --nodus-radius: 0.5rem;
 }
 
+/* The page's scrollbar is a layout participant, and daisyUI hides it while a modal is
+ * open (`:root:has(.modal-open) { overflow: hidden }`). Hiding it handed every centred
+ * column a scrollbar's width more room, so opening the image expander nudged the whole
+ * shell sideways.
+ *
+ * The scrollbar is ignored rather than reserved: reserving the gutter (`scrollbar-gutter:
+ * stable`, or `overflow-y: scroll`) spends that width on every page, modal or not, and
+ * still leaves a visible track nobody styles. With the scrollbar out of layout, the
+ * document's width no longer depends on whether one is present, so a modal costs no
+ * reflow at all. Wheel, keyboard, trackpad and touch scrolling are unaffected; only the
+ * track is gone. */
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+/* The canvas is the theme's, not the browser's: with the attribute swapped at runtime,
+ * a transparent body would show whatever the user agent painted before the swap. */
+body {
+  background-color: var(--color-base-200);
+  color: var(--color-base-content);
+}
+
 :root,
 [data-theme="light"] {
   color-scheme: light;

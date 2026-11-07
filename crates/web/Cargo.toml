@@ -39,6 +39,9 @@ web-sys = { version = "0.3", features = [
     "Crypto",
     "History",
     "Location",
+    # Following the system's light/dark preference.
+    "MediaQueryList",
+    "MediaQueryListEvent",
     "Navigator",
     "Storage",
     "SubtleCrypto",

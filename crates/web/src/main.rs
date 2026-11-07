@@ -8,6 +8,7 @@
 
 mod media;
 mod router;
+mod theme;
 mod routes;
 mod state;
 
@@ -39,6 +40,10 @@ fn main() {
     crate::state::bridge::install_reactive_root();
     // The expander's signal, created with no owner for the same reason.
     crate::media::install();
+    // The operating system decides light or dark, and may change its mind while the tab
+    // is open; `index.html` also sets the attribute before wasm arrives, so the first
+    // paint is already correct.
+    crate::theme::follow_system();
     leptos::mount::mount_to_body(App);
     // Started after the mount so the first render never waits on a network tick.
     crate::state::bridge::start_background_tick();

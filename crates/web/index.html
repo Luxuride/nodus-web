@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <title>Feed</title>
+    <script>
+      // Before the stylesheet paints: the wasm module arrives later, and waiting for it
+      // would show a light frame to a reader whose system asked for dark.
+      document.documentElement.dataset.theme = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches
+        ? "dark"
+        : "light";
+    </script>
     <link data-trunk rel="rust" data-wasm-opt="z" />
     <link data-trunk rel="css" href="style/tailwind.css" />
   </head>

@@ -6,25 +6,16 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{Notification, NotificationKind};
+use nodus_instance::model::Notification;
 
-use super::format::{display_name, relative_time};
-use super::status::StatusCard;
 use crate::state::bridge::actions;
 
-/// What kind of attention this was.
-fn describe(kind: NotificationKind) -> &'static str {
-    match kind {
-        NotificationKind::Follow => "followed you",
-        NotificationKind::Reblog => "boosted your post",
-        NotificationKind::Favourite => "favourited your post",
-        NotificationKind::Mention => "mentioned you",
-        NotificationKind::Poll => "A poll you voted in has ended",
-        NotificationKind::Status => "posted",
-        NotificationKind::AdminSignUp => "A new account signed up",
-        NotificationKind::AdminReport => "A report needs review",
-    }
-}
+mod pending;
+mod request;
+mod row;
+
+use pending::PendingRequests;
+use row::NotificationRow;
 
 /// The notifications list.
 #[component]
@@ -46,6 +37,17 @@ pub fn Notifications() -> impl IntoView {
         });
     });
 
+    // A request that was just answered must disappear, so the list is re-read rather than
+    // patched: the instance is the one that knows whether it was accepted.
+    let reload = Callback::new(move |()| {
+        spawn_local(async move {
+            if let Ok(page) = actions::notifications(None).await {
+                set_items.set(page.items);
+                set_cursor.set(page.next_max_id);
+            }
+        });
+    });
+
     let more = move |_| {
         let after = cursor.get_untracked();
         set_loading.set(true);
@@ -63,12 +65,10 @@ pub fn Notifications() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-3">
+            <PendingRequests set_error=set_error/>
+
             <Show when=move || cursor.get().is_some()>
-                <button
-                    class="btn btn-ghost btn-sm w-fit"
-                    disabled=move || loading.get()
-                    on:click=more
-                >
+                <button class="btn btn-ghost btn-sm w-fit" disabled=move || loading.get() on:click=more>
                     "Load more"
                 </button>
             </Show>
@@ -79,48 +79,11 @@ pub fn Notifications() -> impl IntoView {
 
             <ul class="flex flex-col gap-3">
                 <For each=move || items.get() key=|notification| notification.id.clone() let:notification>
-                    {
-                        let who = notification.account.clone();
-                        let heading = display_name(&who.display_name, &who.acct);
-                        let when = relative_time(&notification.created_at);
-                        let said = describe(notification.kind);
-                        let status = notification.status.clone();
-                        let link = format!("/accounts/{}", who.id);
-                        view! {
-                            <li class="card border border-base-300 bg-base-100 shadow-sm">
-                                <div class="card-body gap-2 p-4">
-                                    <div class="flex items-center gap-2">
-                                        <a class="avatar" href=link>
-                                            <div class="w-8 rounded-full bg-base-300">
-                                                <img
-                                                    src=who.avatar.clone()
-                                                    alt=""
-                                                    referrerpolicy="no-referrer"
-                                                />
-                                            </div>
-                                        </a>
-                                        <p class="min-w-0 flex-1 truncate text-sm">
-                                            <a class="font-semibold hover:underline" href=format!("/accounts/{}", who.id)>
-                                                {heading}
-                                            </a>
-                                            <span class="opacity-70">{format!(" {said}")}</span>
-                                        </p>
-                                        <time class="text-xs opacity-50" datetime=notification.created_at.clone()>
-                                            {when}
-                                        </time>
-                                    </div>
-                                    {status
-                                        .map(|status| {
-                                            view! {
-                                                <ul class="flex flex-col gap-2">
-                                                    <StatusCard status=status/>
-                                                </ul>
-                                            }
-                                        })}
-                                </div>
-                            </li>
-                        }
-                    }
+                    <NotificationRow
+                        notification=notification
+                        reload=reload
+                        set_error=set_error
+                    />
                 </For>
             </ul>
 

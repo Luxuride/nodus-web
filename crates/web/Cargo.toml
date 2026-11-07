@@ -45,5 +45,11 @@ web-sys = { version = "0.3", features = [
     "Url",
     # Reading the OAuth callback's `?code=…&state=…`.
     "UrlSearchParams",
+    # Media upload: the picked file's bytes and its type.
+    "Blob",
+    "File",
+    "FileList",
+    "HtmlInputElement",
+    "HtmlTextAreaElement",
     "Window",
 ] }

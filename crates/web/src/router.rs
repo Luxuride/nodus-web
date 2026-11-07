@@ -44,6 +44,14 @@ pub enum Route {
     Saved,
     /// Hand-picked accounts with a timeline each.
     Lists,
+    /// Writing a new status.
+    Compose,
+    /// Editing one of the viewer's own statuses.
+    ComposeEdit(String),
+    /// Accounts the viewer muted.
+    Mutes,
+    /// Accounts the viewer blocked.
+    Blocks,
     /// Instance, sync consent and sign-out.
     Settings,
     /// Where the instance returns the browser after authorization. The query string
@@ -64,6 +72,10 @@ impl Route {
             Self::Search => "/search".to_owned(),
             Self::Saved => "/saved".to_owned(),
             Self::Lists => "/lists".to_owned(),
+            Self::Compose => "/compose".to_owned(),
+            Self::ComposeEdit(id) => format!("/compose/{id}"),
+            Self::Mutes => "/mutes".to_owned(),
+            Self::Blocks => "/blocks".to_owned(),
             Self::Settings => "/settings".to_owned(),
             // The OAuth flow registers this path as `redirect_uris`; sharing the
             // constant is what keeps the address bar and the registered URI identical.
@@ -92,12 +104,22 @@ impl Route {
                 return Self::Account(id.to_owned());
             }
         }
+        // After `/accounts/`, so a status id that looks like a path cannot shadow a
+        // profile: the longer prefix wins by being tested first.
+        if let Some(id) = trimmed.strip_prefix("/compose/") {
+            if !id.is_empty() {
+                return Self::ComposeEdit(id.to_owned());
+            }
+        }
         match trimmed {
             "/home" => Self::Home,
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,
             "/saved" => Self::Saved,
             "/lists" => Self::Lists,
+            "/compose" => Self::Compose,
+            "/mutes" => Self::Mutes,
+            "/blocks" => Self::Blocks,
             "/settings" => Self::Settings,
             _ => Self::Feed,
         }

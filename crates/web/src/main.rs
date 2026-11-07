@@ -13,10 +13,12 @@ mod state;
 use crate::router::Route;
 use crate::routes::account::AccountView;
 use crate::routes::callback::Callback;
+use crate::routes::compose::{Compose, ComposeEdit};
 use crate::routes::feed::Feed;
 use crate::routes::home::Home;
 use crate::routes::lists::Lists;
 use crate::routes::notifications::Notifications;
+use crate::routes::people::{Kind, PeopleList};
 use crate::routes::saved::Saved;
 use crate::routes::search::Search;
 use crate::routes::settings::Settings;
@@ -72,6 +74,15 @@ fn App() -> impl IntoView {
                         <RailItem label="Search" route=Route::Search/>
                         <RailItem label="Saved" route=Route::Saved/>
                         <RailItem label="Lists" route=Route::Lists/>
+                        <a
+                            class="btn btn-primary btn-sm"
+                            href=Route::Compose.path()
+                            on:click=move |event| {
+                                router::link(event, Route::Compose);
+                            }
+                        >
+                            "Compose"
+                        </a>
                         <RailItem label="Settings" route=Route::Settings/>
                     </ul>
                 </nav>
@@ -94,6 +105,18 @@ fn App() -> impl IntoView {
                             }
                             Route::Search if signed_in => view! { <Search/> }.into_any(),
                             Route::Saved if signed_in => view! { <Saved/> }.into_any(),
+                            Route::Compose if signed_in => view! { <Compose/> }.into_any(),
+                            Route::ComposeEdit(id) if signed_in => {
+                                view! { <ComposeEdit id=id/> }.into_any()
+                            }
+                            Route::Mutes if signed_in => {
+                                view! { <PeopleList id=String::new() kind=Kind::Mutes/> }
+                                    .into_any()
+                            }
+                            Route::Blocks if signed_in => {
+                                view! { <PeopleList id=String::new() kind=Kind::Blocks/> }
+                                    .into_any()
+                            }
                             Route::Lists if signed_in => view! { <Lists/> }.into_any(),
                             Route::Settings if signed_in => view! { <Settings/> }.into_any(),
                             Route::Thread(id) if signed_in => {
@@ -123,6 +146,13 @@ fn App() -> impl IntoView {
                             }
                             Route::Lists => {
                                 view! { <SignIn note="Sign in to manage your lists."/> }.into_any()
+                            }
+                            Route::Compose | Route::ComposeEdit(_) => {
+                                view! { <SignIn note="Sign in to write a status."/> }.into_any()
+                            }
+                            Route::Mutes | Route::Blocks => {
+                                view! { <SignIn note="Sign in to manage who you muted or blocked."/> }
+                                    .into_any()
                             }
                             Route::Settings => {
                                 view! {

@@ -17,6 +17,7 @@ use crate::router::{self, Route};
 
 mod body;
 mod footer;
+mod menu;
 mod poll;
 mod reply;
 

@@ -9,6 +9,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
 
+use super::menu::StatusMenu;
 use crate::router::{self, Route};
 use crate::state::bridge::actions;
 
@@ -45,6 +46,7 @@ pub fn CardFooter(
                 <Show when=move || shown.get().edited_at.is_some()>
                     <span class="text-xs opacity-50">"edited"</span>
                 </Show>
+                <StatusMenu shown=shown set_error=set_error/>
                 <button
                     class="btn btn-ghost btn-sm"
                     class:btn-active=move || shown.get().reblogged

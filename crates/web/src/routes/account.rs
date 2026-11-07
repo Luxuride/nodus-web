@@ -8,12 +8,34 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{Account, Relationship, Status};
 
+use super::people::{Kind, PeopleList};
 use super::status::StatusCard;
 use crate::state::bridge::actions;
+use tabs::AccountTabs;
 
 mod profile;
+mod tabs;
 
 use self::profile::ProfileCard;
+
+/// The three lists a profile offers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Tab {
+    Posts,
+    Followers,
+    Following,
+}
+
+impl Tab {
+    /// The tab label.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Posts => "Posts",
+            Self::Followers => "Followers",
+            Self::Following => "Following",
+        }
+    }
+}
 
 /// Which relationship verb a profile button sends.
 #[derive(Debug, Clone, Copy)]
@@ -46,11 +68,16 @@ impl Verb {
 pub fn AccountView(id: String) -> impl IntoView {
     let (account, set_account) = signal(None::<Account>);
     let (relationship, set_relationship) = signal(None::<Relationship>);
+    let (tab, set_tab) = signal(Tab::Posts);
     let (statuses, set_statuses) = signal(Vec::<Status>::new());
     let (cursor, set_cursor) = signal(None::<String>);
     let (loading, set_loading) = signal(false);
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
+
+    // `StoredValue` rather than a captured `String`: two `Show` bodies read the id, and
+    // a value captured by move would make each of them `FnOnce`.
+    let id_signal = StoredValue::new(id.clone());
 
     let account_id = id.clone();
     Effect::new(move |_| {
@@ -82,9 +109,11 @@ pub fn AccountView(id: String) -> impl IntoView {
         });
     });
 
+    // A `Callback` rather than a bare closure: it is read inside a `Show` body that must be
+    // `Fn`, and a non-`Copy` handler would be moved out of the environment on first use.
     let more = {
         let id = id.clone();
-        move |_| {
+        Callback::new(move |()| {
             set_loading.set(true);
             let id = id.clone();
             let after = cursor.get_untracked();
@@ -98,7 +127,7 @@ pub fn AccountView(id: String) -> impl IntoView {
                 }
                 set_loading.set(false);
             });
-        }
+        })
     };
 
     view! {
@@ -112,20 +141,32 @@ pub fn AccountView(id: String) -> impl IntoView {
                 set_error=set_error
             />
 
-            <ul class="flex flex-col gap-3">
-                <For each=move || statuses.get() key=|status| status.id.clone() let:status>
-                    <StatusCard status=status/>
-                </For>
-            </ul>
+            <AccountTabs tab=tab set_tab=set_tab/>
 
-            <Show when=move || cursor.get().is_some()>
-                <button
-                    class="btn btn-ghost btn-sm w-full"
-                    disabled=move || loading.get()
-                    on:click=more.clone()
-                >
-                    "Load more"
-                </button>
+            <Show when=move || tab.get() == Tab::Posts>
+                <ul class="flex flex-col gap-3">
+                    <For each=move || statuses.get() key=|status| status.id.clone() let:status>
+                        <StatusCard status=status/>
+                    </For>
+                </ul>
+
+                <Show when=move || cursor.get().is_some()>
+                    <button
+                        class="btn btn-ghost btn-sm w-full"
+                        disabled=move || loading.get()
+                        on:click=move |_| more.run(())
+                    >
+                        "Load more"
+                    </button>
+                </Show>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Followers>
+                <PeopleList id=id_signal.get_value() kind=Kind::Followers/>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Following>
+                <PeopleList id=id_signal.get_value() kind=Kind::Following/>
             </Show>
 
             <Show when=move || error.get().is_some()>

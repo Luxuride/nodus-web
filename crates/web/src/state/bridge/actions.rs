@@ -10,10 +10,10 @@ use core::future::Future;
 
 use nodus_instance::BrowserInstance;
 use nodus_instance::InstanceApi;
-use nodus_instance::actions::{AccountActions, Browse, Search, StatusActions};
+use nodus_instance::actions::{AccountActions, Browse, MediaActions, Search, StatusActions};
 use nodus_instance::model::{
-    Account, Context, Draft, HistoryEntry, List, LocalId, Notification, Page, PageParams,
-    Relationship, SearchResults, Status,
+    Account, Context, Draft, HistoryEntry, List, LocalId, MediaAttachment, Notification, Page,
+    PageParams, Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -139,30 +139,137 @@ pub async fn bookmark(id: &str, on: bool) -> Result<Status, String> {
 }
 
 /// Deletes a status the signed-in account wrote.
-#[expect(
-    dead_code,
-    reason = "the delete button lands with the thread view's own-status menu"
-)]
 pub async fn delete_status(id: &str) -> Result<(), String> {
     call(transport()?.delete_status(id)).await
 }
 
+/// Everything a compose box can say beyond the text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewStatus {
+    /// The body, as typed.
+    pub text: String,
+    /// Requested visibility; the instance may still narrow it.
+    pub visibility: Visibility,
+    /// Parent status when replying.
+    pub reply_to: Option<String>,
+    /// Attachments already uploaded, in display order.
+    pub media_ids: Vec<String>,
+    /// Content warning; empty means none.
+    pub spoiler_text: String,
+    /// Whether the attachment sits behind the warning.
+    pub sensitive: bool,
+}
+
+impl NewStatus {
+    /// A reply or a post with nothing but text.
+    pub fn text(text: impl Into<String>, visibility: Visibility) -> Self {
+        Self {
+            text: text.into(),
+            visibility,
+            reply_to: None,
+            media_ids: Vec::new(),
+            spoiler_text: String::new(),
+            sensitive: false,
+        }
+    }
+
+    /// The same, as a reply to `parent`.
+    pub fn reply(text: impl Into<String>, parent: &str) -> Self {
+        Self {
+            reply_to: Some(parent.to_owned()),
+            ..Self::text(text, Visibility::Public)
+        }
+    }
+
+    /// The wire draft, with a fresh idempotency key per attempt.
+    fn draft(&self) -> Draft {
+        Draft {
+            text: self.text.clone(),
+            visibility: self.visibility,
+            in_reply_to_id: self.reply_to.clone(),
+            // A new key per attempt: the point is that a retried *request* cannot post
+            // twice, not that the same text may never be posted twice.
+            idempotency_key: Some(format!("nodus-{}", js_sys::Date::now())),
+            media_ids: self.media_ids.clone(),
+            spoiler_text: self.spoiler_text.clone(),
+            sensitive: self.sensitive,
+        }
+    }
+}
+
 /// Publishes a status.
-pub async fn publish(
-    text: &str,
-    visibility: Visibility,
-    reply_to: Option<&str>,
-) -> Result<Status, String> {
-    let transport = transport()?;
-    let draft = Draft {
-        text: text.to_owned(),
-        visibility,
-        in_reply_to_id: reply_to.map(str::to_owned),
-        // A new key per attempt: the point is that a retried *request* cannot post
-        // twice, not that the same text may never be posted twice.
-        idempotency_key: Some(format!("nodus-{}", js_sys::Date::now())),
+pub async fn publish(status: &NewStatus) -> Result<Status, String> {
+    call(transport()?.post_status(&status.draft())).await
+}
+
+/// Rewrites a status the signed-in account wrote.
+pub async fn edit(id: &str, status: &NewStatus) -> Result<Status, String> {
+    call(transport()?.edit_status(id, &status.draft())).await
+}
+
+/// Uploads one attachment and returns what the instance made of it.
+pub async fn upload_media(
+    bytes: Vec<u8>,
+    mime: String,
+    description: Option<String>,
+) -> Result<MediaAttachment, String> {
+    call(transport()?.upload_media(&bytes, &mime, description.as_deref())).await
+}
+
+/// The account id the session belongs to, for "may I edit this" questions.
+pub fn viewer_id() -> Option<String> {
+    super::with_sdk(|sdk| sdk.state().session.get().map(|session| session.account_id))
+}
+
+/// Pending follow requests, newest first.
+pub async fn follow_requests() -> Result<Vec<Account>, String> {
+    call(transport()?.follow_requests()).await
+}
+
+/// Accepts a follow request.
+pub async fn authorize_follow_request(id: &str) -> Result<Relationship, String> {
+    call(transport()?.authorize_follow_request(&LocalId(id.to_owned()))).await
+}
+
+/// Refuses a follow request.
+pub async fn reject_follow_request(id: &str) -> Result<(), String> {
+    call(transport()?.reject_follow_request(&LocalId(id.to_owned()))).await
+}
+
+/// One page of an account's followers.
+pub async fn followers(id: &str, after: Option<&str>) -> Result<Page<Account>, String> {
+    let params = match after {
+        Some(cursor) => PageParams::after(cursor, PAGE),
+        None => PageParams::first(PAGE),
     };
-    call(transport.post_status(&draft)).await
+    call(transport()?.followers(&LocalId(id.to_owned()), params)).await
+}
+
+/// One page of the accounts an account follows.
+pub async fn following(id: &str, after: Option<&str>) -> Result<Page<Account>, String> {
+    let params = match after {
+        Some(cursor) => PageParams::after(cursor, PAGE),
+        None => PageParams::first(PAGE),
+    };
+    call(transport()?.following(&LocalId(id.to_owned()), params)).await
+}
+
+/// Accounts this account muted.
+pub async fn mutes(after: Option<&str>) -> Result<Page<Account>, String> {
+    let params = match after {
+        Some(cursor) => PageParams::after(cursor, PAGE),
+        None => PageParams::first(PAGE),
+    };
+    call(transport()?.mutes(params)).await
+}
+
+/// Accounts this account blocked.
+pub async fn blocks(after: Option<&str>) -> Result<Page<Account>, String> {
+    let params = match after {
+        Some(cursor) => PageParams::after(cursor, PAGE),
+        None => PageParams::first(PAGE),
+    };
+    call(transport()?.blocks(params)).await
 }
 
 /// Votes on a poll and returns the status it belongs to.

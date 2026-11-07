@@ -6,7 +6,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{Status, Visibility};
+use nodus_instance::model::Status;
 
 use crate::state::bridge::actions;
 
@@ -29,7 +29,7 @@ pub(super) fn ReplyBox(
         set_posting.set(true);
         set_error.set(None);
         spawn_local(async move {
-            match actions::publish(&text, Visibility::Public, Some(&parent)).await {
+            match actions::publish(&actions::NewStatus::reply(text, &parent)).await {
                 Ok(reply) => {
                     set_draft.set(String::new());
                     set_replies.update(|replies| replies.push(reply));

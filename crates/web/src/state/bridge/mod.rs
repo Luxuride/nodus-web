@@ -33,6 +33,7 @@ use url::Url;
 mod feed;
 mod impressions;
 mod posts;
+mod runtime;
 mod session;
 
 // Re-exported so every call site keeps saying `bridge::<verb>`: the split into
@@ -40,6 +41,7 @@ mod session;
 pub use feed::{follow_item, not_interested, reload_feed, unfollow_item};
 pub use impressions::report_impressions;
 pub use posts::{load_posts_once, posts_ui, reload_posts};
+pub use runtime::start as start_background_tick;
 pub use session::{set_sync, sign_in, sign_out};
 
 /// The SDK as this app wires it: browser transports, memory cache, system clock.

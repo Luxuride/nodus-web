@@ -19,11 +19,25 @@ Measured on a mid-tier Android over throttled 4G, cold cache, brotli:
 | Memory after 30 min of scrolling | < 150 MB | manual, milestone |
 
 Current baseline (five screens: sign-in, OAuth callback, the Feed tab's two lists,
-settings): **567 KB wasm / 234 KB gzipped**, plus 45 KB JS (8 KB gzipped) and 216 KB
-CSS (33 KB gzipped) — about 275 KB compressed, leaving ~625 KB of headroom. The jump from the 101 KB shell was
+settings, plus the background tick): **568 KB wasm / 235 KB gzipped**, plus 45 KB JS
+(8 KB gzipped) and 216 KB CSS (33 KB gzipped) — about 276 KB compressed, leaving ~624 KB
+of headroom. The jump from the 101 KB shell was
 the real transports (`BrowserInstance`, `BrowserDiscovery`), `serde_json`, and
 `web_sys` bindings; the CSS is daisyUI's used-component set, which is where the
 216 KB goes and why themes are capped at two.
+
+Traps that move the number in ways nothing explains, recorded because each cost an hour:
+
+- **Never call a function containing a spawned `loop` inside a `#[component]` body before
+  its `view!`.** Doing that made the whole UI unreachable for LTO: the bundle *shrank* by
+  224 KB and every screen's markup vanished from the wasm while `clippy` stayed clean. The
+  tick is therefore started from `main`, after `mount_to_body`, and the size baseline is
+  re-checked whenever startup code moves.
+- **Check for a stale `dist` before believing a measurement.** Trunk can report success
+  without rewriting artefacts after a source edit; `rm -rf dist && trunk build --release`
+  before recording a number, and grep the wasm for one string you know the new code added.
+- **String presence is a weak but useful signal**: `grep -c "Background sync is on"
+  dist/*_bg.wasm` returning 0 once proved the UI had been dropped.
 
 Mechanisms:
 

@@ -8,11 +8,10 @@ use leptos::prelude::*;
 
 use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
-use nodus_instance::model::{Page, Status};
-
 use super::status::StatusCard;
 use crate::state::alive::Alive;
-use crate::state::bridge::actions;
+use crate::state::bridge::{pages, revision};
+use nodus_sdk::page::{PageItems, PageKind};
 
 /// Which shelf is showing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +21,14 @@ enum Shelf {
 }
 
 impl Shelf {
+    /// The page this shelf reads from SDK state.
+    fn kind(self) -> PageKind {
+        match self {
+            Self::Favourites => PageKind::Favourites,
+            Self::Bookmarks => PageKind::Bookmarks,
+        }
+    }
+
     /// The tab label.
     fn label(self) -> &'static str {
         match self {
@@ -31,46 +38,33 @@ impl Shelf {
     }
 }
 
-/// One page of a shelf, or the reason it could not be read.
-async fn page(shelf: Shelf, after: Option<&str>) -> Result<Page<Status>, String> {
-    match shelf {
-        Shelf::Favourites => actions::favourites(after).await,
-        Shelf::Bookmarks => actions::bookmarks(after).await,
-    }
-}
-
 /// The saved screen: a tab per shelf and one list beneath it.
 #[component]
 pub fn Saved() -> impl IntoView {
+    let revision = revision();
     let (shelf, set_shelf) = signal(Shelf::Favourites);
-    let (statuses, set_statuses) = signal(Vec::<Status>::new());
-    let (cursor, set_cursor) = signal(None::<String>);
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
+
+    // The shelf is read from the SDK: two shelves live there side by side, so switching
+    // tabs is a read, not a fetch.
+    let held = move || {
+        revision.get();
+        pages::items(&shelf.get().kind(), |items| match items {
+            PageItems::Statuses(list) => Some(list),
+            _ => None,
+        })
+    };
+    let statuses = move || held().map(|(list, _)| list).unwrap_or_default();
+    let cursor = move || held().and_then(|(_, cursor)| cursor);
 
     let load = move |which: Shelf, after: Option<String>| {
         let alive = Alive::new();
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            match page(which, after.as_deref()).await {
-                Ok(page) => {
-                    alive.if_alive(|| set_cursor.set(page.next_max_id));
-                    // Collect first: filtering against the same list we are extending
-                    // would borrow it twice.
-                    let fresh: Vec<Status> = page
-                        .items
-                        .into_iter()
-                        .filter(|status| {
-                            !statuses
-                                .get_untracked()
-                                .iter()
-                                .any(|seen| seen.id == status.id)
-                        })
-                        .collect();
-                    alive.if_alive(|| set_statuses.update(|list| list.extend(fresh)));
-                }
-                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            if let Err(message) = pages::ensure_after(which.kind(), after).await {
+                alive.if_alive(|| set_error.set(Some(message)));
             }
             alive.if_alive(|| set_loading.set(false));
         });
@@ -81,7 +75,7 @@ pub fn Saved() -> impl IntoView {
     Effect::new(move |_| load(Shelf::Favourites, None));
 
     let more = move || {
-        if let Some(after) = cursor.get_untracked() {
+        if let Some(after) = cursor() {
             load(shelf.get_untracked(), Some(after));
         }
     };
@@ -102,8 +96,8 @@ pub fn Saved() -> impl IntoView {
                         on:click=move |_| {
                             if shelf.get_untracked() != which {
                                 set_shelf.set(which);
-                                set_statuses.set(Vec::new());
-                                set_cursor.set(None);
+                                // The SDK may already hold this shelf; `ensure` decides
+                                // whether the network is needed, so no list is cleared.
                                 load(which, None);
                             }
                         }
@@ -113,9 +107,7 @@ pub fn Saved() -> impl IntoView {
                 </For>
             </div>
 
-            <Show when=move || {
-                !loading.get() && statuses.get().is_empty() && error.get().is_none()
-            }>
+            <Show when=move || !loading.get() && statuses().is_empty() && error.get().is_none()>
                 <p class="text-sm opacity-60">
                     {move || match shelf.get() {
                         Shelf::Favourites => "Nothing is favourited yet.",
@@ -125,12 +117,12 @@ pub fn Saved() -> impl IntoView {
             </Show>
 
             <ul class="flex flex-col gap-3">
-                <For each=move || statuses.get() key=|status| status.id.clone() let:status>
+                <For each=statuses key=|status| status.id.clone() let:status>
                     <StatusCard status=status/>
                 </For>
             </ul>
 
-            <Show when=move || cursor.get().is_some()>
+            <Show when=move || cursor().is_some()>
                 <button class="btn btn-ghost btn-sm w-full" disabled=move || loading.get() on:click=move |_| more()>
                     "Load more"
                 </button>

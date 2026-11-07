@@ -1,0 +1,70 @@
+//! Reading non-timeline pages from SDK state: notifications, messages, saved, people.
+//!
+//! Same rule as [`super::timeline`]: a navigation is a read. A screen paints what the
+//! SDK holds before any request is made, and [`ensure`] fills only what is missing or
+//! older than [`TTL_MS`]. Offline, that means a page still renders — stamped with the
+//! moment it was fetched, never with the pretence that it is current.
+
+use nodus_sdk::page::{PageEntry, PageItems, PageKind};
+
+use super::handle;
+
+/// How long a page is trusted before a visit refreshes it.
+pub const TTL_MS: i64 = 60_000;
+
+/// What the SDK holds for this page, or `None` when nothing was loaded yet.
+///
+/// `None` and "an empty page" are different answers: the first means unknown, the
+/// second means the server said there is nothing.
+#[must_use]
+pub fn read(kind: &PageKind) -> Option<PageEntry> {
+    handle().and_then(|sdk| sdk.page(kind))
+}
+
+/// The items of a page, when they are of the expected shape.
+#[must_use]
+pub fn items<T>(
+    kind: &PageKind,
+    pick: impl FnOnce(PageItems) -> Option<Vec<T>>,
+) -> Option<(Vec<T>, Option<String>)> {
+    let entry = read(kind)?;
+    let items = pick(entry.items)?;
+    Some((items, entry.cursor))
+}
+
+/// Loads the newest page when the held one is missing or stale.
+///
+/// Returns `true` when a request was made.
+pub async fn ensure(kind: PageKind) -> Result<bool, String> {
+    ensure_after(kind, None).await
+}
+
+/// Loads one more page, older than what the reader already has.
+pub async fn ensure_after(kind: PageKind, cursor: Option<String>) -> Result<bool, String> {
+    let sdk = handle().ok_or_else(|| "the SDK is not installed".to_owned())?;
+    let limit = super::actions::PAGE;
+    sdk.ensure_page(kind, cursor.as_deref(), limit, TTL_MS)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// When this page was fetched, in Unix milliseconds.
+///
+/// `None` means "unknown": the page was never loaded, or the socket reconnected and
+/// marked it stale. A view that shows old data must say so, so this stays public even
+/// while the first caller is still being written.
+#[expect(dead_code, reason = "the offline banner and the people screens read it next")]
+#[must_use]
+pub fn fetched_at(kind: &PageKind) -> Option<i64> {
+    read(kind).and_then(|entry| entry.fetched_at)
+}
+
+/// Accounts from a people page, in the order the instance sent them.
+#[expect(dead_code, reason = "the people screens move onto the page store next")]
+#[must_use]
+pub fn accounts(kind: &PageKind) -> Option<(Vec<nodus_instance::model::Account>, Option<String>)> {
+    items(kind, |items| match items {
+        PageItems::Accounts(accounts) => Some(accounts),
+        _ => None,
+    })
+}

@@ -17,7 +17,7 @@ use nodus_instance::actions::{
 };
 use nodus_instance::model::{
     Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId, MediaAttachment,
-    Notification, Page, PageParams, ProfileUpdate, Relationship, SearchResults, Status,
+    Page, PageParams, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -65,14 +65,6 @@ pub async fn relationship(id: &str) -> Result<Option<Relationship>, String> {
     Ok(found.into_iter().next())
 }
 
-/// The account's notifications, newest first.
-pub async fn notifications(after: Option<&str>) -> Result<Page<Notification>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.notifications(params)).await
-}
 
 /// Favourites or un-favourites a status.
 pub async fn favourite(id: &str, on: bool) -> Result<Status, String> {
@@ -290,23 +282,7 @@ pub async fn search(query: &str, resolve: bool) -> Result<SearchResults, String>
     call(transport()?.search(query, resolve)).await
 }
 
-/// The statuses the signed-in account favourited.
-pub async fn favourites(after: Option<&str>) -> Result<Page<Status>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.favourites(params)).await
-}
 
-/// The statuses the signed-in account bookmarked.
-pub async fn bookmarks(after: Option<&str>) -> Result<Page<Status>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.bookmarks(params)).await
-}
 
 /// The account's lists.
 pub async fn lists() -> Result<Vec<List>, String> {

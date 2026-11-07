@@ -158,6 +158,24 @@ Removed by the SDK split, and staying removed: `api/`, `masto/`, `cache/` and
    write is the rule; it is a flag rather than `try_update` because the write sites
    must also skip the work the write would trigger.
 
+8. **SSR for every path; the session decides what the server paints.** The server
+   renders each route, public or private, so a visitor gets real content and
+   crawlers get real markup. When the request carries a session, the authenticated
+   view is painted instead — with the first page of data and its cursor already in
+   the markup — so there is no "signed-in after the fact" flash: the server never
+   paints a stranger's page to an account holder. The client takes over from there
+   for what a document cannot do: infinite scroll on the same cursor, streaming,
+   and every action. The only client-only screen is the OAuth callback, which has
+   nothing to render until it has exchanged a code.
+9. **Unknown is a state; never render a default that looks like a decision.** A
+   value that has not arrived yet is not "off", "0", "Follow" or "No posts yet".
+   Three renders happen before any answer (mount, request, answer), and the middle
+   one must not show content that then changes — that flicker reads as a bug even
+   when the final value is right. Render the absence: a dimmed placeholder, a
+   disabled control, or nothing. `Handle<Option<T>>` in the SDK is how a value gets
+   a third state; `SyncConsent` uses it. Where a value can be known before first
+   paint, put it there instead — the stored session is adopted, not re-asked.
+
 ## Routing
 
 | Route | View | Data source |

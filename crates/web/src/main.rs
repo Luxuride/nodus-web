@@ -48,10 +48,15 @@ fn App() -> impl IntoView {
 
     let revision = revision();
     let route = router::route();
-    let signed_in = move || {
+    // A `Memo`, not a closure: the screen match below reads this, and a plain closure
+    // would re-run it on every state notification — rebuilding the current screen
+    // (disposing its owner, dropping its state, re-firing its effects) each time the
+    // background tick or any SDK write bumped `revision`. A memo only notifies when the
+    // *value* changes, which is exactly when the screen has to change too.
+    let signed_in = Memo::new(move |_| {
         revision.get();
         with_sdk(|sdk| sdk.state().session.get().is_some())
-    };
+    });
 
     view! {
         <div class="min-h-screen bg-base-200 text-base-content">
@@ -95,7 +100,7 @@ fn App() -> impl IntoView {
                         // Everything the API serves needs a token, so a signed-out
                         // visitor gets the same answer on every gated route: what the
                         // click was for, or the rail reads as broken.
-                        let signed_in = signed_in();
+                        let signed_in = signed_in.get();
                         match route.get() {
                             Route::OauthCallback => view! { <Callback/> }.into_any(),
                             Route::Feed if signed_in => view! { <Feed/> }.into_any(),

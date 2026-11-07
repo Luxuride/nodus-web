@@ -11,7 +11,7 @@ use nodus_instance::model::Status;
 
 use super::menu::StatusMenu;
 use super::share::ShareButton;
-use crate::router::{self, Route};
+use crate::router;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
@@ -40,9 +40,9 @@ pub fn CardFooter(
             <div class="flex items-center gap-1">
                 <a
                     class="btn btn-ghost btn-sm"
-                    href=move || Route::Thread(shown.get_untracked().id).path()
+                    href=move || super::thread_route(&shown.get_untracked().id).path()
                     on:click=move |event| {
-                        router::link(event, Route::Thread(shown.get_untracked().id));
+                        router::link(event, super::thread_route(&shown.get_untracked().id));
                     }
                 >
                     "Reply"

@@ -32,7 +32,7 @@ pub fn PublicThread(host: String, id: String) -> AnyView {
             if host.is_empty() {
                 return;
             }
-            router::navigate(Route::PublicThread {
+            router::navigate(Route::Thread {
                 host,
                 id: for_submit.clone(),
             });

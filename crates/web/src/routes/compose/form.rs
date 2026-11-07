@@ -78,7 +78,10 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
             // An edit lands on the thread, which shows the new revision; a fresh status has
             // no page of its own, so home is where it appears.
             router::navigate(match &editing {
-                Some(id) => Route::Thread(id.clone()),
+                Some(id) => Route::Thread {
+                    host: crate::state::bridge::session::remembered_host().unwrap_or_default(),
+                    id: id.clone(),
+                },
                 None => Route::Home,
             });
             alive.if_alive(|| set_busy.set(false));

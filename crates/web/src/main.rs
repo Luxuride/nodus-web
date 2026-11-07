@@ -142,13 +142,8 @@ fn App() -> impl IntoView {
                             }
                             Route::Lists if signed_in => view! { <Lists/> }.into_any(),
                             Route::Settings if signed_in => view! { <Settings/> }.into_any(),
-                            Route::Thread(id) if signed_in => {
+                            Route::Thread { id, .. } if signed_in => {
                                 view! { <Thread id=id/> }.into_any()
-                            }
-                            // A shared link works for a reader with no session: it names
-                            // the host, so the post is fetched from there anonymously.
-                            Route::PublicThread { host, id } => {
-                                view! { <PublicThread host=host id=id/> }.into_any()
                             }
                             Route::Account(id) if signed_in => {
                                 view! { <AccountView id=id/> }.into_any()
@@ -188,13 +183,19 @@ fn App() -> impl IntoView {
                                 }
                                     .into_any()
                             }
-                            Route::Thread(id) => view! {
-                                <PublicThread
-                                    host=crate::state::bridge::session::remembered_host().unwrap_or_default()
-                                    id=id
-                                />
+                            // A shared link works without a session: the address names the
+                            // host, so the post is read from there anonymously. A legacy
+                            // `/status/{id}` link falls back to the instance this browser
+                            // already used, or asks which one.
+                            Route::Thread { host, id } => {
+                                let host = if host.is_empty() {
+                                    crate::state::bridge::session::remembered_host()
+                                        .unwrap_or_default()
+                                } else {
+                                    host
+                                };
+                                view! { <PublicThread host=host id=id/> }.into_any()
                             }
-                            .into_any(),
                             Route::Account(_) => {
                                 view! { <SignIn note="Sign in to read this."/> }.into_any()
                             }

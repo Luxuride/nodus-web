@@ -28,6 +28,17 @@ mod share;
 use body::StatusBody;
 use footer::CardFooter;
 
+/// The route to one status, host included.
+///
+/// A thread link is also a shareable link, so the host travels with the id: a link the app
+/// builds itself must not be the one link it cannot read back.
+pub(super) fn thread_route(id: &str) -> Route {
+    Route::Thread {
+        host: crate::state::bridge::session::remembered_host().unwrap_or_default(),
+        id: id.to_owned(),
+    }
+}
+
 /// A status card: who wrote it, what it says, and what can be done with it.
 #[component]
 pub fn StatusCard(status: Status) -> impl IntoView {
@@ -52,7 +63,7 @@ pub fn StatusCard(status: Status) -> impl IntoView {
     // One copy for the link targets: a signal read inside `href` would rebuild the
     // anchor on every action, and the browser would lose focus on the link.
     let author_href = move || Route::Account(shown.get_untracked().account.id.clone()).path();
-    let thread_id = move |status: &Status| Route::Thread(status.id.clone());
+    let thread_id = move |status: &Status| thread_route(&status.id);
 
     view! {
         <li class="card border border-base-300 bg-base-100 shadow-sm">

@@ -15,12 +15,16 @@ mod accounts;
 pub(crate) mod profile;
 pub(crate) mod filters;
 pub(crate) mod sensitive;
+pub(crate) mod instance;
 pub(crate) mod sync;
+pub(crate) mod tags;
 
 use accounts::AccountsCard;
 use profile::ProfileCard;
 use filters::FiltersCard;
+use instance::InstanceRulesCard;
 use sensitive::SensitiveCard;
+use tags::FeaturedTagsCard;
 
 /// The settings screen.
 #[component]
@@ -72,7 +76,9 @@ pub fn Settings() -> impl IntoView {
             <ProfileCard/>
             <SensitiveCard/>
             <FiltersCard/>
+            <FeaturedTagsCard/>
             <SyncCard/>
+            <InstanceRulesCard/>
 
             <div class="card mt-4 border border-base-300 bg-base-100 shadow-sm">
                 <div class="card-body gap-2 p-4">

@@ -11,7 +11,7 @@ use core::future::Future;
 use nodus_instance::BrowserInstance;
 use nodus_instance::InstanceApi;
 use nodus_instance::actions::{
-    AccountActions, Browse, FilterActions, MediaActions, Search, StatusActions,
+    AccountActions, Browse, FilterActions, HighlightActions, MediaActions, Search, StatusActions,
 };
 use nodus_instance::model::{
     Account, Context, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId, MediaAttachment,
@@ -388,4 +388,24 @@ pub async fn update_filter(id: &str, draft: &FilterDraft) -> Result<Filter, Stri
 /// Deletes a filter, and with it its phrases.
 pub async fn delete_filter(id: &str) -> Result<(), String> {
     call(transport()?.delete_filter(id)).await
+}
+
+/// The tags an account has featured on its profile.
+pub async fn featured_tags(id: &str) -> Result<Vec<nodus_instance::model::FeaturedTag>, String> {
+    call(transport()?.featured_tags(&nodus_instance::LocalId(id.to_owned()))).await
+}
+
+/// Features a tag on the signed-in account's profile.
+pub async fn feature_tag(name: &str) -> Result<(), String> {
+    call(transport()?.feature_tag(name)).await.map(|_tag| ())
+}
+
+/// Removes a tag from the profile.
+pub async fn unfeature_tag(id: &str) -> Result<(), String> {
+    call(transport()?.unfeature_tag(id)).await
+}
+
+/// The instance's code of conduct.
+pub async fn rules() -> Result<Vec<nodus_instance::model::Rule>, String> {
+    call(transport()?.rules()).await
 }

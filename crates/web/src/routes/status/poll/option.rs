@@ -17,15 +17,12 @@ pub(super) fn PollOptionRow(
     picked: ReadSignal<Vec<usize>>,
     pick: Callback<usize>,
 ) -> impl IntoView {
-    let total: u64 = shown
-        .get_untracked()
-        .poll
-        .map_or(0, |poll| {
-            poll.options
-                .iter()
-                .filter_map(|option| option.votes_count)
-                .sum()
-        });
+    let total: u64 = shown.get_untracked().poll.map_or(0, |poll| {
+        poll.options
+            .iter()
+            .filter_map(|option| option.votes_count)
+            .sum()
+    });
     // `checked_div` rather than a guard: a poll with no votes at all has no share, and the
     // expression says so without a branch that a later edit could invert.
     let share = votes

@@ -40,6 +40,8 @@ pub enum Route {
     Notifications,
     /// Search over accounts, statuses and hashtags.
     Search,
+    /// Favourites and bookmarks.
+    Saved,
     /// Instance, sync consent and sign-out.
     Settings,
     /// Where the instance returns the browser after authorization. The query string
@@ -58,6 +60,7 @@ impl Route {
             Self::Account(id) => format!("/accounts/{id}"),
             Self::Notifications => "/notifications".to_owned(),
             Self::Search => "/search".to_owned(),
+            Self::Saved => "/saved".to_owned(),
             Self::Settings => "/settings".to_owned(),
             // The OAuth flow registers this path as `redirect_uris`; sharing the
             // constant is what keeps the address bar and the registered URI identical.
@@ -90,6 +93,7 @@ impl Route {
             "/home" => Self::Home,
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,
+            "/saved" => Self::Saved,
             "/settings" => Self::Settings,
             _ => Self::Feed,
         }

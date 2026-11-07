@@ -7,6 +7,7 @@ pub mod feed;
 pub mod format;
 pub mod home;
 pub mod notifications;
+pub mod saved;
 pub mod search;
 pub mod settings;
 pub mod sign_in;

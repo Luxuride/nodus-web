@@ -16,6 +16,7 @@ use crate::routes::callback::Callback;
 use crate::routes::feed::Feed;
 use crate::routes::home::Home;
 use crate::routes::notifications::Notifications;
+use crate::routes::saved::Saved;
 use crate::routes::search::Search;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
@@ -68,6 +69,7 @@ fn App() -> impl IntoView {
                         <RailItem label="Home" route=Route::Home/>
                         <RailItem label="Notifications" route=Route::Notifications/>
                         <RailItem label="Search" route=Route::Search/>
+                        <RailItem label="Saved" route=Route::Saved/>
                         <RailItem label="Settings" route=Route::Settings/>
                     </ul>
                 </nav>
@@ -89,6 +91,7 @@ fn App() -> impl IntoView {
                                 view! { <Notifications/> }.into_any()
                             }
                             Route::Search if signed_in => view! { <Search/> }.into_any(),
+                            Route::Saved if signed_in => view! { <Saved/> }.into_any(),
                             Route::Settings if signed_in => view! { <Settings/> }.into_any(),
                             Route::Thread(id) if signed_in => {
                                 view! { <Thread id=id/> }.into_any()
@@ -110,6 +113,10 @@ fn App() -> impl IntoView {
                             }
                             Route::Search => {
                                 view! { <SignIn note="Sign in to search."/> }.into_any()
+                            }
+                            Route::Saved => {
+                                view! { <SignIn note="Sign in to see what you saved."/> }
+                                    .into_any()
                             }
                             Route::Settings => {
                                 view! {

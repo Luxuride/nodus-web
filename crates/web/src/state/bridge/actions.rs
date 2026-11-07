@@ -218,10 +218,6 @@ pub async fn search(query: &str, resolve: bool) -> Result<SearchResults, String>
 }
 
 /// The statuses the signed-in account favourited.
-#[expect(
-    dead_code,
-    reason = "the favourites screen lands with the saved-tab work"
-)]
 pub async fn favourites(after: Option<&str>) -> Result<Page<Status>, String> {
     let params = match after {
         Some(cursor) => PageParams::after(cursor, PAGE),
@@ -231,10 +227,6 @@ pub async fn favourites(after: Option<&str>) -> Result<Page<Status>, String> {
 }
 
 /// The statuses the signed-in account bookmarked.
-#[expect(
-    dead_code,
-    reason = "the bookmarks screen lands with the saved-tab work"
-)]
 pub async fn bookmarks(after: Option<&str>) -> Result<Page<Status>, String> {
     let params = match after {
         Some(cursor) => PageParams::after(cursor, PAGE),

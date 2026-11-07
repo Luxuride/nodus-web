@@ -146,15 +146,27 @@ pub fn install() {
 }
 
 /// Navigates to `to`, pushing a history entry so the URL and the back button work.
+///
+/// Re-navigating to the screen already on display is a no-op. Without this, clicking the
+/// current tab stacks a second identical history entry, and the Back button then appears
+/// to do nothing — it pops to the same URL, and the same screen renders again.
 pub fn navigate(to: Route) {
+    let current = route();
+    let path = to.path();
+    let unchanged = current.get_untracked() == to
+        && web_sys::window()
+            .and_then(|window| window.location().pathname().ok())
+            .is_some_and(|here| here == path);
+    if unchanged {
+        return;
+    }
     if let Some(window) = web_sys::window() {
         if let Ok(history) = window.history() {
             // `path()` builds the string, so it has to outlive the call that borrows it.
-            let path = to.path();
             let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
         }
     }
-    route().set(to);
+    current.set(to);
 }
 
 /// Click handler for internal links: keeps the SPA and the address bar in step.

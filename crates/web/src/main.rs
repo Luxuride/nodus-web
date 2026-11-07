@@ -186,7 +186,9 @@ fn RailItem(label: &'static str, route: Route) -> impl IntoView {
     view! {
         <li>
             <a
-                class="font-medium"
+                // Full width, so the whole row is the hit area: a rail whose padding does
+                // nothing reads as a rail whose buttons are broken.
+                class="block w-full font-medium"
                 class:menu-active=move || current.get() == marker
                 href=path
                 on:click=move |event| router::link(event, target.clone())

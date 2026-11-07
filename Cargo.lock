@@ -881,30 +881,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "nodus-instance-api"
-version = "0.1.0"
-dependencies = [
- "nodus-instance-model",
- "thiserror 2.0.21",
- "url",
-]
-
-[[package]]
-name = "nodus-instance-model"
-version = "0.1.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "nodus-instance-rest"
+name = "nodus-instance"
 version = "0.1.0"
 dependencies = [
  "gloo-net",
  "js-sys",
- "nodus-instance-api",
  "serde",
  "serde_json",
+ "thiserror 2.0.21",
  "url",
  "wasm-bindgen",
  "web-sys",
@@ -923,7 +907,7 @@ name = "nodus-runtime"
 version = "0.1.0"
 dependencies = [
  "js-sys",
- "nodus-instance-api",
+ "nodus-instance",
  "nodus-persist",
  "nodus-shared",
  "nodus-state",
@@ -937,7 +921,7 @@ name = "nodus-sdk"
 version = "0.1.0"
 dependencies = [
  "nodus-discovery",
- "nodus-instance-api",
+ "nodus-instance",
  "nodus-persist",
  "nodus-runtime",
  "nodus-state",
@@ -967,7 +951,7 @@ dependencies = [
  "js-sys",
  "leptos",
  "nodus-discovery",
- "nodus-instance-rest",
+ "nodus-instance",
  "nodus-sdk",
  "nodus-shared",
  "url",

@@ -6,7 +6,7 @@
 //! sites keep saying `bridge::sign_in` and friends.
 
 use leptos::prelude::*;
-use nodus_instance_rest::BrowserInstance;
+use nodus_instance::BrowserInstance;
 use nodus_sdk::instance_api::{Instance, InstanceApi};
 
 use self::record::StoredSession;

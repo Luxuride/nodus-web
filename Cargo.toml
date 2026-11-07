@@ -18,7 +18,7 @@ nodus-shared = { path = "../sdk/crates/shared", version = "0.1.0" }
 nodus-sdk = { path = "../sdk/crates/sdk", version = "0.1.0" }
 # The browser transport that hosts `BrowserInstance`. The SDK facade deliberately
 # does not re-export a transport: a consumer picks `native` or `wasm` itself.
-nodus-instance-rest = { path = "../sdk/crates/instance-rest", version = "0.1.0", features = [
+nodus-instance = { path = "../sdk/crates/instance", version = "0.1.0", features = [
     "wasm",
 ] }
 # Our recommendation API, browser transport (`BrowserDiscovery`).

@@ -25,7 +25,7 @@ use std::rc::Rc;
 
 use leptos::prelude::*;
 use nodus_discovery::BrowserDiscovery;
-use nodus_instance_rest::BrowserInstance;
+use nodus_instance::BrowserInstance;
 use nodus_sdk::instance_api::Instance;
 use nodus_sdk::{Command, MemoryPersistence, Sdk, Subscription, SystemClock};
 use url::Url;

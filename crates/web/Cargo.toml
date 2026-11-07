@@ -15,7 +15,7 @@ workspace = true
 nodus-shared = { workspace = true }
 nodus-sdk = { workspace = true }
 # Transports live outside the SDK facade so a consumer chooses its stack.
-nodus-instance-rest = { workspace = true }
+nodus-instance = { workspace = true }
 nodus-discovery = { workspace = true }
 console_error_panic_hook = "0.1"
 leptos = { version = "0.8.23", features = ["csr"] }

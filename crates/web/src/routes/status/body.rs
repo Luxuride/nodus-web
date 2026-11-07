@@ -54,10 +54,10 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
                 // be the overlay, and a veil over a blur reads as a bug rather than a gate.
                 <button
                     type="button"
-                    class="absolute inset-0 flex items-center justify-center bg-transparent"
+                    class="absolute inset-0 flex cursor-pointer items-center justify-center bg-transparent transition-colors hover:bg-base-300/20"
                     on:click=move |_| set_revealed.set(true)
                 >
-                    <span class="rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm">
+                    <span class="rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm transition-transform hover:scale-105">
                         <span class="block text-sm font-medium">"Sensitive content"</span>
                         <span class="block text-xs opacity-70">{move || count_label(&shown.get())}</span>
                     </span>
@@ -142,18 +142,24 @@ fn MediaTile(
         crate::media::expand(pictures, position);
     };
 
-    // Inline rather than a utility class: the gate must survive a stylesheet that
-    // predates it, and a filter is one declaration.
-    let blur = if blurred { "blur(22px)" } else { "none" };
+    // Inline rather than utility classes: the gate must survive a stylesheet that predates
+    // it, and these are two declarations. The scale is not decoration — a blur samples
+    // outside the element as transparent, so an unscaled blur eats its own edges and reads
+    // as a hole rather than as hidden content.
+    let veil = if blurred {
+        "filter: blur(18px); transform: scale(1.08);"
+    } else {
+        ""
+    };
 
     view! {
-        // Clipped: a blur without `overflow-hidden` bleeds past the tile edge.
-        <li class="overflow-hidden rounded-box" style:filter=blur>
+        <li class="overflow-hidden rounded-box">
             <Show when=move || is_image && interactive>
                 // A click expands in place, on the picture the reader pointed at.
                 <button type="button" class="w-full cursor-zoom-in" on:click=open_viewer>
                     <img
                         class="h-auto w-full rounded-box bg-base-300 object-cover"
+                        style=veil
                         src=move || preview.get()
                         alt=move || description.get()
                         title=move || description.get()
@@ -168,6 +174,7 @@ fn MediaTile(
             <Show when=move || is_image && !interactive>
                 <img
                     class="h-auto w-full rounded-box bg-base-300 object-cover"
+                    style=veil
                     src=move || preview.get()
                     alt=move || description.get()
                     width=move || width.get().map(|width| width.to_string()).unwrap_or_default()

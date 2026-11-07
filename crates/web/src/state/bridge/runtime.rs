@@ -11,7 +11,9 @@
 //! tick's failures are folded into the driver's backoff (see `Sdk::drive`).
 
 use std::cell::RefCell;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+use web_time::Instant;
 
 use leptos::task::spawn_local;
 use nodus_sdk::Driver;

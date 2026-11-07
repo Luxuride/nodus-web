@@ -17,8 +17,12 @@ use crate::state::bridge::{feed_ui, sign_in};
 use crate::state::oauth;
 
 /// The sign-in screen.
+///
+/// `note` says what the user was on their way to. Without it, clicking a rail link
+/// while signed out looks like a dead button: every gated route renders this same
+/// screen, so the address bar changes and nothing else appears to.
 #[component]
-pub fn SignIn() -> impl IntoView {
+pub fn SignIn(#[prop(optional)] note: Option<&'static str>) -> impl IntoView {
     // One signal for the instance: both forms point at the same instance, and an
     // address typed into either field is what the other submits.
     let host = RwSignal::new(String::new());
@@ -55,6 +59,9 @@ pub fn SignIn() -> impl IntoView {
             <div class="card border border-base-300 bg-base-100 shadow-sm">
                 <div class="card-body gap-4">
                     <h1 class="card-title">"Sign in"</h1>
+                    {note.map(|note| view! {
+                        <p class="text-sm font-medium">{note}</p>
+                    })}
                     <p class="text-sm opacity-70">
                         "Authorize this app on your instance. Approval happens on your instance's own page, and the access token it returns can be revoked there at any time."
                     </p>

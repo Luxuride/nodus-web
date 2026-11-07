@@ -91,7 +91,17 @@ fn App() -> impl IntoView {
                             router::Route::Settings if signed_in() => {
                                 view! { <Settings/> }.into_any()
                             }
-                            _ => view! { <SignIn/> }.into_any(),
+                            // Signed out on a gated route: say what the click was for,
+                            // or the rail reads as broken.
+                            router::Route::Feed => {
+                                view! { <SignIn note="Sign in to see your feed."/> }.into_any()
+                            }
+                            router::Route::Settings => {
+                                view! {
+                                    <SignIn note="Sign in to change your settings."/>
+                                }
+                                    .into_any()
+                            }
                         }
                     }}
                 </main>

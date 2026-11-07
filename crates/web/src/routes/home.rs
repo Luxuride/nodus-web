@@ -45,7 +45,9 @@ struct Timelines {
 pub fn Home() -> impl IntoView {
     let (tab, set_tab) = signal(Tab::Home);
     let (timelines, set_timelines) = signal(Timelines::default());
-    let (loading, set_loading) = signal(false);
+    // Starts true: until the first request is issued, "nothing yet" is a
+    // guess, and a guess renders as an empty state that flickers.
+    let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 

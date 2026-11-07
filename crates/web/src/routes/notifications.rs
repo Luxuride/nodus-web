@@ -23,7 +23,9 @@ use row::NotificationRow;
 pub fn Notifications() -> impl IntoView {
     let (items, set_items) = signal(Vec::<Notification>::new());
     let (cursor, set_cursor) = signal(None::<String>);
-    let (loading, set_loading) = signal(false);
+    // Starts true: until the first request is issued, "nothing yet" is a
+    // guess, and a guess renders as an empty state that flickers.
+    let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 

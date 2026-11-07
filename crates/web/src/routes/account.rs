@@ -72,7 +72,9 @@ pub fn AccountView(id: String) -> impl IntoView {
     let (tab, set_tab) = signal(Tab::Posts);
     let (statuses, set_statuses) = signal(Vec::<Status>::new());
     let (cursor, set_cursor) = signal(None::<String>);
-    let (loading, set_loading) = signal(false);
+    // Starts true: until the first request is issued, "nothing yet" is a
+    // guess, and a guess renders as an empty state that flickers.
+    let (loading, set_loading) = signal(true);
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();

@@ -19,6 +19,7 @@ use crate::routes::account::AccountView;
 use crate::routes::callback::Callback;
 use crate::routes::compose::panel::{self as compose_panel, ComposerPanel};
 use crate::routes::compose::{Compose, ComposeEdit};
+use crate::routes::conversations::Conversations;
 use crate::routes::feed::Feed;
 use crate::routes::home::Home;
 use crate::routes::lists::Lists;
@@ -102,6 +103,7 @@ fn App() -> impl IntoView {
                     <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
                         <RailItem label="Home" route=Route::Home/>
                         <RailItem label="Feed" route=Route::Feed/>
+                        <RailItem label="Messages" route=Route::Messages/>
                         <RailItem label="Notifications" route=Route::Notifications/>
                         <RailItem label="Search" route=Route::Search/>
                         <RailItem label="Saved" route=Route::Saved/>
@@ -132,6 +134,9 @@ fn App() -> impl IntoView {
                             Route::OauthCallback => view! { <Callback/> }.into_any(),
                             Route::Feed if signed_in => view! { <Feed/> }.into_any(),
                             Route::Home if signed_in => view! { <Home/> }.into_any(),
+                            Route::Messages if signed_in => {
+                                view! { <Conversations/> }.into_any()
+                            }
                             Route::Notifications if signed_in => {
                                 view! { <Notifications/> }.into_any()
                             }
@@ -165,6 +170,10 @@ fn App() -> impl IntoView {
                             }
                             Route::Home => {
                                 view! { <SignIn note="Sign in to see your timeline."/> }.into_any()
+                            }
+                            Route::Messages => {
+                                view! { <SignIn note="Sign in to read your messages."/> }
+                                    .into_any()
                             }
                             Route::Notifications => {
                                 view! {

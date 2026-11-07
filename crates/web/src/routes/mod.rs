@@ -5,6 +5,7 @@ pub mod account;
 pub mod admin;
 pub mod callback;
 pub mod compose;
+pub mod conversations;
 pub mod feed;
 pub mod format;
 pub mod home;

@@ -47,6 +47,7 @@ pub enum Route {
     /// One account's profile and statuses.
     Account(String),
     /// Notifications for the signed-in account.
+    Messages,
     Notifications,
     /// Search over accounts, statuses and hashtags.
     Search,
@@ -97,6 +98,7 @@ impl Route {
                 }
             }
             Self::Account(id) => format!("/accounts/{id}"),
+            Self::Messages => "/messages".to_owned(),
             Self::Notifications => "/notifications".to_owned(),
             Self::Search => "/search".to_owned(),
             Self::Saved => "/saved".to_owned(),
@@ -163,6 +165,7 @@ impl Route {
         }
         match trimmed {
             "/home" => Self::Home,
+            "/messages" => Self::Messages,
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,
             "/saved" => Self::Saved,

@@ -14,7 +14,7 @@ use nodus_instance::actions::{
     AccountActions, Browse, FilterActions, HighlightActions, MediaActions, Search, StatusActions,
 };
 use nodus_instance::model::{
-    Account, Context, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId, MediaAttachment,
+    Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId, MediaAttachment,
     Notification, Page, PageParams, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
@@ -408,4 +408,23 @@ pub async fn unfeature_tag(id: &str) -> Result<(), String> {
 /// The instance's code of conduct.
 pub async fn rules() -> Result<Vec<nodus_instance::model::Rule>, String> {
     call(transport()?.rules()).await
+}
+
+/// Direct conversations, in the instance's order.
+pub async fn conversations(after: Option<&str>) -> Result<Page<Conversation>, String> {
+    let params = match after {
+        Some(cursor) => PageParams::after(cursor, PAGE),
+        None => PageParams::first(PAGE),
+    };
+    call(transport()?.conversations(params)).await
+}
+
+/// Marks a conversation as read.
+pub async fn mark_conversation_read(id: &str) -> Result<(), String> {
+    call(transport()?.mark_conversation_read(id)).await
+}
+
+/// Mutes or unmutes a conversation.
+pub async fn mute_conversation(id: &str, muted: bool) -> Result<Conversation, String> {
+    call(transport()?.mute_conversation(id, muted)).await
 }

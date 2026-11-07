@@ -8,6 +8,7 @@
 
 mod media;
 mod router;
+mod scroll;
 mod theme;
 mod routes;
 mod state;

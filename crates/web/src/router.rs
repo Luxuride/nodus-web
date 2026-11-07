@@ -69,6 +69,18 @@ impl Route {
     /// The URL path for this route.
     #[must_use]
     pub fn path(&self) -> String {
+        let path = self.suffix();
+        if BASE.is_empty() {
+            return path;
+        }
+        if path == "/" {
+            return BASE.to_owned();
+        }
+        format!("{BASE}{path}")
+    }
+
+    /// The route below the mount point.
+    fn suffix(&self) -> String {
         match self {
             Self::Feed => "/".to_owned(),
             Self::Home => "/home".to_owned(),
@@ -95,7 +107,14 @@ impl Route {
     /// follows, unencoded, because an instance id is a digit string and encoding it
     /// would only make the address bar lie about what the id is.
     #[must_use]
-    pub fn from_path(path: &str) -> Self {
+    pub fn from_path(mut path: &str) -> Self {
+        // A build mounted under a prefix sees the prefix in the address bar but not in
+        // its own routes; stripping it here is what lets one bundle serve both the root
+        // and a diagnostic mount without a second copy of every match arm.
+        if !BASE.is_empty() {
+            path = path.strip_prefix(BASE).unwrap_or(path);
+        }
+        let path = if path.is_empty() { "/" } else { path };
         let trimmed = path.trim_end_matches('/');
         if trimmed == CALLBACK_PATH {
             return Self::OauthCallback;
@@ -239,6 +258,14 @@ pub fn navigate(to: Route) {
     }
     current.set(to);
 }
+
+/// Where this bundle is mounted: the root for a release build, a prefix for a diagnostic
+/// one (`NODUS_BASE=/debug`). Every route path is composed from it, so an asset or a link
+/// cannot point outside the mount by accident.
+pub const BASE: &str = match option_env!("NODUS_BASE") {
+    Some(base) => base,
+    None => "",
+};
 
 /// Click handler for internal links: keeps the SPA and the address bar in step.
 ///

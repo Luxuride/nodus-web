@@ -140,6 +140,7 @@ pub fn install_reactive_root() {
         REVISION.with_borrow_mut(|slot| *slot = Some(revision));
     }
     feed_ui();
+    posts::install();
 }
 
 /// The revision signal: read it inside a view to re-render on SDK changes.

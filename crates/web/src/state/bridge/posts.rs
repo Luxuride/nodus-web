@@ -31,6 +31,18 @@ thread_local! {
     static POSTS_UI: PostsUi = PostsUi::new();
 }
 
+/// Creates the post list's UI state before any component owns it.
+///
+/// The signals are a `thread_local`, so they are created on first use — and the first use
+/// is the Posts component. That made the component their owner: navigating away disposed
+/// them, and the second visit read disposed handles
+/// (`panicked at .../reactive_graph-0.2.16/src/traits.rs:394: Tried to access a reactive
+/// value that has already been disposed`). Touching the slot from `install_reactive_root`
+/// gives them no owner at all, so they live as long as the page does.
+pub fn install() {
+    POSTS_UI.with(|_| ());
+}
+
 /// The post list's UI state.
 #[must_use]
 pub fn posts_ui() -> PostsUi {

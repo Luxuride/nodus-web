@@ -7,3 +7,6 @@
 !.env.example
 .DS_Store
 .idea
+
+# The unoptimised bundle used to read a panic's stack; never shipped.
+dist-debug/

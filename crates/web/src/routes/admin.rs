@@ -10,10 +10,12 @@ use crate::state::alive::Alive;
 use crate::state::bridge::admin;
 
 use self::accounts::AccountList;
+use self::announcements::Announcements;
 use self::domains::DomainList;
 use self::reports::ReportQueue;
 
 mod accounts;
+mod announcements;
 mod domains;
 mod reports;
 
@@ -23,16 +25,23 @@ enum Tab {
     Reports,
     Accounts,
     Domains,
+    Announcements,
 }
 
 impl Tab {
-    const ALL: [Self; 3] = [Self::Reports, Self::Accounts, Self::Domains];
+    const ALL: [Self; 4] = [
+        Self::Reports,
+        Self::Accounts,
+        Self::Domains,
+        Self::Announcements,
+    ];
 
     const fn label(self) -> &'static str {
         match self {
             Self::Reports => "Reports",
             Self::Accounts => "Accounts",
             Self::Domains => "Domains",
+            Self::Announcements => "Announcements",
         }
     }
 }
@@ -83,6 +92,7 @@ pub fn Admin() -> impl IntoView {
                     Tab::Reports => view! { <ReportQueue/> }.into_any(),
                     Tab::Accounts => view! { <AccountList/> }.into_any(),
                     Tab::Domains => view! { <DomainList/> }.into_any(),
+                    Tab::Announcements => view! { <Announcements/> }.into_any(),
                 }}
             </Show>
         </section>

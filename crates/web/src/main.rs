@@ -18,7 +18,6 @@ mod ui;
 use crate::router::Route;
 use crate::routes::account::AccountView;
 use crate::routes::callback::Callback;
-use crate::routes::compose::panel::{self as compose_panel, ComposerPanel};
 use crate::routes::compose::{Compose, ComposeEdit};
 use crate::routes::conversations::Conversations;
 use crate::routes::directory::Directory;
@@ -43,7 +42,6 @@ fn main() {
     // Before the first mount, so app-lifetime signals have no owner to be disposed
     // with (see `routes::settings::sync::install`).
     crate::routes::settings::sync::install();
-    compose_panel::install();
     // Same reason: the revision signal is written by socket frames and ticks, which
     // outlive every screen, so it must not belong to one.
     crate::state::bridge::install_reactive_root();
@@ -97,14 +95,23 @@ fn App() -> impl IntoView {
             // rail above the content — writing is still one press away, and nothing
             // pushes the timeline off-screen.
             <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row">
-                <Show when=move || signed_in.get() && compose_panel::open().get()>
-                    <div class="order-1 w-full xl:order-2 xl:w-80 xl:shrink-0">
-                        <ComposerPanel/>
-                    </div>
-                </Show>
                 <Show when=move || signed_in.get()>
                 <nav class="order-2 w-full xl:order-1 xl:w-44 xl:shrink-0">
                     <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
+                        // Writing is the first thing on the rail, above the reading
+                        // sections: it is a destination, not a panel that can be left
+                        // open over the timeline.
+                        <li class="mb-1">
+                            <a
+                                class="btn btn-primary btn-sm w-full gap-2"
+                                href=Route::Compose.path()
+                                title="Write a status, attach media, or schedule it"
+                            >
+                                <Icon icon=Icon::Pen/>
+                                "Compose"
+                            </a>
+                        </li>
+
                         <li class="menu-title hidden xl:block">"Read"</li>
                         <RailItem label="Feed" icon=Icon::Sparkle hint="Posts picked for you, ranked by the backend" route=Route::Feed/>
                         <RailItem label="Home" icon=Icon::Home hint="Your home, local and federated timelines" route=Route::Home/>
@@ -120,16 +127,6 @@ fn App() -> impl IntoView {
                         <RailItem label="Scheduled" icon=Icon::Clock hint="Posts waiting to be published" route=Route::Scheduled/>
                         <RailItem label="Lists" icon=Icon::List hint="Hand-picked accounts with a timeline each" route=Route::Lists/>
 
-                        <li class="mt-1">
-                            <button
-                                class="btn btn-primary btn-sm w-full gap-2"
-                                title="Write a status, or schedule one"
-                                on:click=move |_: web_sys::MouseEvent| compose_panel::toggle()
-                            >
-                                <Icon icon=Icon::Pen/>
-                                "Compose"
-                            </button>
-                        </li>
                         <li class="menu-title hidden xl:block">"Account"</li>
                         <RailItem label="Settings" icon=Icon::Settings hint="Profile, tags, filters, sync and this instance" route=Route::Settings/>
                     </ul>

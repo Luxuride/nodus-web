@@ -13,8 +13,7 @@ use crate::state::bridge::actions;
 
 mod attachments;
 mod form;
-pub(crate) mod panel;
-
+pub(crate) 
 use form::ComposeForm;
 
 /// Writing a new status.

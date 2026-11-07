@@ -22,10 +22,11 @@ test('the rail groups reading, finding and library, with Compose before Settings
 
   const labels = await railLabels(page)
   const order = [
+    'Compose',
     'Feed', 'Home', 'Messages', 'Notifications',
     'Search', 'People',
     'Saved', 'Scheduled', 'Lists',
-    'Compose', 'Settings',
+    'Settings',
   ]
   const positions = order.map((label) => labels.indexOf(label))
   expect(positions).not.toContain(-1)
@@ -52,52 +53,25 @@ test('a rail click is a client-side navigation, not a page load', async ({ page 
   await expect(page.locator('nav a.menu-active')).toHaveText('Feed')
 })
 
-test('the composer opens as a panel and closes from its own button', async ({ page }) => {
+test('Compose is a link at the top of the rail, not a panel', async ({ page }) => {
   await stubApi(page)
   await signedIn(page)
   await page.goto('/')
 
-  const panel = page.locator('section', { hasText: 'New post' })
-  await expect(panel).toHaveCount(0)
+  const compose = page.locator('nav a[href="/compose"]')
+  await expect(compose).toBeVisible()
 
-  await page.getByRole('button', { name: 'Compose' }).click()
-  await expect(panel).toBeVisible()
+  // First item in the rail: writing is a destination, not a corner of the timeline that
+  // can be left open over it.
+  const first = page.locator('nav li').first()
+  await expect(first).toContainText('Compose')
 
-  await panel.getByRole('button', { name: 'Close' }).click()
-  await expect(panel).toHaveCount(0)
-})
-
-test('the composer sits beside the page when there is room', async ({ page }) => {
-  test.skip(page.viewportSize().width < 1280, 'a third column needs a wide window')
-
-  await stubApi(page)
-  await signedIn(page)
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Compose' }).click()
-
-  const panel = await page.locator('section', { hasText: 'New post' }).boundingBox()
-  const main = await page.locator('main').boundingBox()
-  const rail = await page.locator('nav').boundingBox()
-
-  expect(panel.x).toBeGreaterThan(rail.x)
-  expect(panel.x + panel.width).toBeLessThanOrEqual(main.x + 1)
-})
-
-test('the composer sits above the rail when the window is narrow', async ({ page }) => {
-  test.skip(page.viewportSize().width >= 1280, 'a wide window gets the third column instead')
-
-  await stubApi(page)
-  await signedIn(page)
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Compose' }).click()
-
-  const panel = await page.locator('section', { hasText: 'New post' }).boundingBox()
-  const rail = await page.locator('nav').boundingBox()
-  const main = await page.locator('main').boundingBox()
-
-  expect(panel.y).toBeLessThan(rail.y)
-  expect(rail.y).toBeLessThan(main.y)
-  expect(Math.round(panel.width)).toBe(Math.round(main.width))
+  await page.evaluate(() => {
+    window.__marker = 'kept'
+  })
+  await compose.click()
+  await expect(page).toHaveURL(/\/compose$/)
+  expect(await page.evaluate(() => window.__marker)).toBe('kept')
 })
 
 test('the account menu lists the signed-in identity', async ({ page }) => {

@@ -12,6 +12,7 @@ use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, sign_out, with_sdk};
 
 mod accounts;
+mod tabs;
 pub(crate) mod profile;
 pub(crate) mod filters;
 pub(crate) mod sensitive;
@@ -24,12 +25,13 @@ use profile::ProfileCard;
 use filters::FiltersCard;
 use instance::InstanceRulesCard;
 use sensitive::SensitiveCard;
+use tabs::{SettingsTabs, Tab};
 use tags::FeaturedTagsCard;
 
-/// The settings screen.
 #[component]
 pub fn Settings() -> impl IntoView {
     let revision = revision();
+    let (tab, set_tab) = signal(Tab::Account);
 
     let host = move || {
         revision.get();
@@ -54,7 +56,10 @@ pub fn Settings() -> impl IntoView {
         <section class="mx-auto w-full max-w-2xl px-4 py-6">
             <h1 class="mb-5 text-xl font-semibold tracking-tight">"Settings"</h1>
 
-            <div class="card mb-4 border border-base-300 bg-base-100 shadow-sm">
+            <SettingsTabs tab=tab set_tab=set_tab/>
+
+            <Show when=move || tab.get() == Tab::Account>
+                            <div class="card mb-4 border border-base-300 bg-base-100 shadow-sm">
                 <div class="card-body gap-2 p-4">
                     <h2 class="card-title text-base">"Session"</h2>
                     <dl class="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
@@ -72,15 +77,8 @@ pub fn Settings() -> impl IntoView {
                 </div>
             </div>
 
-            <AccountsCard/>
-            <ProfileCard/>
-            <SensitiveCard/>
-            <FiltersCard/>
-            <FeaturedTagsCard/>
-            <SyncCard/>
-            <InstanceRulesCard/>
-
-            <div class="card mt-4 border border-base-300 bg-base-100 shadow-sm">
+                <AccountsCard/>
+                            <div class="card mt-4 border border-base-300 bg-base-100 shadow-sm">
                 <div class="card-body gap-2 p-4">
                     <h2 class="card-title text-base">"Moderation"</h2>
                     <p class="text-sm opacity-70">
@@ -111,6 +109,29 @@ pub fn Settings() -> impl IntoView {
                     </div>
                 </div>
             </div>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Profile>
+                <ProfileCard/>
+                <SensitiveCard/>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Privacy>
+                <SyncCard/>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Filters>
+                <FiltersCard/>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Tags>
+                <FeaturedTagsCard/>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Instance>
+                <InstanceRulesCard/>
+            </Show>
+
         </section>
     }
 }

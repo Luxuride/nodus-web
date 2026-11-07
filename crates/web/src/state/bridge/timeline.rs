@@ -17,18 +17,23 @@ use super::handle;
 /// without pressing anything, and long enough that switching between tabs is free.
 pub const TTL_MS: i64 = 60_000;
 
-/// The request a `(timeline, tag)` pair names.
+/// Runs `f` with the request a `(timeline, tag)` pair names.
 ///
-/// Borrowed, because building an owned request for every read would allocate on the
-/// render path for no reason.
-fn request(which: Timeline, tag: Option<&str>) -> TimelineRequest<'_> {
+/// A closure rather than a returned value: the request borrows its tag or account id,
+/// and returning it would mean allocating an owned copy on the render path.
+fn with_request<R>(
+    which: Timeline,
+    tag: Option<&str>,
+    f: impl FnOnce(TimelineRequest<'_>) -> R,
+) -> R {
     match (which, tag) {
-        (Timeline::Tag, Some(tag)) => TimelineRequest::Tag(tag),
-        (Timeline::Local, _) => TimelineRequest::Local,
-        (Timeline::Federated, _) => TimelineRequest::Federated,
+        (Timeline::Tag, Some(tag)) => f(TimelineRequest::Tag(tag)),
+        (Timeline::Account(id), _) => f(TimelineRequest::Account(&id)),
+        (Timeline::Local, _) => f(TimelineRequest::Local),
+        (Timeline::Federated, _) => f(TimelineRequest::Federated),
         // A tag timeline without a tag is not a timeline: fall back to the home one
         // rather than panicking inside a render.
-        _ => TimelineRequest::Home,
+        _ => f(TimelineRequest::Home),
     }
 }
 
@@ -38,8 +43,10 @@ fn request(which: Timeline, tag: Option<&str>) -> TimelineRequest<'_> {
 /// which the caller must render as unknown rather than as "no posts".
 #[must_use]
 pub fn read(which: Timeline, tag: Option<&str>) -> (Vec<Status>, Option<String>) {
-    let request = request(which, tag);
-    handle().map_or_else(|| (Vec::new(), None), |sdk| sdk.read_timeline(&request))
+    let Some(sdk) = handle() else {
+        return (Vec::new(), None);
+    };
+    with_request(which, tag, |request| sdk.read_timeline(&request))
 }
 
 /// Loads the timeline only if the SDK's copy is missing or stale.
@@ -53,11 +60,33 @@ pub async fn ensure(
     cursor: Option<String>,
 ) -> Result<bool, String> {
     let sdk = handle().ok_or_else(|| "the SDK is not installed".to_owned())?;
-    let request = request(which, tag.as_deref());
-    let loaded = sdk
-        .ensure_timeline(request, cursor.as_deref(), super::actions::PAGE, TTL_MS)
-        .await
-        .map_err(|error| error.to_string())?;
+    let limit = super::actions::PAGE;
+    let cursor = cursor.as_deref();
+    // One arm per shape, because the request borrows the tag or id it names and so
+    // cannot outlive this call to be awaited in a shared tail.
+    let loaded = match (which, tag) {
+        (Timeline::Tag, Some(tag)) => {
+            sdk.ensure_timeline(TimelineRequest::Tag(&tag), cursor, limit, TTL_MS)
+                .await
+        }
+        (Timeline::Account(id), _) => {
+            sdk.ensure_timeline(TimelineRequest::Account(&id), cursor, limit, TTL_MS)
+                .await
+        }
+        (Timeline::Local, _) => {
+            sdk.ensure_timeline(TimelineRequest::Local, cursor, limit, TTL_MS)
+                .await
+        }
+        (Timeline::Federated, _) => {
+            sdk.ensure_timeline(TimelineRequest::Federated, cursor, limit, TTL_MS)
+                .await
+        }
+        _ => {
+            sdk.ensure_timeline(TimelineRequest::Home, cursor, limit, TTL_MS)
+                .await
+        }
+    }
+    .map_err(|error| error.to_string())?;
     Ok(loaded.is_some())
 }
 

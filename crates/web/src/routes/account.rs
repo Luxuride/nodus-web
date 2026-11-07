@@ -6,12 +6,15 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{Account, Relationship, Status};
+use nodus_instance::model::{Account, Relationship};
+use nodus_sdk::Timeline;
 
 use super::people::{Kind, PeopleList};
 use super::status::StatusCard;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
+use crate::state::bridge::revision;
+use crate::state::bridge::timeline;
 use tabs::AccountTabs;
 
 mod profile;
@@ -77,8 +80,13 @@ pub fn AccountView(id: String) -> impl IntoView {
     let (account, set_account) = signal(None::<Account>);
     let (relationship, set_relationship) = signal(None::<Relationship>);
     let (tab, set_tab) = signal(Tab::Posts);
-    let (statuses, set_statuses) = signal(Vec::<Status>::new());
-    let (cursor, set_cursor) = signal(None::<String>);
+    // `StoredValue` rather than a captured `Timeline`: the handle is `Copy`, so the
+    // reader closure stays `Copy` too and can be used in two places in one `view!`.
+    let which = StoredValue::new(Timeline::Account(id.clone()));
+    let posts = move || {
+        revision().get();
+        timeline::read(which.get_value(), None)
+    };
     // Starts true: until the first request is issued, "nothing yet" is a
     // guess, and a guess renders as an empty state that flickers.
     let (loading, set_loading) = signal(true);
@@ -110,42 +118,36 @@ pub fn AccountView(id: String) -> impl IntoView {
                 Err(message) => set_error.set(Some(message)),
             }
         });
-        let for_statuses = account_id.clone();
+        let for_posts = Timeline::Account(account_id.clone());
 
         spawn_local(async move {
-            match actions::account_statuses(&for_statuses, None).await {
-                Ok(page) => {
-                    alive.if_alive(|| {
-                        set_statuses.set(page.items);
-                        set_cursor.set(page.next_max_id);
-                    });
-                }
-                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            match timeline::ensure(for_posts, None, None).await {
+                Ok(_) => alive.if_alive(|| set_loading.set(false)),
+                Err(message) => alive.if_alive(|| {
+                    set_error.set(Some(message));
+                    set_loading.set(false);
+                }),
             }
         });
     });
 
     // A `Callback` rather than a bare closure: it is read inside a `Show` body that must be
     // `Fn`, and a non-`Copy` handler would be moved out of the environment on first use.
-    let more = {
-        let id = id.clone();
-        Callback::new(move |()| {
-            set_loading.set(true);
-            let id = id.clone();
-            let after = cursor.get_untracked();
+    let more = Callback::new(move |()| {
+        set_loading.set(true);
+        let which = which.get_value();
+        let after = posts().1;
 
-            spawn_local(async move {
-                match actions::account_statuses(&id, after.as_deref()).await {
-                    Ok(page) => alive.if_alive(|| {
-                        set_statuses.update(|statuses| statuses.extend(page.items));
-                        set_cursor.set(page.next_max_id);
-                    }),
-                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
-                }
-                alive.if_alive(|| set_loading.set(false));
-            });
-        })
-    };
+        spawn_local(async move {
+            match timeline::ensure(which, None, after).await {
+                Ok(_) => alive.if_alive(|| set_loading.set(false)),
+                Err(message) => alive.if_alive(|| {
+                    set_error.set(Some(message));
+                    set_loading.set(false);
+                }),
+            }
+        });
+    });
 
     view! {
         <section class="flex flex-col gap-3">
@@ -162,12 +164,12 @@ pub fn AccountView(id: String) -> impl IntoView {
 
             <Show when=move || tab.get() == Tab::Posts>
                 <ul class="flex flex-col gap-3">
-                    <For each=move || statuses.get() key=|status| status.id.clone() let:status>
+                    <For each=move || posts().0 key=|status| status.id.clone() let:status>
                         <StatusCard status=status/>
                     </For>
                 </ul>
 
-                <Show when=move || cursor.get().is_some()>
+                <Show when=move || posts().1.is_some()>
                     <button
                         class="btn btn-ghost btn-sm w-full"
                         disabled=move || loading.get()

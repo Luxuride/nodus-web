@@ -54,16 +54,6 @@ pub async fn account(id: &str) -> Result<Account, String> {
     call(transport()?.account(&id)).await
 }
 
-/// An account's statuses, newest first.
-pub async fn account_statuses(id: &str, after: Option<&str>) -> Result<Page<Status>, String> {
-    let id = LocalId(id.to_owned());
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.account_statuses(&id, params)).await
-}
-
 /// The relationship between the signed-in account and `id`.
 pub async fn relationship(id: &str) -> Result<Option<Relationship>, String> {
     let ids = [LocalId(id.to_owned())];

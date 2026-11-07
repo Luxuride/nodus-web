@@ -22,42 +22,59 @@ mod authorize;
 mod confirm;
 mod decide;
 
-/// The card's own state, kept outside the component.
+/// The card's own state, kept outside the component *and* outside its owner.
 ///
-/// A route change or a state notification re-renders the screen, and a signal created
-/// inside the component would start again from "no dialog": the modal would open and
-/// close in the same frame, and the message explaining the result would vanish. These
-/// three are the only things the card owns, so they live as long as the page does.
+/// A route re-render disposes the screen's owner, so a signal created inside the
+/// component is destroyed with it: writing to it afterwards panics with "Tried to access
+/// a reactive value that has already been disposed" and, because that panic unwinds
+/// inside a `spawn_local` poll, it poisons the executor and nothing else on the page
+/// runs. That is why the dialog appeared to open and vanish, and why the button then
+/// looked inert.
+///
+/// The three signals therefore live under an owner this module keeps alive for the life
+/// of the page. Three signals for the page's lifetime is the price of a dialog that
+/// survives the screen that opened it.
 struct SyncUi {
+    /// Keeps `confirming`, `busy` and `result` from being disposed with the card.
+    _owner: leptos::prelude::Owner,
     confirming: RwSignal<Option<Intent>>,
     busy: RwSignal<bool>,
     result: RwSignal<Option<String>>,
 }
 
 thread_local! {
-    static UI: SyncUi = SyncUi {
-        confirming: RwSignal::new(None),
-        busy: RwSignal::new(false),
-        result: RwSignal::new(None),
+    static UI: SyncUi = {
+        let owner = leptos::prelude::Owner::new();
+        let (confirming, busy, result) = owner.with(|| {
+            (
+                RwSignal::new(None::<Intent>),
+                RwSignal::new(false),
+                RwSignal::new(None::<String>),
+            )
+        });
+        SyncUi {
+            _owner: owner,
+            confirming,
+            busy,
+            result,
+        }
     };
 }
 
-fn ui() -> SyncUi {
-    UI.with(|ui| SyncUi {
-        confirming: ui.confirming,
-        busy: ui.busy,
-        result: ui.result,
-    })
+/// The shared handles, cheap to copy.
+fn ui() -> (
+    RwSignal<Option<Intent>>,
+    RwSignal<bool>,
+    RwSignal<Option<String>>,
+) {
+    UI.with(|ui| (ui.confirming, ui.busy, ui.result))
 }
 
 /// The sync consent, with the button that turns it on or off.
 #[component]
 pub fn SyncCard() -> impl IntoView {
     let revision = revision();
-    let ui = ui();
-    let busy = ui.busy;
-    let result = ui.result;
-    let confirming = ui.confirming;
+    let (confirming, busy, result) = ui();
 
     // What the server holds, not what this tab remembers.
     let consent = move || {

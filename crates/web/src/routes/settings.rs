@@ -12,9 +12,11 @@ use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, sign_out, with_sdk};
 
 pub(crate) mod profile;
+pub(crate) mod sensitive;
+pub(crate) mod sync;
 
 use profile::ProfileCard;
-pub(crate) mod sync;
+use sensitive::SensitiveCard;
 
 /// The settings screen.
 #[component]
@@ -63,6 +65,7 @@ pub fn Settings() -> impl IntoView {
             </div>
 
             <ProfileCard/>
+            <SensitiveCard/>
             <SyncCard/>
 
             <div class="card mt-4 border border-base-300 bg-base-100 shadow-sm">

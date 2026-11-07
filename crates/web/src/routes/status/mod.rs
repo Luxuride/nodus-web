@@ -20,6 +20,7 @@ mod footer;
 mod menu;
 mod poll;
 mod reply;
+pub(crate) mod sensitive;
 
 use body::StatusBody;
 use footer::CardFooter;

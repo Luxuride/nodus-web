@@ -1,4 +1,4 @@
-//! The one image expander: a picture, at a size worth looking at, and a way out.
+//! The one image viewer: a gallery over the whole app, closed by Escape or a click.
 //!
 //! One module and one mount point instead of a per-screen lightbox, because a second
 //! implementation would drift (different close keys, different backdrop behaviour) and
@@ -7,14 +7,15 @@
 use std::cell::RefCell;
 
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
 
 thread_local! {
     /// What is expanded, if anything. Created before the first mount by [`install`], so no
-    /// component owns it and navigating away cannot dispose the modal's only signal.
-    static OPEN: RefCell<Option<RwSignal<Option<Picture>>>> = const { RefCell::new(None) };
+    /// component owns it and navigating away cannot dispose the viewer's only signal.
+    static OPEN: RefCell<Option<RwSignal<Option<Gallery>>>> = const { RefCell::new(None) };
 }
 
-/// An image the operator asked to see larger.
+/// One image the reader asked to see larger.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Picture {
     /// The full-size image.
@@ -23,82 +24,187 @@ pub struct Picture {
     pub alt: String,
 }
 
-/// Creates the open-picture signal while no owner exists. Call once, before mounting.
+/// Everything the viewer is looking at, and where in it they are.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Gallery {
+    pictures: Vec<Picture>,
+    index: usize,
+}
+
+impl Gallery {
+    fn current(&self) -> Option<&Picture> {
+        self.pictures.get(self.index)
+    }
+
+    fn len(&self) -> usize {
+        self.pictures.len()
+    }
+}
+
+/// Creates the viewer's signal and its key handler while no owner exists.
+///
+/// Call once, before mounting. The listener is on `document` because the reader expects
+/// Escape to work without first clicking the picture — which is how a viewer that only
+/// listens on its own element fails the one test people run.
 pub fn install() {
     OPEN.with_borrow_mut(|slot| {
         if slot.is_none() {
             *slot = Some(RwSignal::new(None));
         }
     });
+
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let handler = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(
+        move |event: web_sys::KeyboardEvent| {
+            if open().get_untracked().is_none() {
+                return;
+            }
+            match event.key().as_str() {
+                "Escape" => close(),
+                "ArrowLeft" => previous(),
+                "ArrowRight" => next(),
+                _ => return,
+            }
+            event.prevent_default();
+        },
+    );
+    let _ = document.add_event_listener_with_callback("keydown", handler.as_ref().unchecked_ref());
+    // Deliberately leaked: the viewer lives as long as the document, so the handler has
+    // no lifetime it could be dropped at.
+    handler.forget();
 }
 
-/// The open-picture signal.
+/// The viewer's signal.
 ///
 /// # Panics
 ///
-/// Panics if [`install`] has not run: a modal whose signal lives in whichever component
+/// Panics if [`install`] has not run: a viewer whose signal lives in whichever component
 /// happened to render first is exactly the disposed-signal bug this module avoids.
-fn open() -> RwSignal<Option<Picture>> {
+fn open() -> RwSignal<Option<Gallery>> {
     OPEN.with_borrow(|slot| slot.expect("media::install() must run before rendering"))
 }
 
-/// Expands an image over the whole app.
-pub fn expand(url: impl Into<String>, alt: impl Into<String>) {
-    open().set(Some(Picture {
-        url: url.into(),
-        alt: alt.into(),
-    }));
+/// Opens the viewer on `pictures` at `index`, clamped into range.
+pub fn expand(pictures: Vec<Picture>, index: usize) {
+    if pictures.is_empty() {
+        return;
+    }
+    let index = index.min(pictures.len() - 1);
+    open().set(Some(Gallery { pictures, index }));
 }
 
-/// Closes the expanded image, if one is open.
+/// Opens the viewer on one picture.
+pub fn expand_one(url: impl Into<String>, alt: impl Into<String>) {
+    expand(
+        vec![Picture {
+            url: url.into(),
+            alt: alt.into(),
+        }],
+        0,
+    );
+}
+
+/// Closes the viewer, if it is open.
 pub fn close() {
     open().set(None);
 }
 
-/// The expander itself, mounted once by the shell.
+/// Moves to the next picture, wrapping so the last one leads back to the first.
+pub fn next() {
+    open().update(|slot| {
+        if let Some(gallery) = slot {
+            let len = gallery.len();
+            if len > 0 {
+                gallery.index = (gallery.index + 1) % len;
+            }
+        }
+    });
+}
+
+/// Moves to the previous picture, wrapping.
+pub fn previous() {
+    open().update(|slot| {
+        if let Some(gallery) = slot {
+            let len = gallery.len();
+            if len > 0 {
+                gallery.index = (gallery.index + len - 1) % len;
+            }
+        }
+    });
+}
+
+/// The viewer itself, mounted once by the shell.
 #[component]
 pub fn ImageModal() -> impl IntoView {
     let open = open();
-    let current = move || open.get();
-    let url = move || current().map(|picture| picture.url).unwrap_or_default();
-    let alt = move || current().map(|picture| picture.alt).unwrap_or_default();
+    let gallery = move || open.get();
+    let picture = move || gallery().as_ref().and_then(Gallery::current).cloned();
+    let url = move || picture().map(|picture| picture.url).unwrap_or_default();
+    let alt = move || picture().map(|picture| picture.alt).unwrap_or_default();
+    let many = move || gallery().is_some_and(|gallery| gallery.len() > 1);
+    let position = move || {
+        gallery()
+            .map(|gallery| format!("{} / {}", gallery.index + 1, gallery.len()))
+            .unwrap_or_default()
+    };
 
     view! {
-        <Show when=move || current().is_some()>
-            // A backdrop click closes, and so does every button in the tray: the two ways
-            // out people try first, without a keybinding nobody discovers.
-            <div class="modal modal-open" role="presentation" on:click=move |_| close()>
+        <Show when=move || gallery().is_some()>
+            // The backdrop is the close button: no tray, no labels, nothing to read. Escape
+            // does the same thing for the reader with a keyboard.
+            <div
+                class="modal modal-open cursor-zoom-out"
+                role="presentation"
+                on:click=move |_| close()
+            >
                 <div
-                    class="modal-box w-auto max-w-[95vw] bg-transparent p-0 shadow-none"
+                    class="pointer-events-none absolute inset-0 flex items-center justify-center p-4"
                     role="presentation"
-                    on:click=|event| event.stop_propagation()
                 >
                     <img
-                        class="max-h-[85vh] max-w-[95vw] rounded-box bg-base-300 object-contain"
+                        class="pointer-events-auto max-h-[92vh] max-w-[96vw] rounded-box object-contain"
                         src=url
                         alt=alt
                         referrerpolicy="no-referrer"
                     />
-                    <div class="mt-2 flex items-center justify-center gap-2">
-                        <a
-                            class="btn btn-sm"
-                            href=url
-                            target="_blank"
-                            rel="nofollow noopener noreferrer"
-                            referrerpolicy="no-referrer"
-                        >
-                            "Open original"
-                        </a>
-                        <button class="btn btn-sm btn-ghost" on:click=move |_| close()>
-                            "Close"
-                        </button>
-                    </div>
-                    <Show when=move || !alt().is_empty()>
-                        <p class="mt-2 max-w-[95vw] text-center text-sm text-balance text-neutral-content/80">
-                            {alt}
-                        </p>
-                    </Show>
                 </div>
+
+                <Show when=many>
+                    // Arrow keys work too; these exist because a phone has no arrows.
+                    <button
+                        type="button"
+                        class="btn btn-circle btn-sm absolute top-1/2 left-2 -translate-y-1/2 cursor-pointer"
+                        aria-label="Previous image"
+                        on:click=move |event| {
+                            event.stop_propagation();
+                            previous();
+                        }
+                    >
+                        "‹"
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-circle btn-sm absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer"
+                        aria-label="Next image"
+                        on:click=move |event| {
+                            event.stop_propagation();
+                            next();
+                        }
+                    >
+                        "›"
+                    </button>
+                    <p class="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-box bg-base-300/70 px-2 py-0.5 text-xs">
+                        {position}
+                    </p>
+                </Show>
+
+                <Show when=move || !alt().is_empty()>
+                    <p class="absolute top-3 left-1/2 max-w-[90vw] -translate-x-1/2 rounded-box bg-base-300/70 px-2 py-1 text-center text-xs text-balance">
+                        {alt}
+                    </p>
+                </Show>
             </div>
         </Show>
     }

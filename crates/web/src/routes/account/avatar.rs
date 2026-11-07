@@ -20,7 +20,7 @@ pub(super) fn Avatar(src: ReadSignal<String>) -> impl IntoView {
             on:click=move |_| {
                 let url = src.get_untracked();
                 if !url.is_empty() {
-                    crate::media::expand(url, String::new());
+                    crate::media::expand_one(url, String::new());
                 }
             }
         >

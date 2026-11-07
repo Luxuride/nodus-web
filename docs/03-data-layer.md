@@ -108,6 +108,7 @@ pub trait Discovery {
     type Error: Debug;
     fn meta(&self)                     -> impl Future<Output = Result<Meta, Self::Error>>;
     fn feed(&self, cursor: Option<&str>)-> impl Future<Output = Result<AccountFeed, Self::Error>>;
+    fn posts(&self, cursor: Option<&str>) -> impl Future<Output = Result<PostFeed, Self::Error>>;
     fn refresh(&self, feed_id: &str)   -> impl Future<Output = Result<(), Self::Error>>;
     fn send_events(&self, batch: &EventBatch) -> impl Future<Output = Result<(), Self::Error>>;
     fn set_sync(&self, enable: bool, telemetry_opt_in: bool) -> impl Future<Output = Result<(), Self::Error>>;
@@ -169,7 +170,8 @@ The state tree lives in the SDK and is exposed to views through the bridge:
 | --- | --- | --- |
 | `AppState::session` | `Option<Session>` | host, account id, acct, scopes; `Option`, guarded by routes. Never holds the token |
 | `AppState::timelines` | `HashMap<TimelineKey, TimelinePage>` | key is `(Home\|Local\|Federated\|Tag(_), Option<tag>)` |
-| `AppState::feed` | `FeedState` | items, cursor, `generated_at`, degraded flags, dismissed ids |
+| `AppState::feed` | `FeedState` | accounts: items, cursor, `generated_at`, degraded flags, dismissed ids |
+| `AppState::posts` | `PostFeedState` | posts: items, cursor, `generated_at`, degraded flags |
 | `AppState::stream` | `StreamState` | `Disconnected`/`Connecting`/`Connected`/`Reconnecting{attempt}`/`Stopped` |
 
 Web-only UI state (toasts, theme, modal stack) stays in Leptos signals — the SDK
@@ -177,6 +179,12 @@ has no opinion about anything that is not Mastodon data.
 
 `state/bridge/` subscribes the four handles to one revision signal, so a view
 reads `revision()` and then `with_sdk(|sdk| sdk.state().feed.borrow().visible())`.
+
+The post half of the Feed tab is the same shape against `AppState::posts`: `load_posts`
+replaces the list when called without a cursor and appends when called with one (the
+SDK decides, because only it knows which case it is), and `PostFeedState::extend` drops
+`item_id`s already shown — the server promises no repeats inside a snapshot, but a
+snapshot can be re-requested, and a duplicated id is a duplicated view key.
 That is the whole adapter; it is why the SDK can be tested on native.
 
 Stale-while-revalidate is the default: mount renders cached data immediately,

@@ -1,131 +1,76 @@
-//! The recommendation Feed tab.
+//! The Feed tab's two lists.
 //!
-//! This view renders `FeedState` and nothing else: no ranking, no HTTP, no JSON.
-//! Each action is either a state change (dismiss) or a single instance write
-//! (follow, unfollow), both funnelled through [`crate::state::bridge`].
-//!
-//! Four states are rendered explicitly: empty, error, refreshing (the list stays
-//! visible, dimmed) and degraded (one muted line, because a weaker ranking is not
-//! a failure).
+//! Both are recommendations from the same service, differing only in what is
+//! recommended: accounts to follow, and posts to read. They live behind one tab bar
+//! because they answer one question ("what is missing from my timeline?"), and each
+//! keeps its own state so switching tabs never discards a list the other one loaded.
 
 use leptos::prelude::*;
 
-use crate::router::{Route, link};
-use crate::state::bridge::{feed_ui, reload_feed, revision, with_sdk};
+use self::people::People;
+use self::posts::Posts;
+use crate::state::bridge::revision;
 
 mod actions;
 mod item;
+mod people;
+mod posts;
 mod reason;
 mod share;
 
-use self::item::FeedItem;
-use self::reason::degraded_line;
+/// Which list the Feed tab shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Tab {
+    /// Accounts to follow.
+    People,
+    /// Posts to read.
+    Posts,
+}
 
 /// The Feed tab.
 #[component]
 pub fn Feed() -> impl IntoView {
+    // Read once so the counts and any refresh affordance in the header agree with
+    // whichever list is rendered below.
     let revision = revision();
-    let ui = feed_ui();
-
-    let items = move || {
-        revision.get();
-        with_sdk(|sdk| {
-            sdk.state()
-                .feed
-                .with(|feed| feed.visible().cloned().collect::<Vec<_>>())
-        })
-    };
-    let degraded = move || {
-        revision.get();
-        with_sdk(|sdk| sdk.state().feed.get().degraded)
-    };
-    let next_cursor = move || {
-        revision.get();
-        with_sdk(|sdk| sdk.state().feed.get().next_cursor)
-    };
+    let tab = RwSignal::new(Tab::People);
 
     view! {
         <section class="mx-auto w-full max-w-2xl px-4 py-6">
             <div class="mb-5 flex items-baseline justify-between gap-4">
-                <h1 class="text-xl font-semibold tracking-tight">"People to follow"</h1>
-                <button
-                    class="btn btn-ghost btn-sm gap-2"
-                    disabled=move || ui.refreshing.get()
-                    on:click=move |_| reload_feed(None)
-                >
-                    <Show when=move || ui.refreshing.get()>
-                        <span class="loading loading-spinner loading-xs"></span>
-                    </Show>
-                    "Refresh"
-                </button>
+                <h1 class="text-xl font-semibold tracking-tight">"Feed"</h1>
+                {move || {
+                    revision.get();
+                    view! {
+                        <div class="tabs tabs-box bg-base-100 p-1">
+                            <button
+                                class="tab tab-sm"
+                                class:tab-active=move || tab.get() == Tab::People
+                                on:click=move |_| tab.set(Tab::People)
+                            >
+                                "People"
+                            </button>
+                            <button
+                                class="tab tab-sm"
+                                class:tab-active=move || tab.get() == Tab::Posts
+                                on:click=move |_| tab.set(Tab::Posts)
+                            >
+                                "Posts"
+                            </button>
+                        </div>
+                    }
+                }}
             </div>
 
-            {move || degraded().first().copied().map(|flag| view! {
-                <div class="alert alert-soft alert-info mb-4 py-2 text-sm" role="status">
-                    <span>{degraded_line(flag)}</span>
-                </div>
-            })}
-
-            {move || ui.error.get().map(|message| view! {
-                <div class="alert alert-soft alert-error mb-4" role="alert">
-                    <span>{message}</span>
-                    <button class="btn btn-sm" on:click=move |_| reload_feed(None)>
-                        "Retry"
-                    </button>
-                </div>
-            })}
-
-            {move || {
-                (items().is_empty() && !ui.refreshing.get() && ui.error.get().is_none())
-                    .then(|| view! { <EmptyFeed/> })
-            }}
-
-            <ul
-                class="space-y-3 transition-opacity"
-                class:opacity-50=move || ui.refreshing.get()
-            >
-                // The follow flag is part of the key: undoing a follow flips it in
-                // place, and remounting is what makes the card show "Follow" again
-                // without a full page reload.
-                <For each=items key=|item| (item.item_id, item.account.already_following) let:item>
-                    <FeedItem item/>
-                </For>
-            </ul>
-
-            {move || next_cursor().map(|cursor| view! {
-                <div class="mt-6">
-                    <button
-                        class="btn btn-outline btn-sm w-full"
-                        disabled=move || ui.refreshing.get()
-                        on:click=move |_| reload_feed(Some(cursor.clone()))
-                    >
-                        {move || if ui.refreshing.get() { "Loading…" } else { "Load more" }}
-                    </button>
-                </div>
-            })}
+            // Both lists stay mounted once visited: `Show` with a `when` per tab
+            // would rebuild the other list's DOM on every switch, and each list
+            // holds its scroll position while it is hidden, not while it is gone.
+            <div class:hidden=move || tab.get() != Tab::People>
+                <People/>
+            </div>
+            <div class:hidden=move || tab.get() != Tab::Posts>
+                <Posts/>
+            </div>
         </section>
-    }
-}
-
-/// Why the list is empty, and the one thing that changes it.
-#[component]
-fn EmptyFeed() -> impl IntoView {
-    view! {
-        <div class="card border border-dashed border-base-300 bg-base-100">
-            <div class="card-body items-center gap-2 py-10 text-center">
-                <h2 class="card-title text-base">"No recommendations yet"</h2>
-                <p class="max-w-sm text-sm opacity-70">
-                    "Follow a few accounts to give the recommender something to work with, or turn on background sync in "
-                    <a
-                        class="link link-primary"
-                        href=Route::Settings.path()
-                        on:click=move |event| link(event, Route::Settings)
-                    >
-                        "Settings"
-                    </a>
-                    " so it can learn from your activity."
-                </p>
-            </div>
-        </div>
     }
 }

@@ -8,7 +8,7 @@ edition = "2024"
 rust-version = "1.85"
 license = "AGPL-3.0-or-later"
 publish = false
-repository = "https://github.com/luxuride/nodus-web"
+repository = "https://github.com/nodus-social/nodus-web"
 
 # The `sdk` submodule is a sibling checkout pinned by the parent repository, so
 # plain path dependencies are exact. The wire contract and the state store are

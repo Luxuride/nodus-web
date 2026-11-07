@@ -13,11 +13,13 @@ use crate::state::bridge::{revision, sign_out, with_sdk};
 
 mod accounts;
 pub(crate) mod profile;
+pub(crate) mod filters;
 pub(crate) mod sensitive;
 pub(crate) mod sync;
 
 use accounts::AccountsCard;
 use profile::ProfileCard;
+use filters::FiltersCard;
 use sensitive::SensitiveCard;
 
 /// The settings screen.
@@ -69,6 +71,7 @@ pub fn Settings() -> impl IntoView {
             <AccountsCard/>
             <ProfileCard/>
             <SensitiveCard/>
+            <FiltersCard/>
             <SyncCard/>
 
             <div class="card mt-4 border border-base-300 bg-base-100 shadow-sm">

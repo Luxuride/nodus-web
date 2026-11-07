@@ -34,12 +34,14 @@ test('a sensitive post hides its media behind a label until asked', async ({ pag
   await signedIn(page)
   await page.goto('/home')
 
-  const reveal = page.getByRole('button', { name: /sensitive/i })
-  await expect(reveal).toBeVisible()
-  await expect(page.locator('img[src*="one.png"]')).toHaveCount(0)
+  // The picture is present but blurred: the point of the gate is that the reader can
+  // see that *something* is there, not that the bytes were withheld.
+  const picture = page.locator('img[src*="one.png"]')
+  await expect(picture).toHaveCSS('filter', /blur/)
+  await expect(page.getByRole('button', { name: /sensitive content/i })).toBeVisible()
 
-  await reveal.click()
-  await expect(page.locator('img[src*="one.png"]')).toBeVisible()
+  await page.getByRole('button', { name: /sensitive content/i }).first().click()
+  await expect(picture).not.toHaveCSS('filter', /blur/)
 })
 
 test('a post link opened without a session names its instance', async ({ page }) => {

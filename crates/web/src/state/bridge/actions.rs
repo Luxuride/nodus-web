@@ -10,10 +10,12 @@ use core::future::Future;
 
 use nodus_instance::BrowserInstance;
 use nodus_instance::InstanceApi;
-use nodus_instance::actions::{AccountActions, Browse, MediaActions, Search, StatusActions};
+use nodus_instance::actions::{
+    AccountActions, Browse, FilterActions, MediaActions, Search, StatusActions,
+};
 use nodus_instance::model::{
-    Account, Context, Draft, HistoryEntry, List, LocalId, MediaAttachment, Notification, Page,
-    PageParams, ProfileUpdate, Relationship, SearchResults, Status,
+    Account, Context, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId, MediaAttachment,
+    Notification, Page, PageParams, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -362,4 +364,28 @@ pub async fn update_profile(display_name: String, note: String) -> Result<Accoun
         accounts: vec![account.clone()],
     });
     Ok(account)
+}
+
+/// Every filter this account keeps.
+pub async fn filters() -> Result<Vec<Filter>, String> {
+    call(transport()?.filters()).await
+}
+
+/// Creates a filter from a draft.
+pub async fn create_filter(draft: &FilterDraft) -> Result<Filter, String> {
+    call(transport()?.create_filter(draft)).await
+}
+
+/// Edits a filter.
+///
+/// Unused until the card grows an editor; the SDK keeps it because a filter whose
+/// phrases cannot be corrected is a filter the reader must delete and retype.
+#[expect(dead_code, reason = "the settings card can add and delete, not yet edit")]
+pub async fn update_filter(id: &str, draft: &FilterDraft) -> Result<Filter, String> {
+    call(transport()?.update_filter(id, draft)).await
+}
+
+/// Deletes a filter, and with it its phrases.
+pub async fn delete_filter(id: &str) -> Result<(), String> {
+    call(transport()?.delete_filter(id)).await
 }

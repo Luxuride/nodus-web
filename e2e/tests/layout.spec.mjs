@@ -90,7 +90,8 @@ test('the account menu lists the signed-in identity', async ({ page }) => {
   await signedIn(page)
   await page.goto('/settings')
 
-  const card = page.locator('section', { hasText: 'Accounts' })
+  // The card, not the page: the screen's own `<section>` also contains the heading.
+  const card = page.locator('section.card').filter({ hasText: 'Accounts' })
   await expect(card).toContainText('@ada')
   await expect(card).toContainText(HOST)
   await expect(card).toContainText('on screen')

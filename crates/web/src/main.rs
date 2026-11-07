@@ -6,6 +6,7 @@
 //! `Command` there. Scope, data layer and performance budget are specified in
 //! `docs/` in this repository; the SDK is specified in `sdk/README.md`.
 
+mod media;
 mod router;
 mod routes;
 mod state;
@@ -33,6 +34,11 @@ fn main() {
     // Before the first mount, so app-lifetime signals have no owner to be disposed
     // with (see `routes::settings::sync::install`).
     crate::routes::settings::sync::install();
+    // Same reason: the revision signal is written by socket frames and ticks, which
+    // outlive every screen, so it must not belong to one.
+    crate::state::bridge::install_reactive_root();
+    // The expander's signal, created with no owner for the same reason.
+    crate::media::install();
     leptos::mount::mount_to_body(App);
     // Started after the mount so the first render never waits on a network tick.
     crate::state::bridge::start_background_tick();
@@ -175,6 +181,7 @@ fn App() -> impl IntoView {
                     }}
                 </main>
             </div>
+            <crate::media::ImageModal/>
         </div>
     }
 }

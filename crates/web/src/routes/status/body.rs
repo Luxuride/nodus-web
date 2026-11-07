@@ -63,11 +63,14 @@ fn MediaTile(media: MediaAttachment) -> impl IntoView {
     view! {
         <li>
             <Show when=move || is_image>
-                <a
-                    href=move || url.get()
-                    target="_blank"
-                    rel="nofollow noopener noreferrer"
-                    referrerpolicy="no-referrer"
+                // A click expands in place; the modal itself carries "Open original" for
+                // the reader who wants the file rather than the picture.
+                <button
+                    type="button"
+                    class="w-full cursor-zoom-in"
+                    on:click=move |_| {
+                        crate::media::expand(url.get_untracked(), description.get_untracked());
+                    }
                 >
                     <img
                         class="w-full rounded-box bg-base-300 object-cover"
@@ -77,7 +80,7 @@ fn MediaTile(media: MediaAttachment) -> impl IntoView {
                         loading="lazy"
                         referrerpolicy="no-referrer"
                     />
-                </a>
+                </button>
             </Show>
             <Show when=move || !is_image>
                 <a

@@ -76,6 +76,8 @@ thread_local! {
     static REVISION: RefCell<Option<RwSignal<u64>>> = const { RefCell::new(None) };
     /// Subscriptions must outlive `init`; dropping them stops the bumps.
     static SUBSCRIPTIONS: RefCell<Vec<Subscription>> = const { RefCell::new(Vec::new()) };
+    /// Whether [`init`] has wired the SDK, so a remount does not subscribe twice.
+    static INSTALLED: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
 }
 
 /// The Feed tab's request state, which belongs to the view and not to the SDK.
@@ -108,13 +110,11 @@ pub fn feed_ui() -> FeedUi {
 /// Idempotent: a second call is a no-op, so remounting the app does not
 /// double-subscribe.
 pub fn init() {
-    if REVISION.with_borrow(Option::is_some) {
+    if INSTALLED.get() {
         return;
     }
-
-    let revision = RwSignal::new(0_u64);
-    REVISION.with_borrow_mut(|slot| *slot = Some(revision));
-    feed_ui();
+    INSTALLED.set(true);
+    install_reactive_root();
 
     // Until a session exists the views only read state, but `with_sdk` must still
     // answer, so install an unauthenticated SDK for the API origin.
@@ -125,6 +125,21 @@ pub fn init() {
     // Reading, validating and re-installing the stored record is the session
     // module's job; `init` only asks for it once the unauthenticated SDK exists.
     session::restore_saved();
+}
+
+/// Creates the app-lifetime signals while no owner exists.
+///
+/// Must run before the first mount. A signal created inside a component is owned by it,
+/// so a later write from a socket frame or a tick — both outlive the screen that
+/// happened to be mounted first — would raise
+/// `reactive_graph … Tried to access a reactive value that has already been disposed`,
+/// panic inside a task poll, and leave the executor unable to resume anything.
+pub fn install_reactive_root() {
+    if REVISION.with_borrow(Option::is_none) {
+        let revision = RwSignal::new(0_u64);
+        REVISION.with_borrow_mut(|slot| *slot = Some(revision));
+    }
+    feed_ui();
 }
 
 /// The revision signal: read it inside a view to re-render on SDK changes.
@@ -190,7 +205,12 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
     ));
 
     let revision = revision();
-    let bump = move || revision.update(|generation| *generation += 1);
+    // `try_update`, not `update`: this callback runs from socket frames and background
+    // ticks, which outlive any single screen. A disposed signal must be a missed repaint,
+    // never a panic inside a task poll.
+    let bump = move || {
+        let _ = revision.try_update(|generation| *generation += 1);
+    };
     let mut subscriptions = Vec::new();
     {
         let state = sdk.state();

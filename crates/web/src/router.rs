@@ -11,14 +11,20 @@ use std::cell::RefCell;
 
 use leptos::ev::MouseEvent;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
 
 use crate::state::oauth::CALLBACK_PATH;
+
+/// The click listener's closure type, named once so the `thread_local!` stays readable.
+type LinkHandler = wasm_bindgen::closure::Closure<dyn FnMut(web_sys::MouseEvent)>;
 
 thread_local! {
     /// The current route; created on first read from the address bar.
     static ROUTE: RefCell<Option<RwSignal<Route>>> = const { RefCell::new(None) };
     /// The `popstate` listener, kept alive for the life of the page.
     static POPSTATE: RefCell<Option<WindowListenerHandle>> = const { RefCell::new(None) };
+    /// The delegated link listener, kept alive for the life of the page.
+    static LINKS: RefCell<Option<LinkHandler>> = const { RefCell::new(None) };
 }
 
 /// A screen the app can show.
@@ -143,6 +149,68 @@ pub fn install() {
             route().set(Route::from_path(&current_pathname()));
         }));
     });
+    install_links();
+}
+
+/// Intercepts clicks on any in-app anchor, wherever it was written.
+///
+/// One delegated listener rather than an `on:click` on every link: a link rendered by a
+/// card, a profile row or the composer behaves the same, and a new screen cannot forget
+/// the handler and silently fall back to a full document load — which threw away SDK
+/// state and looked like the server had rendered the page.
+fn install_links() {
+    LINKS.with_borrow_mut(|slot| {
+        if slot.is_some() {
+            return;
+        }
+        let handler = LinkHandler::new(|event: web_sys::MouseEvent| {
+            if event.default_prevented()
+                || event.button() != 0
+                || event.meta_key()
+                || event.ctrl_key()
+                || event.shift_key()
+                || event.alt_key()
+            {
+                return;
+            }
+            let Some(target) = event.target() else {
+                return;
+            };
+            let Ok(element) = target.dyn_into::<web_sys::Element>() else {
+                return;
+            };
+            let Ok(Some(anchor)) = element.closest("a") else {
+                return;
+            };
+            let Some(href) = anchor.get_attribute("href") else {
+                return;
+            };
+            let path = href.split(['?', '#']).next().unwrap_or_default();
+            if !is_internal(path) {
+                return;
+            }
+            event.prevent_default();
+            navigate(Route::from_path(path));
+        });
+        if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+            let callback: &js_sys::Function = wasm_bindgen::JsCast::unchecked_ref(handler.as_ref());
+            let _ = document.add_event_listener_with_callback("click", callback);
+        }
+        *slot = Some(handler);
+    });
+}
+
+/// Whether `path` is a screen this app renders.
+///
+/// The shared-post page (`/s/…`) is server-rendered and the API lives under `/api`; both
+/// must be left to the browser, or the app would try to render a page it does not have.
+fn is_internal(path: &str) -> bool {
+    path.starts_with('/')
+        && !path.starts_with("//")
+        && !path.starts_with("/api")
+        && !path.starts_with("/s/")
+        && !path.starts_with("/healthz")
+        && !path.starts_with("/readyz")
 }
 
 /// Navigates to `to`, pushing a history entry so the URL and the back button work.

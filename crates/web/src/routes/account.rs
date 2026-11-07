@@ -17,6 +17,7 @@ use crate::state::bridge::revision;
 use crate::state::bridge::timeline;
 use tabs::AccountTabs;
 
+mod avatar;
 mod profile;
 mod tabs;
 

@@ -5,6 +5,8 @@
 //! stays a list of statuses.
 
 use leptos::prelude::*;
+
+use super::avatar::Avatar;
 use nodus_instance::model::{Account, Relationship};
 
 use super::{Verb, toggle};
@@ -30,8 +32,7 @@ pub(super) fn ProfileCard(
                 let id = profile.id.clone();
                 let heading = display_name(&profile.display_name, &profile.acct);
                 let bio = plain_text(&profile.note);
-                let link = format!("/accounts/{id}");
-                let avatar = profile.avatar.clone();
+                let (avatar, _) = signal(profile.avatar.clone());
                 let acct = profile.acct.clone();
                 let counts = format!(
                     "{} posts · {} following · {} followers",
@@ -46,11 +47,7 @@ pub(super) fn ProfileCard(
                     <div class="card border border-base-300 bg-base-100 shadow-sm">
                         <div class="card-body gap-3 p-4">
                             <div class="flex items-start gap-3">
-                                <a class="avatar" href=link>
-                                    <div class="w-16 rounded-full bg-base-300">
-                                        <img src=avatar alt="" referrerpolicy="no-referrer"/>
-                                    </div>
-                                </a>
+                                <Avatar src=avatar/>
                                 <div class="min-w-0 flex-1">
                                     <p class="truncate text-lg font-semibold">{heading}</p>
                                     <p class="truncate text-sm opacity-60">{format!("@{acct}")}</p>

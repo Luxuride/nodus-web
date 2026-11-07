@@ -198,6 +198,10 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
         subscriptions.push(state.stream.subscribe(bump));
         subscriptions.push(state.feed.subscribe(bump));
         subscriptions.push(state.timelines.subscribe(bump));
+        // `sync` is a consent the *server* holds and the card's button is the only
+        // writer, so without this subscription the toggle kept rendering the value it
+        // read on mount until the operator reloaded the page.
+        subscriptions.push(state.sync.subscribe(bump));
     }
 
     // Dropping the previous vector unsubscribes from the previous SDK, before that

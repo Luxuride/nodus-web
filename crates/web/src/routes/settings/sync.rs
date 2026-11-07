@@ -5,11 +5,20 @@
 //! browser cannot leave this screen claiming "on" after the token was revoked
 //! elsewhere. And the state changes only after the request succeeded: a toggle that
 //! flips on a failed call claims a consent nobody granted.
+//!
+//! Both directions ask first. Enabling starts the server processing an account's
+//! data; disabling deletes the copy it holds. Neither is a toggle-sized decision, so
+//! the button opens a confirmation that says exactly what will happen, and the modal
+//! is a `modal-open` div rather than a `<dialog>` so it needs no imperative
+//! `show_modal()` call and re-renders with the rest of the view.
 
 use leptos::prelude::*;
 
+use self::confirm::{ConfirmDialog, Intent};
 use crate::state::alive::Alive;
 use crate::state::bridge::{load_sync_consent, revision, set_sync, with_sdk};
+
+mod confirm;
 
 /// The sync consent, with the button that turns it on or off.
 #[component]
@@ -17,6 +26,7 @@ pub fn SyncCard() -> impl IntoView {
     let revision = revision();
     let busy = RwSignal::new(false);
     let result = RwSignal::new(None::<String>);
+    let confirming = RwSignal::new(None::<Intent>);
 
     // What the server holds, not what this tab remembers.
     let consent = move || {
@@ -32,15 +42,16 @@ pub fn SyncCard() -> impl IntoView {
         });
     });
 
-    let on_toggle = move |_| {
+    let run = move |intent: Intent| {
         if busy.get_untracked() {
             return;
         }
+        let alive = Alive::new();
+        confirming.set(None);
         busy.set(true);
         result.set(None);
-        let enable = !consent().enabled;
-        let alive = Alive::new();
         wasm_bindgen_futures::spawn_local(async move {
+            let enable = intent.enables();
             let message = match set_sync(enable, false).await {
                 Ok(()) if enable => "Background sync is on. The server keeps an encrypted copy \
                                      of your token and syncs your follows for you."
@@ -57,12 +68,21 @@ pub fn SyncCard() -> impl IntoView {
         });
     };
 
+    // What the button asks for: the opposite of what the server currently holds.
+    let asked = move || {
+        if consent().enabled {
+            Intent::Disable
+        } else {
+            Intent::Enable
+        }
+    };
+
     view! {
         <div class="card border border-base-300 bg-base-100 shadow-sm">
             <div class="card-body gap-3 p-4">
                 <h2 class="card-title text-base">"Background sync"</h2>
                 <p class="text-sm opacity-80">
-                    "Turning this on uploads your access token to the recommendation server so it can sync your follows in the background and rank without waiting for you to open the app. Interaction telemetry is a separate consent and stays off."
+                    "Turning this on lets the recommendation server keep an encrypted copy of your access token, sync your follows in the background, and rank without waiting for you to open the app. Turning it off deletes that copy. Interaction telemetry is a separate consent and stays off."
                 </p>
                 <p class="flex items-center gap-2 text-sm">
                     <span
@@ -90,7 +110,7 @@ pub fn SyncCard() -> impl IntoView {
                             "btn btn-primary btn-sm"
                         }
                         disabled=move || busy.get()
-                        on:click=on_toggle
+                        on:click=move |_| confirming.set(Some(asked()))
                     >
                         <Show when=move || busy.get()>
                             <span class="loading loading-spinner loading-xs"></span>
@@ -108,6 +128,8 @@ pub fn SyncCard() -> impl IntoView {
                     </div>
                 })}
             </div>
+
+            <ConfirmDialog confirming=confirming run=Callback::new(run)/>
         </div>
     }
 }

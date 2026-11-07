@@ -182,7 +182,7 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
     let transport = BrowserInstance::new(instance, token);
     let sdk = Rc::new(Sdk::new(
         transport.clone(),
-        BrowserDiscovery::new(base, token),
+        BrowserDiscovery::new(base, instance.base.host_str().unwrap_or_default(), token),
         MemoryPersistence::new(),
         SystemClock,
     ));

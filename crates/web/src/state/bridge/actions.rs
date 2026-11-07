@@ -194,41 +194,9 @@ pub async fn reject_follow_request(id: &str) -> Result<(), String> {
     call(transport()?.reject_follow_request(&LocalId(id.to_owned()))).await
 }
 
-/// One page of an account's followers.
-pub async fn followers(id: &str, after: Option<&str>) -> Result<Page<Account>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.followers(&LocalId(id.to_owned()), params)).await
-}
 
-/// One page of the accounts an account follows.
-pub async fn following(id: &str, after: Option<&str>) -> Result<Page<Account>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.following(&LocalId(id.to_owned()), params)).await
-}
 
-/// Accounts this account muted.
-pub async fn mutes(after: Option<&str>) -> Result<Page<Account>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.mutes(params)).await
-}
 
-/// Accounts this account blocked.
-pub async fn blocks(after: Option<&str>) -> Result<Page<Account>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.blocks(params)).await
-}
 
 /// Votes on a poll and returns the status it belongs to.
 pub async fn vote(poll_id: &str, choices: &[usize]) -> Result<Status, String> {
@@ -383,14 +351,6 @@ pub async fn unfeature_tag(id: &str) -> Result<(), String> {
     call(transport()?.unfeature_tag(id)).await
 }
 
-/// Direct conversations, in the instance's order.
-pub async fn conversations(after: Option<&str>) -> Result<Page<Conversation>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.conversations(params)).await
-}
 
 /// Marks a conversation as read.
 pub async fn mark_conversation_read(id: &str) -> Result<(), String> {
@@ -402,10 +362,6 @@ pub async fn mute_conversation(id: &str, muted: bool) -> Result<Conversation, St
     call(transport()?.mute_conversation(id, muted)).await
 }
 
-/// Everything waiting to be published.
-pub async fn scheduled() -> Result<Vec<nodus_instance::model::ScheduledStatus>, String> {
-    call(transport()?.scheduled()).await
-}
 
 /// Queues a draft for `at`, in RFC 3339.
 pub async fn schedule(text: &str, visibility: nodus_instance::model::Visibility, at: &str) -> Result<(), String> {

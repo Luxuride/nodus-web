@@ -9,11 +9,12 @@ use leptos::prelude::*;
 
 use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
-use nodus_instance::model::Conversation;
 
 use self::row::ConversationRow;
 use crate::state::alive::Alive;
-use crate::state::bridge::actions;
+use crate::state::bridge::{actions, dispatch, pages, revision};
+use nodus_sdk::Command;
+use nodus_sdk::page::{PageItems, PageKind};
 
 /// Mutes or unmutes a conversation, and remembers what was asked for.
 ///
@@ -22,7 +23,6 @@ use crate::state::bridge::actions;
 fn apply_mute(
     id: String,
     mute_now: bool,
-    set_items: WriteSignal<Vec<Conversation>>,
     set_muted: WriteSignal<Vec<String>>,
     set_error: WriteSignal<Option<String>>,
     alive: Alive,
@@ -30,10 +30,8 @@ fn apply_mute(
     spawn_local(async move {
         match actions::mute_conversation(&id, mute_now).await {
             Ok(updated) => alive.if_alive(|| {
-                set_items.update(|held| {
-                    if let Some(slot) = held.iter_mut().find(|item| item.id == updated.id) {
-                        *slot = updated;
-                    }
+                dispatch(Command::ConversationsUpserted {
+                    items: vec![updated],
                 });
                 set_muted.update(|held| {
                     held.retain(|known| known != &id);
@@ -48,47 +46,55 @@ fn apply_mute(
 }
 
 /// Marks a conversation read; a failure is ignored on purpose.
-fn open_conversation(id: String, set_items: WriteSignal<Vec<Conversation>>, alive: Alive) {
+fn open_conversation(id: String, alive: Alive) {
     spawn_local(async move {
-        let _ = actions::mark_conversation_read(&id).await;
-        alive.if_alive(|| {
-            set_items.update(|held| {
-                if let Some(slot) = held.iter_mut().find(|item| item.id == id) {
-                    slot.unread = false;
+        if actions::mark_conversation_read(&id).await.is_ok() {
+            // The endpoint answers with nothing, so the flag is set on the copy the SDK
+            // holds: the server accepted the read, and that is what the row now shows.
+            alive.if_alive(|| {
+                if let Some((list, _)) = pages::items(&PageKind::Conversations, |items| match items {
+                    PageItems::Conversations(list) => Some(list),
+                    _ => None,
+                }) {
+                    if let Some(mut conversation) = list.into_iter().find(|item| item.id == id) {
+                        conversation.unread = false;
+                        dispatch(Command::ConversationsUpserted {
+                            items: vec![conversation],
+                        });
+                    }
                 }
             });
-        });
+        }
     });
 }
 
 /// The conversations the account is part of.
 #[component]
 pub fn Conversations() -> impl IntoView {
-    let (items, set_items) = signal(Vec::<Conversation>::new());
+    let revision = revision();
     let (muted, set_muted) = signal(Vec::<String>::new());
-    let (cursor, set_cursor) = signal(None::<String>);
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 
+    // The list lives in the SDK: a visit paints it before any request is made, which is
+    // what removes the "Loading conversations…" frame on a revisit.
+    let held = move || {
+        revision.get();
+        pages::items(&PageKind::Conversations, |items| match items {
+            PageItems::Conversations(list) => Some(list),
+            _ => None,
+        })
+    };
+    let items = move || held().map(|(list, _)| list).unwrap_or_default();
+    let cursor = move || held().and_then(|(_, cursor)| cursor);
+
     let load = move |after: Option<String>| {
         let alive = alive;
         spawn_local(async move {
-            match actions::conversations(after.as_deref()).await {
-                Ok(page) => {
-                    let fresh = page.items;
-                    alive.if_alive(|| {
-                        set_items.update(|held| {
-                            for item in fresh {
-                                if !held.iter().any(|known| known.id == item.id) {
-                                    held.push(item);
-                                }
-                            }
-                        });
-                        set_cursor.set(page.next_max_id);
-                        set_loading.set(false);
-                    });
-                }
+            let outcome = pages::ensure_after(PageKind::Conversations, after).await;
+            match outcome {
+                Ok(_) => alive.if_alive(|| set_loading.set(false)),
                 Err(message) => alive.if_alive(|| {
                     set_error.set(Some(message));
                     set_loading.set(false);
@@ -99,15 +105,17 @@ pub fn Conversations() -> impl IntoView {
 
     Effect::new(move |_| load(None));
     let on_mute = Callback::new(move |(id, mute_now): (String, bool)| {
-        apply_mute(id, mute_now, set_items, set_muted, set_error, alive);
+        apply_mute(id, mute_now, set_muted, set_error, alive);
     });
-    let on_open = Callback::new(move |id: String| open_conversation(id, set_items, alive));
+    let on_open = Callback::new(move |id: String| open_conversation(id, alive));
 
     view! {
         <section class="flex flex-col gap-3">
             <PageHeader title="Messages" description="Direct conversations with other accounts. Opening one marks it read."/>
 
-            <Show when=move || loading.get()>
+            // Only before the first answer: a held page renders immediately, and an
+            // empty held page is a fact, not a wait.
+            <Show when=move || loading.get() && items().is_empty()>
                 <p class="text-sm opacity-60">"Loading conversations…"</p>
             </Show>
             {move || error.get().map(|message| view! {
@@ -115,7 +123,7 @@ pub fn Conversations() -> impl IntoView {
             })}
 
             <ul class="flex flex-col divide-y divide-base-300 rounded-box bg-base-100">
-                <For each=move || items.get() key=|item| item.id.clone() let:item>
+                <For each=items key=|item| item.id.clone() let:item>
                     {
                         let is_muted = muted.get().contains(&item.id);
                         view! {
@@ -130,13 +138,13 @@ pub fn Conversations() -> impl IntoView {
                 </For>
             </ul>
 
-            <Show when=move || !loading.get() && items.get().is_empty() && error.get().is_none()>
+            <Show when=move || !loading.get() && items().is_empty() && error.get().is_none()>
                 <p class="text-sm opacity-60">"No conversations yet."</p>
             </Show>
-            <Show when=move || cursor.get().is_some()>
+            <Show when=move || cursor().is_some()>
                 <button
                     class="btn btn-sm self-start"
-                    on:click=move |_| load(cursor.get_untracked())
+                    on:click=move |_| load(cursor())
                 >
                     "Load more"
                 </button>

@@ -60,7 +60,6 @@ pub fn fetched_at(kind: &PageKind) -> Option<i64> {
 }
 
 /// Accounts from a people page, in the order the instance sent them.
-#[expect(dead_code, reason = "the people screens move onto the page store next")]
 #[must_use]
 pub fn accounts(kind: &PageKind) -> Option<(Vec<nodus_instance::model::Account>, Option<String>)> {
     items(kind, |items| match items {

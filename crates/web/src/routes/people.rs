@@ -5,11 +5,15 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::Account;
+use nodus_sdk::Command;
+use nodus_sdk::page::PageKind;
 
-use crate::router::{self, Route};
 use crate::state::alive::Alive;
-use crate::state::bridge::actions;
+use crate::state::bridge::{actions, dispatch, pages, revision};
+
+mod row;
+
+use row::PersonRow;
 
 /// How the list was produced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +39,16 @@ impl Kind {
         }
     }
 
+    /// The page store key for this list.
+    fn page(self, id: &str) -> PageKind {
+        match self {
+            Self::Followers => PageKind::Followers(id.to_owned()),
+            Self::Following => PageKind::Following(id.to_owned()),
+            Self::Mutes => PageKind::Mutes,
+            Self::Blocks => PageKind::Blocks,
+        }
+    }
+
     /// Whether rows carry an undo button.
     fn undo(self) -> Option<&'static str> {
         match self {
@@ -42,28 +56,6 @@ impl Kind {
             Self::Blocks => Some("Unblock"),
             Self::Followers | Self::Following => None,
         }
-    }
-}
-
-/// Reads one page of the requested list.
-async fn page(
-    kind: Kind,
-    id: &str,
-    after: Option<&str>,
-) -> Result<(Vec<Account>, Option<String>), String> {
-    match kind {
-        Kind::Followers => actions::followers(id, after)
-            .await
-            .map(|page| (page.items, page.next_max_id)),
-        Kind::Following => actions::following(id, after)
-            .await
-            .map(|page| (page.items, page.next_max_id)),
-        Kind::Mutes => actions::mutes(after)
-            .await
-            .map(|page| (page.items, page.next_max_id)),
-        Kind::Blocks => actions::blocks(after)
-            .await
-            .map(|page| (page.items, page.next_max_id)),
     }
 }
 
@@ -76,8 +68,7 @@ pub fn PeopleList(
     /// Which list this is.
     kind: Kind,
 ) -> impl IntoView {
-    let (accounts, set_accounts) = signal(Vec::<Account>::new());
-    let (cursor, set_cursor) = signal(None::<String>);
+    let revision = revision();
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
@@ -85,89 +76,66 @@ pub fn PeopleList(
     // `StoredValue` rather than a captured `String`: with only `Copy` captures the
     // closure below is `Copy` too, so the effect and the "load more" button can share it.
     let id = StoredValue::new(id);
+    let held = move || {
+        revision.get();
+        pages::accounts(&kind.page(&id.get_value()))
+    };
+    let accounts = move || held().map(|(list, _)| list).unwrap_or_default();
+    let cursor = move || held().and_then(|(_, cursor)| cursor);
 
     let load = move |after: Option<String>| {
         let id = id.get_value();
 
-        set_loading.set(true);
         spawn_local(async move {
-            match page(kind, &id, after.as_deref()).await {
-                Ok((found, next)) => alive.if_alive(|| {
-                    set_cursor.set(next);
-                    set_accounts.update(|list| list.extend(found));
+            let answer = pages::ensure_after(kind.page(&id), after).await;
+            match answer {
+                Ok(_) => alive.if_alive(|| set_loading.set(false)),
+                Err(message) => alive.if_alive(|| {
+                    set_error.set(Some(message));
+                    set_loading.set(false);
                 }),
-                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
-            alive.if_alive(|| set_loading.set(false));
         });
     };
 
     Effect::new(move |_| load(None));
 
-    let more = move |_| load(cursor.get_untracked());
+    let more = move |_| load(cursor());
 
-    let undo = {
-        move |account_id: String| {
-            spawn_local(async move {
-                let answer = match kind {
-                    Kind::Mutes => actions::mute(&account_id, false).await.map(drop),
-                    Kind::Blocks => actions::block(&account_id, false).await.map(drop),
-                    Kind::Followers | Kind::Following => Ok(()),
-                };
-                match answer {
-                    Ok(()) => alive.if_alive(|| {
-                        set_accounts.update(|list| list.retain(|item| item.id != account_id));
-                    }),
-                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
-                }
-            });
-        }
-    };
+    let undo = Callback::new(move |account_id: String| {
+        spawn_local(async move {
+            let answer = match kind {
+                Kind::Mutes => actions::mute(&account_id, false).await.map(drop),
+                Kind::Blocks => actions::block(&account_id, false).await.map(drop),
+                Kind::Followers | Kind::Following => Ok(()),
+            };
+            match answer {
+                Ok(()) => alive.if_alive(|| {
+                    // The command owns the page, so the row leaves it and every screen
+                    // reading that page agrees.
+                    dispatch(Command::PageAccountDropped {
+                        kind: kind.page(&id.get_value()),
+                        account: account_id,
+                    });
+                }),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            }
+        });
+    });
 
     view! {
         <div class="flex flex-col gap-2">
-            <Show when=move || !loading.get() && accounts.get().is_empty()>
+            <Show when=move || !loading.get() && accounts().is_empty()>
                 <p class="text-sm opacity-60">{kind.empty()}</p>
             </Show>
 
             <ul class="flex flex-col gap-1">
-                <For each=move || accounts.get() key=|account| account.id.clone() let:account>
-                    {
-                        let route = Route::Account(account.id.clone());
-                        let href = route.path();
-                        let id = account.id.clone();
-                        view! {
-                            <li class="flex items-center gap-2 rounded-box border border-base-300 bg-base-100 p-2">
-                                <a class="avatar" href=href.clone()>
-                                    <div class="w-8 rounded-full bg-base-300">
-                                        <img src=account.avatar.clone() alt="" referrerpolicy="no-referrer"/>
-                                    </div>
-                                </a>
-                                <a
-                                    class="min-w-0 flex-1 truncate text-sm hover:underline"
-                                    href=href.clone()
-                                    on:click=move |event| router::link(event, route.clone())
-                                >
-                                    {crate::routes::format::display_name(
-                                        &account.display_name,
-                                        &account.acct,
-                                    )}
-                                </a>
-                                {kind.undo().map(|label| view! {
-                                    <button
-                                        class="btn btn-ghost btn-xs"
-                                        on:click=move |_| undo(id.clone())
-                                    >
-                                        {label}
-                                    </button>
-                                })}
-                            </li>
-                        }
-                    }
+                <For each=accounts key=|account| account.id.clone() let:account>
+                    <PersonRow account=account label=kind.undo() on_undo=undo/>
                 </For>
             </ul>
 
-            <Show when=move || cursor.get().is_some()>
+            <Show when=move || cursor().is_some()>
                 <button
                     class="btn btn-ghost btn-sm w-full"
                     disabled=move || loading.get()

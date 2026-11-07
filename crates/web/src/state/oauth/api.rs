@@ -19,12 +19,22 @@ const CLIENT_NAME: &str = "nodus";
 /// a reverse-proxy error page, short enough for an inline alert.
 const MAX_ERROR_CHARS: usize = 200;
 
-/// Registers the app with `host` and returns its public `client_id`.
+/// What app registration hands back and the exchange needs.
+pub(super) struct App {
+    pub(super) client_id: String,
+    /// Not a secret in any useful sense — it is bound to a public client whose codes
+    /// are proven with PKCE, and the instance issues it to anyone who asks. It is here
+    /// because Mastodon's `/oauth/token` demands client authentication: sending only
+    /// `client_id` answers `401 invalid_client`, which is what broke sign-in before.
+    pub(super) client_secret: String,
+}
+
+/// Registers the app with `host` and returns its credentials.
 pub(super) async fn register_app(
     host: &str,
     origin: &str,
     redirect_uri: &str,
-) -> Result<String, String> {
+) -> Result<App, String> {
     let url = endpoint(host, "/api/v1/apps");
     let json = post_form(
         &url,
@@ -36,13 +46,16 @@ pub(super) async fn register_app(
         ],
     )
     .await?;
-    // `client_secret` is ignored on purpose: PKCE makes this a public client, and a
-    // secret in browser storage is a secret one `localStorage` read away.
-    string_field(&json, "client_id")
+    let client_id = string_field(&json, "client_id")
         .filter(|id| !id.is_empty())
         .ok_or_else(|| {
             format!("{url} returned no client id. The instance may have app registration disabled.")
-        })
+        })?;
+    let client_secret = string_field(&json, "client_secret").unwrap_or_default();
+    Ok(App {
+        client_id,
+        client_secret,
+    })
 }
 
 /// Exchanges an authorization code for an access token.
@@ -58,6 +71,7 @@ pub(super) async fn exchange_code(record: &Pending, code: &str) -> Result<String
             ("grant_type", "authorization_code"),
             ("code", code),
             ("client_id", record.client_id.as_str()),
+            ("client_secret", record.client_secret.as_str()),
             ("redirect_uri", record.redirect_uri.as_str()),
             ("code_verifier", record.verifier.as_str()),
             ("scope", SCOPES),

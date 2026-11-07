@@ -52,7 +52,7 @@ pub async fn begin(host: &str) -> Result<(), String> {
     let host = normalise_host(host)?;
     let origin = origin()?;
     let redirect_uri = format!("{origin}{CALLBACK_PATH}");
-    let client_id = api::register_app(&host, &origin, &redirect_uri).await?;
+    let app = api::register_app(&host, &origin, &redirect_uri).await?;
 
     let verifier = pkce::verifier()?;
     let challenge = pkce::challenge(&verifier).await?;
@@ -62,13 +62,14 @@ pub async fn begin(host: &str) -> Result<(), String> {
     // user should hear it here rather than after a round trip to the instance.
     pending::save(&pending::Pending {
         host: host.clone(),
-        client_id: client_id.clone(),
+        client_id: app.client_id.clone(),
+        client_secret: app.client_secret.clone(),
         verifier,
         state: state.clone(),
         redirect_uri: redirect_uri.clone(),
     })?;
 
-    let url = authorize_url(&host, &client_id, &redirect_uri, &challenge, &state)?;
+    let url = authorize_url(&host, &app.client_id, &redirect_uri, &challenge, &state)?;
     window()?
         .location()
         .assign(&url)

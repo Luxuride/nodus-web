@@ -15,7 +15,7 @@ use web_sys::Storage;
 /// The key carries the format version, so a later record shape can use a new key and
 /// this build simply never sees the old value — that is why there is no separate
 /// format-marker line here, unlike the session record (`state/bridge/session/record.rs`).
-const PENDING_KEY: &str = "nodus-oauth/1";
+const PENDING_KEY: &str = "nodus-oauth/2";
 
 /// What the callback needs, and nothing else.
 ///
@@ -27,6 +27,8 @@ pub(crate) struct Pending {
     pub(crate) host: String,
     /// The public client id this host issued for the app.
     pub(crate) client_id: String,
+    /// The client secret the same registration returned; `/oauth/token` requires it.
+    pub(crate) client_secret: String,
     /// PKCE verifier whose S256 challenge went to `/oauth/authorize`.
     pub(crate) verifier: String,
     /// The `state` sent to `/oauth/authorize`; the callback must echo it.
@@ -81,11 +83,12 @@ fn storage() -> Option<Storage> {
     web_sys::window()?.session_storage().ok()?
 }
 
-/// Serializes the record: five fields, one per line, escaped by [`escape_into`].
+/// Serializes the record: six fields, one per line, escaped by [`escape_into`].
 fn encode(pending: &Pending) -> String {
     let fields = [
         &pending.host,
         &pending.client_id,
+        &pending.client_secret,
         &pending.verifier,
         &pending.state,
         &pending.redirect_uri,
@@ -109,6 +112,7 @@ fn decode(raw: &str) -> Option<Pending> {
     let pending = Pending {
         host: unescape(lines.next()?)?,
         client_id: unescape(lines.next()?)?,
+        client_secret: unescape(lines.next()?)?,
         verifier: unescape(lines.next()?)?,
         state: unescape(lines.next()?)?,
         redirect_uri: unescape(lines.next()?)?,
@@ -122,6 +126,7 @@ fn decode(raw: &str) -> Option<Pending> {
     let fields = [
         &pending.host,
         &pending.client_id,
+        &pending.client_secret,
         &pending.verifier,
         &pending.state,
         &pending.redirect_uri,

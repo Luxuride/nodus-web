@@ -56,7 +56,7 @@ pub type WebSdk = Sdk<BrowserInstance, BrowserDiscovery, MemoryPersistence, Syst
 type WebSdkError = nodus_sdk::SdkError<nodus_sdk::instance_api::Error, nodus_discovery::Error>;
 
 /// Where the API lives when the page has no `window` (native tests, prerender).
-const FALLBACK_API_BASE: &str = "http://127.0.0.1:8080/api";
+const FALLBACK_API_BASE: &str = "http://127.0.0.1:3000";
 
 thread_local! {
     /// The one SDK instance for this app.
@@ -223,16 +223,17 @@ fn instance_transport() -> Option<BrowserInstance> {
 
 /// The API base for this page: this origin plus `/api`.
 ///
-/// Both the Trunk dev proxy (`web/Trunk.toml`) and a same-origin deployment serve
-/// the API under `/api`, so the origin is all the client needs to know. Built with
-/// `web_sys::Url` rather than string formatting so a path-prefixed or port-bearing
-/// origin cannot produce a double or missing slash.
+/// The origin is the whole answer: every discovery path already begins with `/api/v1`,
+/// so a base that carried `/api` would produce `/api/api/v1/...`.
+///
+/// The `/api` prefix belongs to the deployment, not to the client: Trunk proxies it to
+/// the feeds service in development (`web/Trunk.toml`), and a same-origin deployment
+/// lets Caddy serve `/api/*` from that service directly. Built with `web_sys::Url`
+/// rather than string formatting so a port-bearing origin cannot produce a wrong slash.
 fn api_base() -> Option<Url> {
     let from_window = web_sys::window().and_then(|window| {
         let origin = window.location().origin().ok()?;
-        let url = web_sys::Url::new(&origin).ok()?;
-        url.set_pathname("/api");
-        Url::parse(&url.href()).ok()
+        Url::parse(&origin).ok()
     });
     from_window.or_else(|| Url::parse(FALLBACK_API_BASE).ok())
 }

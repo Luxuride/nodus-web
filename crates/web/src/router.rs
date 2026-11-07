@@ -51,6 +51,8 @@ pub enum Route {
     Notifications,
     /// Search over accounts, statuses and hashtags.
     Search,
+    /// People the instance suggests.
+    Directory,
     /// Favourites and bookmarks.
     Saved,
     /// Posts waiting to be published.
@@ -103,6 +105,7 @@ impl Route {
             Self::Messages => "/messages".to_owned(),
             Self::Notifications => "/notifications".to_owned(),
             Self::Search => "/search".to_owned(),
+            Self::Directory => "/directory".to_owned(),
             Self::Saved => "/saved".to_owned(),
             Self::Scheduled => "/scheduled".to_owned(),
             Self::Lists => "/lists".to_owned(),
@@ -171,6 +174,7 @@ impl Route {
             "/messages" => Self::Messages,
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,
+            "/directory" => Self::Directory,
             "/saved" => Self::Saved,
             "/scheduled" => Self::Scheduled,
             "/lists" => Self::Lists,

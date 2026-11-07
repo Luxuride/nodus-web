@@ -453,3 +453,8 @@ pub async fn schedule(text: &str, visibility: nodus_instance::model::Visibility,
 pub async fn cancel_scheduled(id: &str) -> Result<(), String> {
     call(transport()?.cancel_scheduled(id)).await
 }
+
+/// Accounts the instance suggests, for finding people to follow.
+pub async fn directory(local_only: bool, offset: u32) -> Result<Vec<Account>, String> {
+    call(transport()?.directory(local_only, offset)).await
+}

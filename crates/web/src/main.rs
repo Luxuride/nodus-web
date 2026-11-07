@@ -20,6 +20,7 @@ use crate::routes::callback::Callback;
 use crate::routes::compose::panel::{self as compose_panel, ComposerPanel};
 use crate::routes::compose::{Compose, ComposeEdit};
 use crate::routes::conversations::Conversations;
+use crate::routes::directory::Directory;
 use crate::routes::feed::Feed;
 use crate::routes::home::Home;
 use crate::routes::lists::Lists;
@@ -107,6 +108,7 @@ fn App() -> impl IntoView {
                         <RailItem label="Messages" route=Route::Messages/>
                         <RailItem label="Notifications" route=Route::Notifications/>
                         <RailItem label="Search" route=Route::Search/>
+                        <RailItem label="People" route=Route::Directory/>
                         <RailItem label="Saved" route=Route::Saved/>
                         <RailItem label="Scheduled" route=Route::Scheduled/>
                         <RailItem label="Lists" route=Route::Lists/>
@@ -143,6 +145,7 @@ fn App() -> impl IntoView {
                                 view! { <Notifications/> }.into_any()
                             }
                             Route::Search if signed_in => view! { <Search/> }.into_any(),
+                            Route::Directory if signed_in => view! { <Directory/> }.into_any(),
                             Route::Saved if signed_in => view! { <Saved/> }.into_any(),
                             Route::Scheduled if signed_in => view! { <Scheduled/> }.into_any(),
                             Route::Compose if signed_in => view! { <Compose/> }.into_any(),
@@ -186,6 +189,9 @@ fn App() -> impl IntoView {
                             }
                             Route::Search => {
                                 view! { <SignIn note="Sign in to search."/> }.into_any()
+                            }
+                            Route::Directory => {
+                                view! { <SignIn note="Sign in to find people."/> }.into_any()
                             }
                             Route::Saved => {
                                 view! { <SignIn note="Sign in to see what you saved."/> }

@@ -69,11 +69,13 @@ pub fn SyncCard() -> impl IntoView {
     let revision = revision();
     let (confirming, busy, result) = ui();
 
-    // What the server holds, not what this tab remembers.
+    // What the server holds, not what this tab remembers. `None` means it has not
+    // answered yet, which is a third state and must not be rendered as "off".
     let consent = move || {
         revision.get();
         with_sdk(|sdk| sdk.state().sync.get())
     };
+    let state = move || consent().map(|consent| consent.enabled);
 
     // Asked once per visit. Reading no signal keeps this from re-firing on every
     // state change, which would turn each answer into the next request.
@@ -89,7 +91,7 @@ pub fn SyncCard() -> impl IntoView {
 
     // What the button asks for: the opposite of what the server currently holds.
     let asked = move || {
-        if consent().enabled {
+        if state() == Some(true) {
             Intent::Disable
         } else {
             Intent::Enable
@@ -105,39 +107,47 @@ pub fn SyncCard() -> impl IntoView {
                 </p>
                 <p class="flex items-center gap-2 text-sm">
                     <span
-                        class=move || if consent().enabled {
-                            "badge badge-success badge-sm"
-                        } else {
-                            "badge badge-ghost badge-sm"
+                        class=move || match state() {
+                            Some(true) => "badge badge-success badge-sm",
+                            Some(false) => "badge badge-ghost badge-sm",
+                            None => "badge badge-ghost badge-sm opacity-50",
                         }
                     >
-                        {move || if consent().enabled { "on" } else { "off" }}
+                        // Not "off" until the server says so: an unknown consent is
+                        // unknown, and showing a default makes the page load look like
+                        // a decision the reader just made.
+                        {move || match state() {
+                            Some(true) => "on",
+                            Some(false) => "off",
+                            None => "…",
+                        }}
                     </span>
                     <span class="opacity-70">
-                        {move || if consent().enabled {
-                            "This account is synced by the server."
-                        } else {
-                            "Follows are only read while this app is open."
+                        {move || match state() {
+                            Some(true) => "This account is synced by the server.",
+                            Some(false) => "Follows are only read while this app is open.",
+                            None => "Asking the server what it holds…",
                         }}
                     </span>
                 </p>
                 <div class="card-actions justify-end">
                     <button
-                        class=move || if consent().enabled {
+                        class=move || if state() == Some(true) {
                             "btn btn-ghost btn-sm"
                         } else {
                             "btn btn-primary btn-sm"
                         }
-                        disabled=move || busy.get()
+                        // A button that acts on a guess is worse than no button.
+                        disabled=move || state().is_none() || busy.get()
                         on:click=move |_| confirming.set(Some(asked()))
                     >
                         <Show when=move || busy.get()>
                             <span class="loading loading-spinner loading-xs"></span>
                         </Show>
-                        {move || if consent().enabled {
-                            "Turn off background sync"
-                        } else {
-                            "Enable background sync"
+                        {move || match state() {
+                            Some(true) => "Turn off background sync",
+                            Some(false) => "Enable background sync",
+                            None => "Background sync",
                         }}
                     </button>
                 </div>

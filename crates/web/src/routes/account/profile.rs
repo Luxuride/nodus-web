@@ -10,6 +10,7 @@ use nodus_instance::model::{Account, Relationship};
 use super::{Verb, toggle};
 use crate::routes::feed::posts::plain_text;
 use crate::routes::format::display_name;
+use crate::state::alive::Alive;
 
 /// A profile header with Follow, Mute and Block.
 #[component]
@@ -21,6 +22,8 @@ pub(super) fn ProfileCard(
     set_busy: WriteSignal<bool>,
     set_error: WriteSignal<Option<String>>,
 ) -> impl IntoView {
+    // Shared by the three verbs: a response must not write after the card is gone.
+    let alive = Alive::new();
     view! {
         {move || {
             account.get().map(|profile| {
@@ -58,11 +61,12 @@ pub(super) fn ProfileCard(
                             <div class="flex flex-wrap items-center gap-2">
                                 <button
                                     class="btn btn-primary btn-sm"
-                                    disabled=move || busy.get()
+                                    disabled=move || busy.get() || relationship.get().is_none()
                                     on:click=move |_| {
                                         toggle(
                                             follow_id.clone(),
                                             Verb::Follow,
+                                            alive,
                                             relationship,
                                             set_relationship,
                                             set_busy,
@@ -74,11 +78,12 @@ pub(super) fn ProfileCard(
                                 </button>
                                 <button
                                     class="btn btn-ghost btn-sm"
-                                    disabled=move || busy.get()
+                                    disabled=move || busy.get() || relationship.get().is_none()
                                     on:click=move |_| {
                                         toggle(
                                             mute_id.clone(),
                                             Verb::Mute,
+                                            alive,
                                             relationship,
                                             set_relationship,
                                             set_busy,
@@ -90,11 +95,12 @@ pub(super) fn ProfileCard(
                                 </button>
                                 <button
                                     class="btn btn-ghost btn-sm"
-                                    disabled=move || busy.get()
+                                    disabled=move || busy.get() || relationship.get().is_none()
                                     on:click=move |_| {
                                         toggle(
                                             block_id.clone(),
                                             Verb::Block,
+                                            alive,
                                             relationship,
                                             set_relationship,
                                             set_busy,

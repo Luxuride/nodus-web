@@ -48,7 +48,14 @@ pub(super) enum Verb {
 
 impl Verb {
     /// The button label for this verb and the relationship as it stands.
+    /// The button label, or a placeholder while the relationship is still unknown.
+    ///
+    /// A label is a claim about the account's state ("Unfollow" means "you already
+    /// follow"), so an unanswered relationship gets no claim at all.
     pub(super) fn label(self, relationship: Option<Relationship>) -> &'static str {
+        if relationship.is_none() {
+            return "…";
+        }
         match (self, relationship) {
             (Self::Follow, Some(found)) if found.following => "Unfollow",
             (Self::Mute, Some(found)) if found.muting => "Unmute",
@@ -194,11 +201,17 @@ pub fn AccountView(id: String) -> impl IntoView {
 pub(super) fn toggle(
     id: String,
     verb: Verb,
+    alive: Alive,
     relationship: ReadSignal<Option<Relationship>>,
     set_relationship: WriteSignal<Option<Relationship>>,
     set_busy: WriteSignal<bool>,
     set_error: WriteSignal<Option<String>>,
 ) {
+    // Acting on an unknown relationship would guess the verb: with no answer yet we
+    // cannot tell whether the button means "follow" or "unfollow".
+    if relationship.get_untracked().is_none() {
+        return;
+    }
     let on = match verb {
         Verb::Follow => !relationship
             .get_untracked()
@@ -219,9 +232,9 @@ pub(super) fn toggle(
             Verb::Block => actions::block(&id, on).await,
         };
         match answer {
-            Ok(found) => set_relationship.set(Some(found)),
-            Err(message) => set_error.set(Some(message)),
+            Ok(found) => alive.if_alive(|| set_relationship.set(Some(found))),
+            Err(message) => alive.if_alive(|| set_error.set(Some(message))),
         }
-        set_busy.set(false);
+        alive.if_alive(|| set_busy.set(false));
     });
 }

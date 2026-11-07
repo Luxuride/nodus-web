@@ -39,7 +39,9 @@ mod session;
 // Re-exported so every call site keeps saying `bridge::<verb>`: the split into
 // files is a reading aid, not a new API surface.
 pub use feed::{follow_item, not_interested, reload_feed, unfollow_item};
-pub use impressions::report_impressions;
+pub use impressions::{
+    begin as begin_impression, finish as finish_impression, install as install_impression_flush,
+};
 pub use posts::{load_posts_once, posts_ui, reload_posts};
 pub use runtime::start as start_background_tick;
 pub use session::{set_sync, sign_in, sign_out};
@@ -155,6 +157,14 @@ pub fn dispatch(command: Command) {
     if let Some(sdk) = handle() {
         sdk.dispatch(command);
     }
+}
+
+/// The snapshot id of the list currently on screen, if any.
+///
+/// A refresh passes it to the server so the request is understood as superseding that
+/// snapshot; a "load more" never does, because it is a read of the same list.
+pub(super) fn existing_feed_id() -> Option<String> {
+    FEED_ID.with_borrow(std::clone::Clone::clone)
 }
 
 /// Drops the snapshot id kept for event batches.

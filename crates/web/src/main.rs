@@ -23,6 +23,9 @@ fn main() {
     leptos::mount::mount_to_body(App);
     // Started after the mount so the first render never waits on a network tick.
     crate::state::bridge::start_background_tick();
+    // Impressions are written when a card leaves the screen, so the last screen's
+    // worth of them is flushed on page hide (D36).
+    crate::state::bridge::install_impression_flush();
 }
 
 /// Application shell: the rail, and the screen the address bar asks for.

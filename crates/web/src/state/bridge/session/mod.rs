@@ -125,6 +125,9 @@ pub fn save_session(host: &str, token: &str) {
 pub fn clear_session() {
     record::clear();
     super::forget_feed_id();
+    // An impression names a user who is signing out; the count would be against
+    // nobody, and the next session must not inherit the previous list's queue.
+    super::impressions::forget();
 }
 
 /// Re-establishes a stored session without blocking the first paint.

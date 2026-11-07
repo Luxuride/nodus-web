@@ -6,7 +6,7 @@
 
 use leptos::prelude::*;
 
-use super::{handle, report_impressions, with_sdk};
+use super::{handle, impressions, with_sdk};
 
 /// UI state for the post list, kept apart from [`FeedUi`](super::FeedUi) so the two
 /// tabs cannot dim or error each other.
@@ -53,8 +53,7 @@ pub fn reload_posts(cursor: Option<String>) {
         match sdk.load_posts(cursor.as_deref()).await {
             Ok(feed) => {
                 ui.error.set(None);
-                let shown: Vec<i64> = feed.items.iter().map(|item| item.item_id).collect();
-                report_impressions(&feed.feed_id, &shown);
+                impressions::set_feed(&feed.feed_id);
             }
             Err(error) => ui.error.set(Some(error.to_string())),
         }

@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use nodus_shared::PostItem;
 
 use super::text::plain_text;
+use crate::state::bridge::{begin_impression, finish_impression};
 
 /// A post card: who wrote it, what it says, and where to read the original.
 #[component]
@@ -12,6 +13,11 @@ use super::text::plain_text;
     reason = "a Leptos component receives its props by value"
 )]
 pub fn PostCard(item: PostItem) -> impl IntoView {
+    // Same rule as the people list: one impression per item, written when the card
+    // leaves the screen so it can carry dwell (D36).
+    begin_impression(item.item_id);
+    on_cleanup(move || finish_impression(item.item_id));
+
     let display_name = if item.account_display_name.trim().is_empty() {
         item.account_acct.clone()
     } else {

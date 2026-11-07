@@ -6,6 +6,7 @@ use nodus_shared::AccountItem;
 use super::actions::{ItemActions, item_actions};
 use super::reason::{follower_label, reason_line, reason_title, sample_followers_line};
 use super::share::ShareReport;
+use crate::state::bridge::{begin_impression, finish_impression};
 
 /// One ranked account: who it is, why it is here, and the three actions.
 ///
@@ -37,6 +38,12 @@ pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
         reason_title(&why),
         sample_followers_line(&why),
     );
+
+    // D36: the impression is written when the card leaves the screen, carrying the
+    // time it spent there. Beginning twice is harmless — the tracker keeps the
+    // earliest start — so a re-render cannot inflate the number.
+    begin_impression(item_id);
+    on_cleanup(move || finish_impression(item_id));
 
     let busy = RwSignal::new(false);
     let error = RwSignal::new(None::<String>);

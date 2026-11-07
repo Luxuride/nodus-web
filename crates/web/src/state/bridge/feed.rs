@@ -11,8 +11,8 @@ use nodus_sdk::{Command, Degraded, InstanceApi};
 use nodus_shared::{AccountFeed, EventBatch, EventKind, InteractionEvent};
 
 use super::{
-    FEED_ID, FeedUi, WebSdk, dispatch, feed_ui, handle, instance_transport, report_impressions,
-    with_sdk,
+    FEED_ID, FeedUi, WebSdk, dispatch, existing_feed_id, feed_ui, handle, impressions,
+    instance_transport, with_sdk,
 };
 
 /// Loads one page of the feed, keeping the current list visible while it runs.
@@ -193,16 +193,15 @@ pub(super) async fn load_first_page(sdk: &WebSdk, ui: FeedUi) {
     ui.refreshing.set(false);
 }
 
-/// Keeps the snapshot id that event batches must carry, and reports what was shown.
+/// Keeps the snapshot id that event batches must carry, and names the list cards join.
 ///
-/// Impressions are reported here rather than per card because a page that arrived has
-/// been rendered: one batch per page is one request instead of twenty, and the server's
-/// shrinkage counters only need the fact, not the pixel timing.
+/// The impressions themselves are reported per card, when the card leaves the screen
+/// (D36): only there is dwell known, and only once can the row be written without
+/// doubling the denominator every rate is divided by.
 fn remember_feed(feed: &AccountFeed) {
     FEED_ID.with_borrow_mut(|slot| *slot = Some(feed.feed_id.clone()));
     feed_ui().error.set(None);
-    let shown: Vec<i64> = feed.items.iter().map(|item| item.item_id).collect();
-    report_impressions(&feed.feed_id, &shown);
+    impressions::set_feed(&feed.feed_id);
 }
 
 /// RFC 3339 timestamp from the browser clock; the server clamps it to ±10 minutes.

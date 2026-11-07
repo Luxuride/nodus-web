@@ -131,6 +131,18 @@ Repository-side details (in the web implementation of this port):
 - Error mapping: `ApiErrorBody` → typed `ApiError` → a toast or an inline card,
   never a panic and never a silent empty list.
 
+## Impressions and dwell
+
+Every card reports one impression, and it reports it when it leaves the screen
+(D36): the tracker lives in `nodus_sdk::DwellTracker`, so the accounting — earliest
+start per item, the 120-second cap, batching per feed — is tested natively, and the
+browser code only reads `Date::now()`, calls `begin`/`finish`, and moves bytes.
+Reporting on arrival instead would be cheaper and could never carry dwell; reporting
+on both paths would double the denominator every rate is divided by, because the
+server deduplicates on `(item_id, kind, client_ts)` and two sends have two
+timestamps. A page-hide flush covers the cards still on screen when the tab closes,
+which is the one hole this design accepts.
+
 ## Cache (`Persistence` port, IndexedDB in the browser)
 
 The SDK decides *what* to cache and for how long; the web crate only implements

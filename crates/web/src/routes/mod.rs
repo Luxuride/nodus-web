@@ -2,6 +2,7 @@
 //! [`crate::state::bridge`] and never talks to a transport or to storage.
 
 pub mod account;
+pub mod admin;
 pub mod callback;
 pub mod compose;
 pub mod feed;

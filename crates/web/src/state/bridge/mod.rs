@@ -32,6 +32,7 @@ use url::Url;
 
 pub mod accounts;
 pub mod actions;
+pub mod admin;
 mod feed;
 mod impressions;
 mod posts;

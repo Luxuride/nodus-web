@@ -150,6 +150,9 @@ fn App() -> impl IntoView {
                                     .into_any()
                             }
                             Route::Lists if signed_in => view! { <Lists/> }.into_any(),
+                            Route::Admin if signed_in => {
+                                view! { <crate::routes::admin::Admin/> }.into_any()
+                            }
                             Route::Settings if signed_in => view! { <Settings/> }.into_any(),
                             Route::Thread { id, .. } if signed_in => {
                                 view! { <Thread id=id/> }.into_any()
@@ -191,6 +194,9 @@ fn App() -> impl IntoView {
                                     <SignIn note="Sign in to change your settings."/>
                                 }
                                     .into_any()
+                            }
+                            Route::Admin => {
+                                view! { <SignIn note="Sign in to moderate."/> }.into_any()
                             }
                             // A shared link works without a session: the address names the
                             // host, so the post is read from there anonymously. A legacy

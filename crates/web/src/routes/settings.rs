@@ -83,6 +83,13 @@ pub fn Settings() -> impl IntoView {
                     <div class="card-actions mt-1 gap-2">
                         <a
                             class="btn btn-ghost btn-sm"
+                            href=Route::Admin.path()
+                            on:click=move |event| router::link(event, Route::Admin)
+                        >
+                            "Instance moderation"
+                        </a>
+                        <a
+                            class="btn btn-ghost btn-sm"
                             href=Route::Mutes.path()
                             on:click=move |event| router::link(event, Route::Mutes)
                         >

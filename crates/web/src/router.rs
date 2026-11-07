@@ -62,6 +62,7 @@ pub enum Route {
     Mutes,
     /// Accounts the viewer blocked.
     Blocks,
+    Admin,
     /// Instance, sync consent and sign-out.
     Settings,
     /// Where the instance returns the browser after authorization. The query string
@@ -104,6 +105,7 @@ impl Route {
             Self::ComposeEdit(id) => format!("/compose/{id}"),
             Self::Mutes => "/mutes".to_owned(),
             Self::Blocks => "/blocks".to_owned(),
+            Self::Admin => "/admin".to_owned(),
             Self::Settings => "/settings".to_owned(),
             // The OAuth flow registers this path as `redirect_uris`; sharing the
             // constant is what keeps the address bar and the registered URI identical.
@@ -168,6 +170,7 @@ impl Route {
             "/compose" => Self::Compose,
             "/mutes" => Self::Mutes,
             "/blocks" => Self::Blocks,
+            "/admin" => Self::Admin,
             "/settings" => Self::Settings,
             _ => Self::Feed,
         }

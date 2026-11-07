@@ -16,6 +16,9 @@ test('the rail reads Home, Feed, then the rest, with Compose before Settings', a
   await stubApi(page)
   await signedIn(page)
   await page.goto('/')
+  // The rail renders after the session is adopted, so read the labels only once it is
+  // there: an empty list would make every `indexOf` -1 and the comparison meaningless.
+  await expect(page.getByRole('link', { name: 'Home' })).toBeVisible()
 
   const labels = await railLabels(page)
   expect(labels.indexOf('Home')).toBeLessThan(labels.indexOf('Feed'))

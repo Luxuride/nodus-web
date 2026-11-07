@@ -22,7 +22,8 @@ mod api;
 mod pending;
 mod pkce;
 
-/// The scopes this client actually uses; must stay in step with `bridge::scopes()`.
+/// The scopes this client actually uses; must stay in step with the scopes the
+/// bridge assumes when it restores a session (`state/bridge/session.rs`).
 ///
 /// Mastodon accepts this space-separated form in the registration, the authorization
 /// request and the token exchange. Asking for more would make the consent screen
@@ -116,9 +117,11 @@ pub async fn finish(search: &str) -> Result<(String, String), String> {
     // The CSRF check: only an instance that saw our authorization request can echo the
     // `state` this tab generated.
     if state != record.state {
-        return Err("The callback's `state` does not match this tab's sign-in, so the answer \
+        return Err(
+            "The callback's `state` does not match this tab's sign-in, so the answer \
                     was discarded. Start again from the sign-in page."
-            .to_owned());
+                .to_owned(),
+        );
     }
 
     let token = api::exchange_code(&record, &code).await?;
@@ -185,9 +188,11 @@ fn origin() -> Result<String, String> {
     if origin.starts_with("https://") || origin.starts_with("http://") {
         Ok(origin)
     } else {
-        Err("This page's origin cannot be used as a redirect target; serve the app over \
+        Err(
+            "This page's origin cannot be used as a redirect target; serve the app over \
              http(s)."
-            .to_owned())
+                .to_owned(),
+        )
     }
 }
 

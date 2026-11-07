@@ -14,7 +14,7 @@ use web_sys::Storage;
 ///
 /// The key carries the format version, so a later record shape can use a new key and
 /// this build simply never sees the old value — that is why there is no separate
-/// format-marker line here, unlike `bridge::encode_session`.
+/// format-marker line here, unlike the session record (`state/bridge/session/record.rs`).
 const PENDING_KEY: &str = "nodus-oauth/1";
 
 /// What the callback needs, and nothing else.
@@ -73,8 +73,7 @@ pub(crate) fn take() -> Option<Pending> {
 }
 
 /// The blocked-storage message, phrased with the way out.
-const STORAGE_BLOCKED: &str =
-    "This browser blocks sessionStorage for this page, which the sign-in redirect needs. \
+const STORAGE_BLOCKED: &str = "This browser blocks sessionStorage for this page, which the sign-in redirect needs. \
      Allow site data, or use the token fallback below.";
 
 /// `sessionStorage`, when the browser allows it (it throws in some private modes).
@@ -135,7 +134,8 @@ fn decode(raw: &str) -> Option<Pending> {
 
 /// Appends `field` with `%`, `\n` and `\r` escaped.
 ///
-/// The same three escapes as `bridge::encode_session`, copied rather than shared:
+/// The same three escapes as the session record (`state/bridge/session/record.rs`),
+/// copied rather than shared:
 /// `bridge` is already past the size where another concern belongs in it, and both
 /// formats are small enough to read in one screen.
 fn escape_into(out: &mut String, field: &str) {

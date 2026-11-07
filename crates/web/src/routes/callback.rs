@@ -6,7 +6,7 @@
 
 use leptos::prelude::*;
 
-use crate::router::{link, navigate, Route};
+use crate::router::{Route, link, navigate};
 use crate::state::bridge;
 use crate::state::oauth;
 

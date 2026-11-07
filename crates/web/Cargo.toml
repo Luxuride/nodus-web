@@ -31,10 +31,13 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
+    # `navigator.clipboard().write_text(…)` on a feed card.
+    "Clipboard",
     # PKCE: `get_random_values_with_u8_array` and `subtle.digest`.
     "Crypto",
     "History",
     "Location",
+    "Navigator",
     "Storage",
     "SubtleCrypto",
     "Url",

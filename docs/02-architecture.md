@@ -18,7 +18,7 @@ flowchart LR
     subgraph app["web/ (WASM, CSR)"]
         ROUTES["routes/ · ui/"]
         VIEWS["views render AppState<br/>and dispatch Command"]
-        BRIDGE["state/bridge.rs<br/>handle → revision signal"]
+        BRIDGE["state/bridge/<br/>handle → revision signal"]
     end
     MASTO -->|REST| INST[(instance)]
     MASTO -->|wss streaming| INST
@@ -119,7 +119,7 @@ Nodus/
         └── src/
             ├── main.rs   # mount + shell: header, rail, route switch
             ├── router.rs # hand-written: route signal, history, popstate
-            ├── state/    # bridge.rs: SDK handle → revision signal (no other state lives here)
+            ├── state/    # bridge/: SDK handle → revision signal (no other state lives here)
             └── routes/   # feed, settings, sign-in (this milestone); the rest lands with parity
 ```
 

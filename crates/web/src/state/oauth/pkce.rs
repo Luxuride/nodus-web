@@ -87,8 +87,7 @@ fn js_message(error: &JsValue) -> String {
 /// than the code. The `-_` alphabet and the absence of `=` are not cosmetic — they
 /// are what makes the value safe in a URL query and in a form body unchanged.
 fn base64url(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         // A missing trailing byte contributes zero bits, which is exactly why
@@ -97,9 +96,13 @@ fn base64url(bytes: &[u8]) -> String {
         let b1 = chunk.get(1).copied().unwrap_or(0);
         let b2 = chunk.get(2).copied().unwrap_or(0);
         out.push(char::from(ALPHABET[usize::from(b0 >> 2)]));
-        out.push(char::from(ALPHABET[usize::from(((b0 & 0x03) << 4) | (b1 >> 4))]));
+        out.push(char::from(
+            ALPHABET[usize::from(((b0 & 0x03) << 4) | (b1 >> 4))],
+        ));
         if chunk.len() > 1 {
-            out.push(char::from(ALPHABET[usize::from(((b1 & 0x0f) << 2) | (b2 >> 6))]));
+            out.push(char::from(
+                ALPHABET[usize::from(((b1 & 0x0f) << 2) | (b2 >> 6))],
+            ));
         }
         if chunk.len() > 2 {
             out.push(char::from(ALPHABET[usize::from(b2 & 0x3f)]));

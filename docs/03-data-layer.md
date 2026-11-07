@@ -18,8 +18,8 @@ web  ──renders──▶  sdk::AppState  ◀──mutates──  web dispatch
 Consequences for this repository, stated once:
 
 - there is no `src/api/`, `src/masto/`, `src/cache/` or `src/streaming/` here;
-- `src/state/` contains one file, `bridge.rs`, which adapts SDK handles to Leptos
-  signals and dispatches commands;
+- `src/state/` contains one module, `bridge/`, which adapts SDK handles to Leptos
+  signals and dispatches commands (its `feed/` and `session/` files are the verbs);
 - views never call an HTTP endpoint directly — on either plane.
 
 ## `nodus-instance` — the instance surface
@@ -175,7 +175,7 @@ The state tree lives in the SDK and is exposed to views through the bridge:
 Web-only UI state (toasts, theme, modal stack) stays in Leptos signals — the SDK
 has no opinion about anything that is not Mastodon data.
 
-`state/bridge.rs` subscribes the four handles to one revision signal, so a view
+`state/bridge/` subscribes the four handles to one revision signal, so a view
 reads `revision()` and then `with_sdk(|sdk| sdk.state().feed.borrow().visible())`.
 That is the whole adapter; it is why the SDK can be tested on native.
 

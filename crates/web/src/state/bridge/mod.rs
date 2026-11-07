@@ -44,7 +44,7 @@ pub use impressions::{
 };
 pub use posts::{load_posts_once, posts_ui, reload_posts};
 pub use runtime::start as start_background_tick;
-pub use session::{set_sync, sign_in, sign_out};
+pub use session::{load_sync_consent, set_sync, sign_in, sign_out};
 
 /// The SDK as this app wires it: browser transports, memory cache, system clock.
 ///

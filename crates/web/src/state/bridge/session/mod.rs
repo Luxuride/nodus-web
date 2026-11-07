@@ -104,6 +104,18 @@ pub async fn set_sync(enable: bool, telemetry_opt_in: bool) -> Result<(), String
         .map_err(|error| error.to_string())
 }
 
+/// Asks the server what it holds for this account (sync consent, telemetry).
+///
+/// Settings calls this on open so the toggle describes the server: another browser
+/// may have turned sync off, and a toggle that only remembers this tab would lie.
+pub async fn load_sync_consent() -> Result<(), String> {
+    let sdk = handle().ok_or_else(|| "Not signed in.".to_owned())?;
+    sdk.load_sync_consent()
+        .await
+        .map(drop)
+        .map_err(|error| error.to_string())
+}
+
 /// Remembers the session for the next page load.
 ///
 /// # Milestone-1 caveat

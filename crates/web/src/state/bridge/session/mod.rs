@@ -44,6 +44,9 @@ pub(super) fn restore_saved() {
 /// token is what the instance actually checks, so adopting it can only ever be
 /// cosmetic between one request and the next.
 fn adopt(stored: &StoredSession) {
+    // The host is what makes a bare `/status/{id}` readable next time, so write it before
+    // anything can fail.
+    record::remember_host(&stored.host);
     if stored.account_id.is_empty() {
         return;
     }
@@ -164,6 +167,13 @@ pub fn save_session(host: &str, token: &str, session: &Session) {
 /// Used by the anonymous post view: a shared `/status/{id}` link has no host, and the
 /// only defensible guess is the instance the reader already used.
 pub fn remembered_host() -> Option<String> {
+    // A live session knows its host; the record is a fallback for a reader who has never
+    // signed in here (or has since signed out).
+    if let Some(host) =
+        handle().and_then(|sdk| sdk.state().session.get().map(|session| session.host))
+    {
+        return Some(host);
+    }
     record::remembered_host()
 }
 

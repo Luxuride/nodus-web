@@ -30,6 +30,7 @@ use nodus_sdk::instance_api::Instance;
 use nodus_sdk::{Command, MemoryPersistence, Sdk, Subscription, SystemClock};
 use url::Url;
 
+pub mod actions;
 mod feed;
 mod impressions;
 mod posts;

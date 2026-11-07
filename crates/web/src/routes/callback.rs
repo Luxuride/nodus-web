@@ -80,11 +80,8 @@ pub fn Callback() -> impl IntoView {
 fn strip_query() {
     if let Some(window) = web_sys::window() {
         if let Ok(history) = window.history() {
-            let _ = history.replace_state_with_url(
-                &wasm_bindgen::JsValue::NULL,
-                "",
-                Some(Route::OauthCallback.path()),
-            );
+            let path = Route::OauthCallback.path();
+            let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
         }
     }
 }

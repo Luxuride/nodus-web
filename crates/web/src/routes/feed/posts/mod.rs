@@ -11,7 +11,9 @@ use leptos::prelude::*;
 use crate::state::bridge::{load_posts_once, posts_ui, reload_posts, revision, with_sdk};
 
 mod card;
-mod text;
+pub mod text;
+
+pub use self::text::plain_text;
 
 use self::card::PostCard;
 

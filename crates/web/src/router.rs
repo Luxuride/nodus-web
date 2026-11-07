@@ -1,4 +1,4 @@
-//! Hand-written routing: three screens, so no router dependency.
+//! Hand-written routing: a handful of screens, so no router dependency.
 //!
 //! `leptos_router` is not a dependency of this crate and three routes do not justify
 //! it: the current route is one `RwSignal`, links push a history entry, and a
@@ -22,10 +22,24 @@ thread_local! {
 }
 
 /// A screen the app can show.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// Not `Copy`: a thread and a profile carry an id, and an id is a `String` the
+/// address bar produced. Everything that compared routes by value now compares them
+/// by reference or clones, which is the honest cost of having routes with arguments.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
     /// The recommendation Feed tab.
     Feed,
+    /// The home timeline, and the public ones beside it.
+    Home,
+    /// One status with its ancestors and replies.
+    Thread(String),
+    /// One account's profile and statuses.
+    Account(String),
+    /// Notifications for the signed-in account.
+    Notifications,
+    /// Search over accounts, statuses and hashtags.
+    Search,
     /// Instance, sync consent and sign-out.
     Settings,
     /// Where the instance returns the browser after authorization. The query string
@@ -36,24 +50,46 @@ pub enum Route {
 impl Route {
     /// The URL path for this route.
     #[must_use]
-    pub const fn path(self) -> &'static str {
+    pub fn path(&self) -> String {
         match self {
-            Self::Feed => "/",
-            Self::Settings => "/settings",
+            Self::Feed => "/".to_owned(),
+            Self::Home => "/home".to_owned(),
+            Self::Thread(id) => format!("/status/{id}"),
+            Self::Account(id) => format!("/accounts/{id}"),
+            Self::Notifications => "/notifications".to_owned(),
+            Self::Search => "/search".to_owned(),
+            Self::Settings => "/settings".to_owned(),
             // The OAuth flow registers this path as `redirect_uris`; sharing the
             // constant is what keeps the address bar and the registered URI identical.
-            Self::OauthCallback => CALLBACK_PATH,
+            Self::OauthCallback => CALLBACK_PATH.to_owned(),
         }
     }
 
     /// The route for an address-bar pathname; unknown paths fall back to the feed.
+    ///
+    /// A prefix match is how a route with an argument is parsed: the id is whatever
+    /// follows, unencoded, because an instance id is a digit string and encoding it
+    /// would only make the address bar lie about what the id is.
     #[must_use]
     pub fn from_path(path: &str) -> Self {
-        let path = path.trim_end_matches('/');
-        if path == CALLBACK_PATH {
+        let trimmed = path.trim_end_matches('/');
+        if trimmed == CALLBACK_PATH {
             return Self::OauthCallback;
         }
-        match path {
+        if let Some(id) = trimmed.strip_prefix("/status/") {
+            if !id.is_empty() {
+                return Self::Thread(id.to_owned());
+            }
+        }
+        if let Some(id) = trimmed.strip_prefix("/accounts/") {
+            if !id.is_empty() {
+                return Self::Account(id.to_owned());
+            }
+        }
+        match trimmed {
+            "/home" => Self::Home,
+            "/notifications" => Self::Notifications,
+            "/search" => Self::Search,
             "/settings" => Self::Settings,
             _ => Self::Feed,
         }
@@ -83,7 +119,9 @@ pub fn install() {
 pub fn navigate(to: Route) {
     if let Some(window) = web_sys::window() {
         if let Ok(history) = window.history() {
-            let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(to.path()));
+            // `path()` builds the string, so it has to outlive the call that borrows it.
+            let path = to.path();
+            let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&path));
         }
     }
     route().set(to);

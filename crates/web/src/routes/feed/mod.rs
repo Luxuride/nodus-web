@@ -14,7 +14,7 @@ use crate::state::bridge::revision;
 mod actions;
 mod item;
 mod people;
-mod posts;
+pub mod posts;
 mod reason;
 mod share;
 

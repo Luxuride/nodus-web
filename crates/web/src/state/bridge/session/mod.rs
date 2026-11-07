@@ -156,6 +156,15 @@ pub async fn load_sync_consent() -> Result<(), String> {
 /// works for this page load and the next one asks for the token again.
 pub fn save_session(host: &str, token: &str, session: &Session) {
     record::store(host, token, &session.account_id, &session.acct);
+    record::remember_host(host);
+}
+
+/// The instance this browser last read from.
+///
+/// Used by the anonymous post view: a shared `/status/{id}` link has no host, and the
+/// only defensible guess is the instance the reader already used.
+pub fn remembered_host() -> Option<String> {
+    record::remembered_host()
 }
 
 /// Starts a *separate* authorization for background sync (D37).

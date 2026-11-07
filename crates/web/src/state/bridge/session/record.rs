@@ -8,6 +8,13 @@
 /// `localStorage` key holding the milestone-1 session record.
 const SESSION_KEY: &str = "nodus.session";
 
+/// The instance this browser last signed in to.
+///
+/// Separate from the session record and deliberately *not* cleared by sign-out: a post
+/// link outlives a session, and `/status/{id}` carries no host, so without this the only
+/// honest answer is "I cannot tell which instance holds that post".
+const HOST_KEY: &str = "nodus.host";
+
 /// Marks the storage format, so a future change signs the user in again instead of
 /// silently misparsing a record written by an older build.
 ///
@@ -126,4 +133,20 @@ fn unescape(field: &str) -> Option<String> {
 /// `localStorage`, when the browser allows it (it throws in some private modes).
 fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
+}
+
+/// Remembers which instance this browser reads from.
+pub(super) fn remember_host(host: &str) {
+    if let Some(storage) = local_storage() {
+        let _ = storage.set_item(HOST_KEY, host);
+    }
+}
+
+/// The instance this browser last read from, if it ever did.
+pub(super) fn remembered_host() -> Option<String> {
+    local_storage()?
+        .get_item(HOST_KEY)
+        .ok()
+        .flatten()
+        .filter(|host| !host.trim().is_empty())
 }

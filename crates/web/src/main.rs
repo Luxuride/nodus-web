@@ -87,6 +87,7 @@ fn App() -> impl IntoView {
             // Two columns above `sm`: the rail is navigation, not decoration, so on a
             // narrow screen it becomes the header's only job (a single visible tab).
             <div class="mx-auto flex w-full max-w-5xl gap-4 px-2 py-4">
+                <Show when=move || signed_in.get()>
                 <nav class="hidden w-44 shrink-0 sm:block">
                     <ul class="menu w-full gap-1 rounded-box bg-base-100 p-2 shadow-sm">
                         <RailItem label="Feed" route=Route::Feed/>
@@ -107,6 +108,7 @@ fn App() -> impl IntoView {
                         <RailItem label="Settings" route=Route::Settings/>
                     </ul>
                 </nav>
+                </Show>
                 <main class="min-w-0 flex-1">
                     {move || {
                         // The callback comes first, before the signed-in gate: the
@@ -186,7 +188,14 @@ fn App() -> impl IntoView {
                                 }
                                     .into_any()
                             }
-                            Route::Thread(_) | Route::Account(_) => {
+                            Route::Thread(id) => view! {
+                                <PublicThread
+                                    host=crate::state::bridge::session::remembered_host().unwrap_or_default()
+                                    id=id
+                                />
+                            }
+                            .into_any(),
+                            Route::Account(_) => {
                                 view! { <SignIn note="Sign in to read this."/> }.into_any()
                             }
                         }

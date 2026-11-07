@@ -10,6 +10,7 @@ use nodus_instance::model::Status;
 
 use super::StatusBody;
 use crate::public;
+use crate::router::{self, Route};
 use crate::routes::format::{display_name, relative_time};
 use crate::state::alive::Alive;
 
@@ -19,7 +20,45 @@ use crate::state::alive::Alive;
     clippy::needless_pass_by_value,
     reason = "a Leptos component receives its props by value"
 )]
-pub fn PublicThread(host: String, id: String) -> impl IntoView {
+pub fn PublicThread(host: String, id: String) -> AnyView {
+    // A link that names only an id cannot be read: the id is local to an instance. Ask
+    // rather than guess, and ask inside the page so the reader keeps the link.
+    if host.trim().is_empty() {
+        let (typed, set_typed) = signal(String::new());
+        let for_submit = id.clone();
+        let submit = move |event: web_sys::SubmitEvent| {
+            event.prevent_default();
+            let host = typed.get_untracked().trim().to_owned();
+            if host.is_empty() {
+                return;
+            }
+            router::navigate(Route::PublicThread {
+                host,
+                id: for_submit.clone(),
+            });
+        };
+        return view! {
+            <form class="card bg-base-100 shadow-sm" on:submit=submit>
+                <div class="card-body gap-3">
+                    <h1 class="card-title text-base">"Read this post"</h1>
+                    <p class="text-sm opacity-70">
+                        "A post id only means something on the instance that issued it. Name the instance to read from."
+                    </p>
+                    <input
+                        class="input input-sm w-full"
+                        placeholder="mastodon.example"
+                        prop:value=move || typed.get()
+                        on:input=move |event| set_typed.set(event_target_value(&event))
+                    />
+                    <button class="btn btn-primary btn-sm self-end" type="submit">
+                        "Read post"
+                    </button>
+                </div>
+            </form>
+        }
+        .into_any();
+    }
+
     let alive = Alive::new();
     let (status, set_status) = signal(None::<Status>);
     let (ancestors, set_ancestors) = signal(Vec::<Status>::new());
@@ -93,6 +132,7 @@ pub fn PublicThread(host: String, id: String) -> impl IntoView {
             </p>
         </article>
     }
+    .into_any()
 }
 
 /// A post rendered without any action that needs a token.

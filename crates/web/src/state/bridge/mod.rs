@@ -35,7 +35,7 @@ mod feed;
 mod impressions;
 mod posts;
 mod runtime;
-mod session;
+pub mod session;
 pub mod timeline;
 
 // Re-exported so every call site keeps saying `bridge::<verb>`: the split into

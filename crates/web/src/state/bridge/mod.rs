@@ -33,6 +33,7 @@ use url::Url;
 pub mod accounts;
 pub mod actions;
 pub mod admin;
+mod admin_token;
 mod feed;
 mod impressions;
 mod posts;
@@ -218,6 +219,8 @@ pub(super) fn forget_feed_id() {
 }
 
 /// Builds a [`WebSdk`] for `instance` and swaps it in. Replaces any previous one.
+use nodus_instance::actions::AdminActions;
+
 fn install(instance: &Instance, token: &str) -> Result<(), String> {
     let base =
         api_base().ok_or_else(|| "Could not determine the API origin for this page.".to_owned())?;
@@ -379,6 +382,51 @@ pub fn forget(key: &str) {
 /// The current SDK, if [`init`] has installed one.
 fn handle() -> Option<Rc<WebSdk>> {
     SDK.with_borrow(std::clone::Clone::clone)
+}
+
+/// Keeps an admin grant for `host`, after proving the token can moderate.
+///
+/// The probe is the point: a token that cannot open the report queue would leave the
+/// Administration tab claiming a permission it does not have, and the operator would
+/// see an empty screen instead of "the grant did not work".
+pub async fn keep_admin_token(host: &str, token: &str) -> Result<(), String> {
+    let instance = Instance::parse(host).map_err(|error| error.to_string())?;
+    let transport = BrowserInstance::new(&instance, token);
+    transport
+        .reports(nodus_instance::model::ReportState::Open, 1)
+        .await
+        .map_err(|error| {
+            format!(
+                "That account cannot moderate on {host}, so the grant was not kept: {error}"
+            )
+        })?;
+    admin_token::store(host, token);
+    Ok(())
+}
+
+/// The admin transport for the signed-in instance, when a grant was kept.
+///
+/// Moderation calls go through this one; everything else keeps the ordinary session
+/// transport, which is what makes a leaked grant a narrower loss than a leaked session.
+pub fn admin_transport() -> Option<BrowserInstance> {
+    let host = with_sdk(|sdk| sdk.state().session.get().map(|session| session.host))?;
+    let token = admin_token::load(&host)?;
+    let base = api_base()?;
+    let _ = base;
+    let instance = Instance::parse(&host).ok()?;
+    Some(BrowserInstance::new(&instance, &token))
+}
+
+/// The instance whose grant would be used, if any is held.
+pub fn admin_host() -> Option<String> {
+    with_sdk(|sdk| sdk.state().session.get().map(|session| session.host))
+}
+
+/// Forgets the admin grant for the signed-in instance.
+pub fn forget_admin_token() {
+    if let Some(host) = admin_host() {
+        admin_token::clear(&host);
+    }
 }
 
 /// The instance transport, when a session has installed one.

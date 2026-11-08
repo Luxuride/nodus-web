@@ -20,6 +20,8 @@ use url::Url;
 
 mod api;
 mod pending;
+
+pub use pending::Purpose;
 mod pkce;
 
 /// The scopes this client actually uses; must stay in step with the scopes the
@@ -29,6 +31,13 @@ mod pkce;
 /// request and the token exchange. Asking for more would make the consent screen
 /// worse without buying a feature.
 pub(super) const SCOPES: &str = "read write follow";
+
+/// The scopes the moderation screens need, requested only when the operator asks.
+///
+/// Both the registration and the token must carry these, and Mastodon refuses an
+/// authorization request that asks for more than the app was registered with — which
+/// is why the upgrade registers a second app rather than widening the first.
+pub(super) const ADMIN_SCOPES: &str = "read write follow admin:read admin:write";
 
 /// Where the instance sends the browser back.
 ///
@@ -49,10 +58,23 @@ pub(crate) const CALLBACK_PATH: &str = "/oauth/callback";
 /// instance refusing app registration, Web Crypto unavailable, or `sessionStorage`
 /// blocked. Nothing is stored and no navigation happens when this returns `Err`.
 pub async fn begin(host: &str) -> Result<(), String> {
+    begin_with(host, SCOPES, pending::Purpose::SignIn).await
+}
+
+/// Starts the admin grant: same flow, wider scopes, different purpose.
+///
+/// Nothing about the session changes if the operator refuses; the callback simply has
+/// no token to store.
+pub async fn begin_admin(host: &str) -> Result<(), String> {
+    begin_with(host, ADMIN_SCOPES, pending::Purpose::Admin).await
+}
+
+/// The shared body of both flows.
+async fn begin_with(host: &str, scopes: &'static str, purpose: pending::Purpose) -> Result<(), String> {
     let host = normalise_host(host)?;
     let origin = origin()?;
     let redirect_uri = format!("{origin}{CALLBACK_PATH}");
-    let app = api::register_app(&host, &origin, &redirect_uri).await?;
+    let app = api::register_app(&host, &origin, &redirect_uri, scopes).await?;
 
     let verifier = pkce::verifier()?;
     let challenge = pkce::challenge(&verifier).await?;
@@ -67,9 +89,10 @@ pub async fn begin(host: &str) -> Result<(), String> {
         verifier,
         state: state.clone(),
         redirect_uri: redirect_uri.clone(),
+        purpose,
     })?;
 
-    let url = authorize_url(&host, &app.client_id, &redirect_uri, &challenge, &state)?;
+    let url = authorize_url(&host, &app.client_id, &redirect_uri, &challenge, &state, scopes)?;
     window()?
         .location()
         .assign(&url)
@@ -88,7 +111,7 @@ pub async fn begin(host: &str) -> Result<(), String> {
 /// the callback is missing its code, there is no pending record in this tab, `state`
 /// does not match, or the token exchange was rejected. The pending record is cleared
 /// in every case, including these.
-pub async fn finish(search: &str) -> Result<(String, String), String> {
+pub async fn finish(search: &str) -> Result<Finished, String> {
     // Single use, and cleared before any early return: an authorization code must not
     // be replayable by a reload or a shared URL, and an abandoned attempt must not
     // leave a verifier sitting in storage.
@@ -126,7 +149,21 @@ pub async fn finish(search: &str) -> Result<(String, String), String> {
     }
 
     let token = api::exchange_code(&record, &code).await?;
-    Ok((record.host, token))
+    Ok(Finished {
+        host: record.host,
+        token,
+        purpose: record.purpose,
+    })
+}
+
+/// What the callback learned, and what it is allowed to do with it.
+pub struct Finished {
+    /// The instance the token belongs to.
+    pub host: String,
+    /// The access token.
+    pub token: String,
+    /// Whether this replaces the session or only adds an admin grant.
+    pub purpose: Purpose,
 }
 
 /// The authorization URL, with `redirect_uri` percent-encoded by the `url` crate.
@@ -136,6 +173,7 @@ fn authorize_url(
     redirect_uri: &str,
     challenge: &str,
     state: &str,
+    scopes: &str,
 ) -> Result<String, String> {
     let mut url = Url::parse(&api::endpoint(host, "/oauth/authorize"))
         .map_err(|error| format!("Could not build the authorization URL: {error}"))?;
@@ -143,7 +181,7 @@ fn authorize_url(
         .append_pair("client_id", client_id)
         .append_pair("response_type", "code")
         .append_pair("redirect_uri", redirect_uri)
-        .append_pair("scope", SCOPES)
+        .append_pair("scope", scopes)
         .append_pair("code_challenge", challenge)
         .append_pair("code_challenge_method", "S256")
         .append_pair("state", state);

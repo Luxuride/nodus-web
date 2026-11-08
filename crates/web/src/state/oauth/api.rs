@@ -34,6 +34,7 @@ pub(super) async fn register_app(
     host: &str,
     origin: &str,
     redirect_uri: &str,
+    scopes: &str,
 ) -> Result<App, String> {
     let url = endpoint(host, "/api/v1/apps");
     let json = post_form(
@@ -41,7 +42,7 @@ pub(super) async fn register_app(
         &[
             ("client_name", CLIENT_NAME),
             ("redirect_uris", redirect_uri),
-            ("scopes", SCOPES),
+            ("scopes", scopes),
             ("website", origin),
         ],
     )

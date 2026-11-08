@@ -238,6 +238,10 @@ pub async fn authorize_sync() -> Result<String, String> {
 
 /// Forgets the stored session. Does not touch the SDK; see [`sign_out`] for that.
 pub fn clear_session() {
+    // The admin grant moderates, so it must not outlive the session the operator
+    // believes they closed. `forget_admin_token` reads the host from the SDK, which is
+    // still the old session at this point, so it is called before anything is reset.
+    super::forget_admin_token();
     record::clear();
     super::forget_feed_id();
     // An impression names a user who is signing out; the count would be against

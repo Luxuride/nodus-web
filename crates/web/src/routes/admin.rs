@@ -60,7 +60,7 @@ pub fn Admin() -> impl IntoView {
 
     Effect::new(move |_| {
         spawn_local(async move {
-            let verdict = admin::is_moderator().await;
+            let verdict = matches!(admin::staff().await, admin::Staff::Yes);
             alive.if_alive(|| set_allowed.set(Some(verdict)));
         });
     });

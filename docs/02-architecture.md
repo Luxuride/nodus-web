@@ -130,7 +130,8 @@ Removed by the SDK split, and staying removed: `api/`, `masto/`, `cache/` and
 `crates/web` consumes the SDK by path through the superproject submodule — see
 [03-contract.md](../../sdk/docs/03-contract.md) and [sdk/README.md](../../sdk/README.md).
 
-## Rules that keep it maintainable
+## Rules
+ that keep it maintainable
 
 1. **The SDK owns state; views select from it.** A timeline is an entry in
    `AppState::timelines` keyed by `(kind, tag)`, loaded through `Sdk::load_timeline`.
@@ -242,3 +243,12 @@ API. Three consequences that are contract obligations, not deployment details:
 
 Development: `trunk serve --port 8080` proxies `/api` to the recommender on `:3000`,
 so the dev origin contains no CORS surprises.
+
+10. **Moderation uses its own token.** `/api/v1/admin/*` needs `admin:read`/`admin:write`
+    on both the app and the token, so the ordinary session is registered without them: a
+    consent screen for every user should not read like a moderator's. The Administration
+    tab offers a grant, which authorizes a second app for that instance, verifies the
+    resulting token against the report queue and keeps it in `nodus-admin/1` — used only
+    by the admin calls, forgotten on sign-out and on request. A token that cannot
+    moderate is never a `false` the UI can hide behind: "no grant" and "the instance said
+    no" are different answers.

@@ -15,13 +15,42 @@ use web_sys::Storage;
 /// The key carries the format version, so a later record shape can use a new key and
 /// this build simply never sees the old value — that is why there is no separate
 /// format-marker line here, unlike the session record (`state/bridge/session/record.rs`).
-const PENDING_KEY: &str = "nodus-oauth/2";
+const PENDING_KEY: &str = "nodus-oauth/3";
 
 /// What the callback needs, and nothing else.
 ///
 /// No token: at this point there is none. The verifier and `state` are secrets for
 /// the life of the flow (the verifier is the PKCE proof, `state` is the CSRF check),
 /// so neither is ever logged or displayed.
+/// What the flow is for.
+///
+/// A sign-in replaces the session; an admin grant only adds a second token, so the
+/// callback has to know which of the two it is finishing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Purpose {
+    /// The ordinary sign-in.
+    SignIn,
+    /// Asking for `admin:read admin:write` on top of an existing session.
+    Admin,
+}
+
+impl Purpose {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::SignIn => "sign-in",
+            Self::Admin => "admin",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "sign-in" => Some(Self::SignIn),
+            "admin" => Some(Self::Admin),
+            _ => None,
+        }
+    }
+}
+
 pub(crate) struct Pending {
     /// Instance host, already normalised by `oauth::begin`.
     pub(crate) host: String,
@@ -35,6 +64,8 @@ pub(crate) struct Pending {
     pub(crate) state: String,
     /// Registered redirect URI, echoed to `/oauth/token` byte-for-byte.
     pub(crate) redirect_uri: String,
+    /// What the callback should do with the token.
+    pub(crate) purpose: Purpose,
 }
 
 impl fmt::Debug for Pending {
@@ -83,8 +114,10 @@ fn storage() -> Option<Storage> {
     web_sys::window()?.session_storage().ok()?
 }
 
-/// Serializes the record: six fields, one per line, escaped by [`escape_into`].
+/// Serializes the record: six fields and the purpose, one per line, escaped by
+/// [`escape_into`].
 fn encode(pending: &Pending) -> String {
+    let purpose = pending.purpose.as_str().to_owned();
     let fields = [
         &pending.host,
         &pending.client_id,
@@ -92,6 +125,7 @@ fn encode(pending: &Pending) -> String {
         &pending.verifier,
         &pending.state,
         &pending.redirect_uri,
+        &purpose,
     ];
     let mut out = String::new();
     for (index, field) in fields.iter().enumerate() {
@@ -116,6 +150,7 @@ fn decode(raw: &str) -> Option<Pending> {
         verifier: unescape(lines.next()?)?,
         state: unescape(lines.next()?)?,
         redirect_uri: unescape(lines.next()?)?,
+        purpose: Purpose::parse(&unescape(lines.next()?)?)?,
     };
     // More lines than fields means this was written by something else.
     if lines.next().is_some() {

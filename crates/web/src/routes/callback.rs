@@ -29,7 +29,15 @@ pub fn Callback() -> impl IntoView {
 
     wasm_bindgen_futures::spawn_local(async move {
         match oauth::finish(&search).await {
-            Ok((host, token)) => {
+            Ok(finished) if finished.purpose == oauth::Purpose::Admin => {
+                match bridge::keep_admin_token(&finished.host, &finished.token).await {
+                    // Back to the screen that asked, where the panels now answer.
+                    Ok(()) => navigate(Route::Settings),
+                    Err(message) => alive.if_alive(|| error.set(Some(message))),
+                }
+            }
+            Ok(finished) => {
+                let (host, token) = (finished.host, finished.token);
                 // `sign_in` verifies the token against the instance, installs the SDK
                 // and persists the session itself; saving it again here would only
                 // write the same two lines twice.

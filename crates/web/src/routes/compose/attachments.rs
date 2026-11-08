@@ -103,13 +103,13 @@ pub fn Attachments(
             />
             <button
                 type="button"
-                class="btn btn-ghost btn-sm btn-square"
+                class="btn btn-outline btn-sm gap-1 border-dashed"
                 title="Add images, video or audio"
-                aria-label="Add media"
                 disabled=move || uploading.get()
                 on:click=move |_| open_picker(())
             >
-                "+"
+                <span class="text-base leading-none">"+"</span>
+                <span>"Add media"</span>
             </button>
             <Show when=move || uploading.get()>
                 <span class="loading loading-spinner loading-xs" aria-label="Uploading"></span>

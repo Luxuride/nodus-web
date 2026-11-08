@@ -194,7 +194,7 @@ fn VisibilityPicker(
 ) -> impl IntoView {
     view! {
         <select
-            class="select select-ghost select-sm w-fit"
+            class="select select-bordered select-xs w-fit"
             aria-label="Who can see this post"
             on:change=move |event| {
                 let value = event_target_value(&event);

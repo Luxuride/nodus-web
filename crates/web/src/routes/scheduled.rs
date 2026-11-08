@@ -1,14 +1,13 @@
 //! Posts queued for later.
 //!
-//! Scheduling is the same post with a time attached, so this screen is both the queue and
-//! the way to add to it: a small form and the list of what is waiting.
+//! This screen is the queue, not a way to add to it: a post is scheduled from the box
+//! that also holds its text, so there is one place to write and one place to look at what
+//! is waiting. Everything here can do is read the queue and cancel an entry.
 
-mod form;
 mod row;
 
 use leptos::prelude::*;
 
-use self::form::ScheduleForm;
 use self::row::QueuedRow;
 use crate::state::alive::Alive;
 use crate::state::bridge::{actions, dispatch, pages, revision};
@@ -16,7 +15,7 @@ use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_sdk::page::{PageItems, PageKind};
 
-/// The queue, and a form that adds to it.
+/// The queue of posts waiting to be published.
 #[component]
 pub fn Scheduled() -> impl IntoView {
     let revision = revision();
@@ -65,9 +64,10 @@ pub fn Scheduled() -> impl IntoView {
 
     view! {
         <section class="flex flex-col gap-3">
-            <PageHeader title="Scheduled" description="Posts waiting to be published, and the form that adds to them."/>
-
-            <ScheduleForm set_error=set_error on_queued=Callback::new(move |()| reload())/>
+            <PageHeader
+                title="Scheduled"
+                description="Posts waiting to be published. Write one from the box above the home timeline."
+            />
 
             {move || error.get().map(|message| view! {
                 <div class="alert alert-error py-2 text-sm"><span>{message}</span></div>

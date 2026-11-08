@@ -29,7 +29,7 @@ fn copy(which: &Timeline) -> (&'static str, &'static str, &'static str) {
         Timeline::Local => (
             "Local",
             "Posts from accounts on this instance, whether you follow them or not.",
-            "Nobody on this instance has posted yet.",
+            "Nobody on this instance has posted publicly yet. Unlisted and follower-only posts do not appear here.",
         ),
         Timeline::Federated => (
             "Federated",

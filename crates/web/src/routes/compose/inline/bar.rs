@@ -23,7 +23,7 @@ pub(super) fn ComposerBar(
             <VisibilityPicker visibility=visibility set_visibility=set_visibility/>
 
             <select
-                class="select select-ghost select-xs w-auto"
+                class="select select-bordered select-xs w-auto"
                 aria-label="When to send"
                 // Bound to the signal both ways: the value returns to "Send now" once the
                 // post has gone out, and the reader sees that it did.
@@ -47,22 +47,26 @@ pub(super) fn ComposerBar(
                 <option value="3">"Tomorrow at 9"</option>
             </select>
 
-            <span
-                class="text-xs tabular-nums"
-                class=("opacity-50", move || count() <= LIMIT)
-                class=("text-error", move || count() > LIMIT)
-                title="The instance refuses a post longer than this"
-            >
-                {move || format!("{}/{LIMIT}", count())}
-            </span>
+            // The count and the action sit at the far end: the left edge answers "how
+            // does this go out", the right edge answers "is it ready to".
+            <div class="ml-auto flex items-center gap-2">
+                <span
+                    class="text-xs tabular-nums"
+                    class=("opacity-50", move || count() <= LIMIT)
+                    class=("text-error", move || count() > LIMIT)
+                    title="The instance refuses a post longer than this"
+                >
+                    {move || format!("{}/{LIMIT}", count())}
+                </span>
 
-            <button
-                class="btn btn-primary btn-sm gap-1"
-                disabled=move || busy.get() || text.get().trim().is_empty()
-                on:click=move |_| on_submit.run(())
-            >
-                {move || if busy.get() { "Posting…" } else { "Post" }}
-            </button>
+                <button
+                    class="btn btn-primary btn-sm gap-1"
+                    disabled=move || busy.get() || text.get().trim().is_empty()
+                    on:click=move |_| on_submit.run(())
+                >
+                    {move || if busy.get() { "Posting…" } else { "Post" }}
+                </button>
+            </div>
         </div>
     }
 }

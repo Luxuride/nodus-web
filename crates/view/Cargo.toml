@@ -1,0 +1,11 @@
+[package]
+name = "nodus-view"
+version = "0.1.0"
+description = "The marks both the browser and the server draw: the frame, the rail and the components around them"
+edition = "2024"
+
+[dependencies]
+leptos = { version = "0.8", default-features = false }
+
+[lints]
+workspace = true

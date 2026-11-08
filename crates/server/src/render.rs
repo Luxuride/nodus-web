@@ -221,83 +221,39 @@ fn stamp(rfc3339: &str) -> String {
 }
 
 
-/// The destinations the rail offers, in the order the client renders them.
-type Entry = (&'static str, &'static str, &'static str);
-type Section = (&'static str, [Entry; 3]);
-
-const RAIL: [Section; 3] = [
-    (
-        "Read",
-        [
-            ("Home", "/home", "Your timeline, the feed, and the instance's"),
-            ("Messages", "/messages", "Direct conversations"),
-            (
-                "Notifications",
-                "/notifications",
-                "Mentions, boosts, favourites and follow requests",
-            ),
-        ],
-    ),
-    (
-        "Find",
-        [
-            (
-                "Search",
-                "/search",
-                "Accounts, posts and hashtags, including remote ones",
-            ),
-            ("People", "/directory", "Accounts this instance suggests"),
-            (
-                "Saved",
-                "/saved/favourites",
-                "Your favourites and bookmarks",
-            ),
-        ],
-    ),
-    (
-        "Library",
-        [
-            ("Scheduled", "/scheduled", "Posts waiting to be published"),
-            (
-                "Lists",
-                "/lists",
-                "Hand-picked accounts with a timeline each",
-            ),
-            (
-                "Settings",
-                "/settings/account",
-                "Profile, tags, filters, sync and this instance",
-            ),
-        ],
-    ),
-];
-
 /// The rail, painted with the same classes the client uses.
 ///
 /// The icons are squares of the icon's own size rather than glyphs: the client swaps in
 /// the real paths on mount, and matching the *box* is what keeps the column from moving.
 /// Copying twenty-seven SVGs into this server would be a second icon set to keep in sync
 /// for a difference nobody sees after the first paint.
-fn nav() -> String {
+fn nav(active: &str) -> String {
     let mut items = String::new();
-    for (section, entries) in RAIL {
+    // The order, the labels and the hover hints come from `nodus-view`'s `rail()`, which is
+    // the same function the client's rail calls: one list, two renders.
+    for group in nodus_view::rail() {
         let _ = write!(
             items,
             "<li class=\"menu-title hidden xl:block\">{}</li>",
-            escape(section)
+            escape(group.title)
         );
-        for (label, href, hint) in entries {
+        for destination in group.destinations {
+            let current = if destination.href == active {
+                " menu-active"
+            } else {
+                ""
+            };
             let _ = write!(
                 items,
                 "<li>\
-                   <a class=\"flex w-full items-center gap-2 font-medium\" href=\"{}\" title=\"{}\">\
+                   <a class=\"flex w-full items-center gap-2 font-medium{current}\" href=\"{}\" title=\"{}\">\
                      <span class=\"inline-block h-4 w-4 shrink-0 rounded-sm bg-base-300\"></span>\
                      <span class=\"truncate\">{}</span>\
                    </a>\
                  </li>",
-                escape(href),
-                escape(hint),
-                escape(label)
+                escape(destination.href),
+                escape(destination.hint),
+                escape(destination.label)
             );
         }
     }
@@ -310,7 +266,10 @@ fn nav() -> String {
 
 /// The application's own frame: the same root element, column widths and gaps the client
 /// renders, so the swap is a replacement in place rather than a reflow.
-fn chrome(signed_in: bool, inner: &str) -> String {
+fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
+    // The rail is drawn from `nodus_view::rail()`, the same list the client renders, so the
+    // two paints cannot disagree about order, labels or destinations. Only the content
+    // inside `main` is server-specific.
     if !signed_in {
         return format!(
             "<div class=\"min-h-screen bg-base-200 text-base-content\">\
@@ -329,7 +288,7 @@ fn chrome(signed_in: bool, inner: &str) -> String {
              <main class=\"min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] xl:pb-0\">{inner}</main>\
            </div>\
          </div>",
-        nav()
+        nav(path)
     )
 }
 
@@ -379,6 +338,7 @@ pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&st
         &format!("Home · {acct}"),
         &chrome(
             true,
+            "/home",
             &format!(
                 "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">{header}\
                    <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
@@ -397,6 +357,7 @@ pub fn landing(assets: &Assets) -> String {
         "Nodus",
         &chrome(
             false,
+            "/",
             "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
                <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>\
                <p class=\"text-sm opacity-70\">A Mastodon client that keeps its state, so a page you \
@@ -426,6 +387,7 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
             "Sign in · Nodus",
             &chrome(
                 false,
+                path,
                 &format!(
                     "<section class=\"mx-auto w-full max-w-md px-4 py-10\">\
                        <div class=\"card border border-base-300 bg-base-100 shadow-sm\">\
@@ -450,6 +412,7 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
         &format!("{title} · Nodus"),
         &chrome(
             acct.is_some(),
+            path,
             &format!(
                 "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
                    <div class=\"flex flex-col gap-1\">\
@@ -596,6 +559,7 @@ pub fn error(assets: &Assets, message: &str) -> String {
         "Timeline unavailable",
         &chrome(
             true,
+            "/home",
             &format!(
                 "<div class=\"mx-auto w-full max-w-2xl\">\
                    <h1 class=\"text-xl font-semibold tracking-tight\">Home</h1>\

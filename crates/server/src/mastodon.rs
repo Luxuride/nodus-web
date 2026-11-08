@@ -4,8 +4,9 @@
 //! (`Link: rel="next"`) and the payload shapes are the ones the browser app already uses.
 //! A second hand-written HTTP layer would be a second place to be wrong about Mastodon.
 
-use nodus_instance::model::{Account, PageParams, Status, StreamKind};
+use nodus_instance::model::{Account, PageParams, Status};
 use nodus_instance::{HttpInstance, Instance, InstanceApi};
+use nodus_runtime::reads::{Headless, Reads};
 
 /// A signed-in instance, ready to ask.
 #[derive(Debug, Clone)]
@@ -32,10 +33,14 @@ impl Client {
     }
 
     /// The first page of the home timeline, newest first.
+    ///
+    /// Read through the SDK's `Reads` trait rather than by calling the instance directly:
+    /// the browser's `Sdk` implements the same trait, so the page this server paints and
+    /// the page the browser would have fetched come from one definition of "home timeline".
     pub async fn home(&self, limit: u16) -> Result<(Vec<Status>, Option<String>), String> {
-        let page = self
-            .instance
-            .timeline(StreamKind::User, PageParams::first(limit))
+        let headless = Headless::new(self.instance.clone());
+        let page = headless
+            .home(PageParams::first(limit))
             .await
             .map_err(|error| error.to_string())?;
         Ok((page.items, page.next_max_id))

@@ -9,6 +9,7 @@ use leptos::prelude::*;
 
 /// The icons the app uses. Names are the meaning, not the drawing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code, reason = "the icon set is one list; a build uses the part its screens need")]
 pub enum Icon {
     /// The recommendation feed.
     Sparkle,

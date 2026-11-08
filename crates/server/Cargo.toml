@@ -9,6 +9,7 @@ publish = false
 repository = "https://github.com/nodus-social/nodus-web"
 
 [dependencies]
+nodus-view = { path = "../view" }
 axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 serde = { workspace = true }
@@ -16,6 +17,7 @@ serde_json = { workspace = true }
 # The instance client is the SDK's native build, not a second hand-rolled HTTP layer:
 # one place knows where Mastodon's endpoints are and what its payloads look like.
 nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0", features = ["native"] }
+nodus-runtime = { path = "../../../sdk/crates/runtime", version = "0.1.0" }
 lol_html = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

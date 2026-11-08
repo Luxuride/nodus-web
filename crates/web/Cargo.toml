@@ -19,6 +19,7 @@ default = []
 admin = []
 
 [dependencies]
+nodus-view = { path = "../view" }
 nodus-shared = { workspace = true }
 nodus-sdk = { workspace = true }
 # Transports live outside the SDK facade so a consumer chooses its stack.

@@ -130,24 +130,35 @@ fn App() -> impl IntoView {
                 <Show when=move || signed_in.get()>
                 <nav class="hidden shrink-0 xl:block xl:w-44">
                     <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
-                        <li class="menu-title hidden xl:block">"Read"</li>
-                        // One door for the timelines; the composer's tab strip under
-                        // the heading is what switches between them.
-                        <RailItem label="Home" icon=Icon::Home hint="Your timeline, the feed, and the instance's" route=Route::Home/>
-                        <RailItem label="Messages" icon=Icon::Mail hint="Direct conversations" route=Route::Messages/>
-                        <RailItem label="Notifications" icon=Icon::Bell hint="Mentions, boosts, favourites and follow requests" route=Route::Notifications/>
-
-                        <li class="menu-title hidden xl:block">"Find"</li>
-                        <RailItem label="Search" icon=Icon::Search hint="Accounts, posts and hashtags, including remote ones" route=Route::Search/>
-                        <RailItem label="People" icon=Icon::Users hint="Accounts this instance suggests" route=Route::Directory/>
-
-                        <li class="menu-title hidden xl:block">"Library"</li>
-                        <RailItem label="Saved" icon=Icon::Bookmark hint="Your favourites and bookmarks" route=Route::Saved(crate::router::SHELF_DEFAULT.to_owned())/>
-                        <RailItem label="Scheduled" icon=Icon::Clock hint="Posts waiting to be published" route=Route::Scheduled/>
-                        <RailItem label="Lists" icon=Icon::List hint="Hand-picked accounts with a timeline each" route=Route::Lists/>
-
-                        <li class="menu-title hidden xl:block">"Account"</li>
-                        <RailItem label="Settings" icon=Icon::Settings hint="Profile, tags, filters, sync and this instance" route=Route::Settings(crate::router::SECTION_DEFAULT.to_owned())/>
+                        {nodus_view::rail()
+                            .into_iter()
+                            .map(|group| {
+                                view! {
+                                    <li class="menu-title hidden xl:block">{group.title}</li>
+                                    {group
+                                        .destinations
+                                        .iter()
+                                        .map(|destination| {
+                                            let href = destination.href;
+                                            let active = move || router::route().get().path() == href;
+                                            view! {
+                                                <li>
+                                                    <a
+                                                        class="flex w-full items-center gap-2 font-medium"
+                                                        class:menu-active=active
+                                                        href=href
+                                                        title=destination.hint
+                                                    >
+                                                        <Icon icon=icon_of(destination.label)/>
+                                                        <span class="truncate">{destination.label}</span>
+                                                    </a>
+                                                </li>
+                                            }
+                                        })
+                                        .collect_view()}
+                                }
+                            })
+                            .collect_view()}
                         {staff_rail_items()}
                     </ul>
                 </nav>
@@ -366,6 +377,7 @@ fn Footer() -> impl IntoView {
 /// `route` is owned and cloned twice because the active check and the click handler are
 /// two closures; a route with an argument cannot be `Copy`, and leaking one to avoid the
 /// clones would be a worse trade.
+#[cfg(feature = "admin")]
 #[component]
 fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -> impl IntoView {
     let current = router::route();
@@ -417,3 +429,23 @@ fn staff_rail_items() -> impl IntoView {
 
 #[cfg(not(feature = "admin"))]
 fn staff_rail_items() -> impl IntoView {}
+
+/// The icon for a rail destination, chosen by the label `nodus_view::rail()` publishes.
+///
+/// The list of destinations and their order is not this function's business: it is the same
+/// list the server draws, so a new screen appears in both paints or in neither.
+fn icon_of(label: &str) -> Icon {
+    match label {
+        "Home" => Icon::Home,
+        "Messages" => Icon::Mail,
+        "Notifications" => Icon::Bell,
+        "Search" => Icon::Search,
+        "People" => Icon::Users,
+        "Saved" => Icon::Bookmark,
+        "Scheduled" => Icon::Clock,
+        "Lists" => Icon::List,
+        "Admin" => Icon::Shield,
+        "Moderation" => Icon::Alert,
+        _ => Icon::Settings,
+    }
+}

@@ -90,6 +90,20 @@ handle / { reverse_proxy 127.0.0.1:8080 }
 still answered by `root * /srv/nodus` with `try_files {path} /index.html`, so client-side
 routes are unchanged.
 
+## The host must be able to reach the instance
+
+The server calls the reader's instance directly (`verify_credentials`, `timelines/home`), so
+it needs a route to it. When the SSR host and the instance share a machine behind Caddy,
+the public name usually resolves to an address the container cannot reach (hairpin NAT):
+the symptom is `POST /api/session` answering `401 token rejected` for a token that works in
+the browser, because the verification never left the box. Point the name at loopback so
+Caddy answers with the real certificate:
+
+```sh
+echo '127.0.0.1 mastodon.luxuride.eu nodus.luxuride.eu' >> /etc/hosts   # inside the SSR host
+curl -s -o /dev/null -w '%{http_code}\n' https://mastodon.luxuride.eu/api/v1/instance  # 200
+```
+
 ## What this does not do
 
 * No SSR for authenticated sub-routes yet (`/notifications`, `/settings/…`): the store

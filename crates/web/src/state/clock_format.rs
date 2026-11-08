@@ -50,25 +50,14 @@ impl ClockFormat {
 }
 
 fn read() -> ClockFormat {
-    let Some(window) = web_sys::window() else {
-        return ClockFormat::TwentyFour;
-    };
-    let Ok(Some(storage)) = window.local_storage() else {
-        return ClockFormat::TwentyFour;
-    };
-    match storage.get_item(KEY) {
-        Ok(Some(value)) => ClockFormat::of(&value),
-        _ => ClockFormat::TwentyFour,
-    }
+    // Through the platform seam, not `window.local_storage()`: this value is read while the
+    // tree renders, and a render that reaches for the document cannot run anywhere but a
+    // browser. `platform::storage` answers `None` instead of failing.
+    crate::platform::storage::get(KEY).map_or(ClockFormat::TwentyFour, |value| ClockFormat::of(&value))
 }
 
 fn write(format: ClockFormat) {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    if let Ok(Some(storage)) = window.local_storage() {
-        let _ = storage.set_item(KEY, format.key());
-    }
+    crate::platform::storage::set(KEY, format.key());
 }
 
 /// Creates the signal. Called before the first mount, like every app-lifetime signal.

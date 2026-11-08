@@ -7,6 +7,7 @@
 //! `docs/` in this repository; the SDK is specified in `sdk/README.md`.
 
 mod media;
+mod platform;
 mod public;
 mod router;
 mod routes;

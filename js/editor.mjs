@@ -307,7 +307,8 @@ function mount(element, options = {}) {
   };
   element.__nodusDestroy = destroy;
 
-  view.focus();
+  // Mounted, not focused: a composer that grabs the caret on every page load moves the
+  // reader off whatever they were doing (and on a phone it raises the keyboard).
 
   return {
     getText: () => toDraft(view.state.doc),

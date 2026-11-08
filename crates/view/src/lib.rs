@@ -8,6 +8,7 @@
 //! into the first paint while the client turns the same tree into the live one.
 
 pub mod icons;
+pub mod media;
 
 use icons::Icon;
 use leptos::prelude::*;

@@ -203,7 +203,9 @@ fn MediaTile(
                     // below it by a few pixels the moment it was revealed.
                     <div
                         class="relative w-full overflow-hidden rounded-box bg-base-300"
-                        style=move || aspect_ratio(width.get(), height.get())
+                        style=move || {
+                            crate::ui::attachment::style(width.get(), height.get())
+                        }
                     >
                     <img
                         class="absolute inset-0 h-full w-full object-cover"
@@ -311,18 +313,5 @@ fn MediaTile(
                 </a>
             </Show>
         </li>
-    }
-}
-
-/// A CSS `aspect-ratio` for a picture of the reported size, with a 16:9 fallback.
-///
-/// Used instead of `width`/`height` attributes because the veil scales the image inside the
-/// box: the box has to own the height, or revealing the media shifts the page.
-fn aspect_ratio(width: Option<u32>, height: Option<u32>) -> String {
-    match (width, height) {
-        (Some(width), Some(height)) if width > 0 && height > 0 => {
-            format!("aspect-ratio: {width} / {height};")
-        }
-        _ => "aspect-ratio: 16 / 9;".to_owned(),
     }
 }

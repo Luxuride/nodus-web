@@ -114,11 +114,7 @@ fn media_grid(status: &Status, blurred: bool) -> String {
     // The same veil the client draws, inline rather than as a utility class: the gate must
     // hold even before the stylesheet matching it arrives, and the scale is required because
     // a blur samples outside the element and would otherwise eat its own edges.
-    let veil = if blurred {
-        "filter: blur(18px); transform: scale(1.08);"
-    } else {
-        ""
-    };
+    let veil = nodus_view::media::veil(blurred);
     let mut media = String::new();
     for attachment in &status.media_attachments {
         let href = attachment
@@ -151,12 +147,13 @@ fn media_grid(status: &Status, blurred: bool) -> String {
                 // A tile with no published dimensions still reserves its box: the client
                 // falls back to 16:9, and a server paint that did not would push the rest of
                 // the card down when the file arrives.
-                let box_ = square(attachment);
+                let box_ = nodus_view::media::box_style(attachment);
+                let (size, _) = nodus_view::media::extent(attachment);
+                let dimensions = size.map_or_else(String::new, |(width, height)| {
+                    format!(" width=\"{width}\" height=\"{height}\"")
+                });
                 format!(
-                    "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" style=\"{veil}{dimensions}\" aria-hidden=\"{blurred}\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" width=\"{}\" height=\"{}\"{alt} src=\"{href}\"></li>",
-                    box_.0,
-                    box_.1,
-                    dimensions = box_.2
+                    "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" style=\"{veil}{box_}\" aria-hidden=\"{blurred}\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"{dimensions}{alt} src=\"{href}\"></li>"
                 )
             }
         };
@@ -173,25 +170,6 @@ fn media_grid(status: &Status, blurred: bool) -> String {
                 "mt-1 grid grid-cols-2 items-start"
             }
         )
-    }
-}
-
-/// The box a media tile reserves: published dimensions when the instance has them, 16:9 when
-/// it does not. Returned as `(width, height, extra style)` so the markup states both.
-fn square(attachment: &nodus_instance::model::MediaAttachment) -> (u32, u32, String) {
-    match (attachment.meta_width, attachment.meta_height) {
-        (Some(width), Some(height)) if width > 0 && height > 0 => (width, height, String::new()),
-        _ => (1600, 900, "aspect-ratio: 16 / 9;".to_owned()),
-    }
-}
-
-/// "Show 1 attachment" or "Show 3 attachments", as the client says it.
-fn attachments_label(status: &Status) -> String {
-    let count = status.media_attachments.len();
-    if count == 1 {
-        "Show 1 attachment".to_owned()
-    } else {
-        format!("Show {count} attachments")
     }
 }
 
@@ -221,7 +199,7 @@ pub fn status_card(status: &Status) -> String {
         format!(
             "<div class=\"relative mt-1 overflow-hidden rounded-box\">{}<button type=\"button\" class=\"absolute inset-0 flex items-center justify-center\"><span class=\"rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm\"><span class=\"block text-sm font-medium\">Sensitive content</span><span class=\"block text-xs opacity-70\">{}</span></span></button></div>",
             media_grid(inner, true),
-            escape(&attachments_label(inner))
+            escape(&nodus_view::media::attachments_label(inner))
         )
     } else {
         media_grid(inner, false)

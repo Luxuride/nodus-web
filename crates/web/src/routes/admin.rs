@@ -132,10 +132,7 @@ pub fn Admin(section: String) -> impl IntoView {
 /// `NeedsGrant` is the interesting arm: the account may well be staff, and the app simply
 /// never asked for `admin:read`, so the gate offers the grant instead of a dead end.
 #[component]
-pub fn StaffGate(
-    allowed: ReadSignal<Option<admin::Staff>>,
-    retry: Callback<()>,
-) -> impl IntoView {
+pub fn StaffGate(allowed: ReadSignal<Option<admin::Staff>>, retry: Callback<()>) -> impl IntoView {
     view! {
         <Show when=move || allowed.get().is_none()>
             <p class="text-sm opacity-70">"Checking what this account may do…"</p>

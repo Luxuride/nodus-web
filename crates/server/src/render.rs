@@ -79,7 +79,6 @@ impl Assets {
     }
 }
 
-
 /// Escapes text for HTML attributes and text nodes.
 ///
 /// Status bodies are not escaped here any more: they are rewritten by [`crate::html`],
@@ -155,7 +154,8 @@ fn media_grid(status: &Status, blurred: bool) -> String {
                 let box_ = square(attachment);
                 format!(
                     "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" style=\"{veil}{dimensions}\" aria-hidden=\"{blurred}\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" width=\"{}\" height=\"{}\"{alt} src=\"{href}\"></li>",
-                    box_.0, box_.1,
+                    box_.0,
+                    box_.1,
                     dimensions = box_.2
                 )
             }
@@ -280,7 +280,6 @@ fn stamp(rfc3339: &str) -> String {
         .unwrap_or_default()
 }
 
-
 // Whether this request's reader may moderate. Set once per request by `shell`; a
 // thread-local rather than a parameter because every page function would otherwise have to
 // thread a flag it does not use, and the server handles one request per thread.
@@ -358,27 +357,36 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
 }
 
 /// The composer and the timeline tabs, at the size the client gives them.
-fn timeline_header() -> String {
-    "<div class=\"sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-base-200/95 px-1 pb-2 pt-1 backdrop-blur\">\
-       <div class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-         <div class=\"card-body gap-2 p-3\">\
-           <textarea class=\"textarea textarea-ghost h-16 w-full resize-none text-base\" aria-label=\"Write a post\" placeholder=\"What is on your mind?\"></textarea>\
-           <div class=\"flex items-center gap-2\">\
-             <span class=\"btn btn-outline btn-sm gap-1 border-dashed\">+</span>\
-             <span class=\"select select-bordered select-sm\">Public</span>\
-             <span class=\"ml-auto text-xs opacity-50\">0/500</span>\
-             <span class=\"btn btn-sm btn-primary\">Post</span>\
-           </div>\
-         </div>\
-       </div>\
-       <div role=\"tablist\" class=\"tabs tabs-box\">\
-         <a role=\"tab\" class=\"tab tab-active\" href=\"/home\">Home</a>\
-         <a role=\"tab\" class=\"tab\" href=\"/feed\">Feed</a>\
-         <a role=\"tab\" class=\"tab\" href=\"/local\">Local</a>\
-         <a role=\"tab\" class=\"tab\" href=\"/federated\">Federated</a>\
-       </div>\
-     </div>"
-        .to_owned()
+/// The composer and the tab strip, drawn by the crate the client draws with.
+///
+/// The textarea and the buttons here are inert on purpose: the wasm mount replaces them
+/// before the reader can type, and a control that pretends to work is worse than one that
+/// plainly waits.
+fn timeline_header(path: &str) -> String {
+    use leptos::prelude::*;
+
+    let here = path.to_owned();
+    Owner::new().with(|| {
+        view! {
+            <div class="flex flex-col gap-2">
+                <nodus_view::ComposerCard>
+                    <textarea
+                        class="textarea textarea-ghost min-h-20 w-full resize-none p-1 text-[15px]"
+                        aria-label="Write a post"
+                        placeholder="What is on your mind?"
+                    ></textarea>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="btn btn-outline btn-sm gap-1 border-dashed">"+"</span>
+                        <span class="select select-bordered select-sm">"Public"</span>
+                        <span class="ml-auto text-xs opacity-50">"0/500"</span>
+                        <span class="btn btn-sm btn-primary">"Post"</span>
+                    </div>
+                </nodus_view::ComposerCard>
+                <nodus_view::TimelineTabs active=Signal::derive(move || here.clone())/>
+            </div>
+        }
+        .to_html()
+    })
 }
 
 /// The signed-in home page, painted.
@@ -405,9 +413,7 @@ pub fn feed(
         statuses,
         cursor,
     })
-    .unwrap_or_else(|_| {
-        format!("{{\"which\":\"{which}\",\"statuses\":[],\"cursor\":null}}")
-    });
+    .unwrap_or_else(|_| format!("{{\"which\":\"{which}\",\"statuses\":[],\"cursor\":null}}"));
     let more = cursor
         .map(|cursor| {
             format!(
@@ -426,14 +432,12 @@ pub fn feed(
                 "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">{header}\
                    <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
                  </div>",
-                header = timeline_header()
+                header = timeline_header(path)
             ),
         ),
         Some(&island),
     )
 }
-
-
 
 /// A profile: who they are, then what they posted.
 #[must_use]
@@ -500,8 +504,16 @@ pub fn profile_page(
 /// A thread: what came before, the status itself, then the replies.
 #[must_use]
 pub fn thread_page(assets: &Assets, acct: &str, status: &Status, context: &Context) -> String {
-    let ancestors = context.ancestors.iter().map(status_card).collect::<String>();
-    let replies = context.descendants.iter().map(status_card).collect::<String>();
+    let ancestors = context
+        .ancestors
+        .iter()
+        .map(status_card)
+        .collect::<String>();
+    let replies = context
+        .descendants
+        .iter()
+        .map(status_card)
+        .collect::<String>();
     let replies = if replies.is_empty() {
         "<p class=\"text-sm opacity-60\">No replies yet.</p>".to_owned()
     } else {
@@ -586,15 +598,9 @@ pub fn list_page(
 /// A list of rows, or the sentence that says the list is empty.
 pub fn rows(items: &[String], empty: &str) -> String {
     if items.is_empty() {
-        return format!(
-            "<p class=\"text-sm opacity-60\">{}</p>",
-            escape(empty)
-        );
+        return format!("<p class=\"text-sm opacity-60\">{}</p>", escape(empty));
     }
-    format!(
-        "<ul class=\"flex flex-col gap-2\">{}</ul>",
-        items.concat()
-    )
+    format!("<ul class=\"flex flex-col gap-2\">{}</ul>", items.concat())
 }
 
 /// One account as a row: who they are, and the one line of self-description they wrote.
@@ -670,10 +676,10 @@ pub fn notification_row(notification: &Notification) -> String {
 /// One conversation: everyone in it, and its last message.
 #[must_use]
 pub fn conversation_row(conversation: &Conversation) -> String {
-    let who = conversation
-        .accounts
-        .first()
-        .map_or_else(|| "a conversation".to_owned(), |account| account.acct.clone());
+    let who = conversation.accounts.first().map_or_else(
+        || "a conversation".to_owned(),
+        |account| account.acct.clone(),
+    );
     let rest = conversation.accounts.len().saturating_sub(1);
     let name = if rest == 0 {
         who
@@ -824,19 +830,31 @@ fn describe(path: &str) -> (String, String) {
         "directory" => ("People", "Accounts this instance suggests."),
         "saved" => ("Saved", "Your favourites and bookmarks, newest first."),
         "scheduled" => ("Scheduled", "Posts waiting to be published."),
-        "lists" => (
-            "Lists",
-            "Hand-picked accounts with a timeline each.",
+        "lists" => ("Lists", "Hand-picked accounts with a timeline each."),
+        "compose" => (
+            "Compose",
+            "A post, with media, a content warning and a poll.",
         ),
-        "compose" => ("Compose", "A post, with media, a content warning and a poll."),
         "status" => ("Conversation", "This post and the replies to it."),
         "accounts" => ("Profile", "An account and what it published."),
-        "settings" => ("Settings", "Profile, tags, filters, sync and this instance."),
+        "settings" => (
+            "Settings",
+            "Profile, tags, filters, sync and this instance.",
+        ),
         "moderation" => ("Moderation", "Reports, accounts and federation decisions."),
-        "admin" => ("Administration", "This instance: its server and what it publishes."),
-        "feed" => ("Feed", "Posts chosen for you, from this instance and elsewhere."),
+        "admin" => (
+            "Administration",
+            "This instance: its server and what it publishes.",
+        ),
+        "feed" => (
+            "Feed",
+            "Posts chosen for you, from this instance and elsewhere.",
+        ),
         "local" => ("Local", "Posts from accounts on this instance."),
-        "federated" => ("Federated", "Posts this instance has received from elsewhere."),
+        "federated" => (
+            "Federated",
+            "Posts this instance has received from elsewhere.",
+        ),
         _ => ("Nodus", "A Mastodon client that keeps its state."),
     };
     (title.to_owned(), description.to_owned())
@@ -881,7 +899,11 @@ fn tabs_for(path: &str) -> String {
             items,
             "<a role=\"tab\" class=\"tab{active}\" href=\"{}\"{}>{}</a>",
             escape(href),
-            if active.is_empty() { "" } else { " aria-selected=\"true\"" },
+            if active.is_empty() {
+                ""
+            } else {
+                " aria-selected=\"true\""
+            },
             escape(label)
         );
     }
@@ -897,8 +919,8 @@ fn skeleton(path: &str) -> String {
     let head = path.trim_start_matches('/');
     let section = head.split('/').next().unwrap_or_default();
     let rows = match section {
-        "messages" | "notifications" | "search" | "directory" | "saved" | "scheduled"
-        | "lists" | "local" | "federated" | "feed" | "moderation" | "admin" => 4,
+        "messages" | "notifications" | "search" | "directory" | "saved" | "scheduled" | "lists"
+        | "local" | "federated" | "feed" | "moderation" | "admin" => 4,
         "status" => 1,
         _ => 3,
     };

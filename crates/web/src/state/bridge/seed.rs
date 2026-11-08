@@ -46,12 +46,30 @@ struct Island {
 fn page_of(island: &Island) -> Option<(PageKind, PageItems)> {
     let values = island.items.as_ref()?.as_array()?.clone();
     Some(match island.kind.as_str() {
-        "notifications" => (PageKind::Notifications, PageItems::Notifications(parse_typed(&values))),
-        "conversations" => (PageKind::Conversations, PageItems::Conversations(parse_typed(&values))),
-        "favourites" => (PageKind::Favourites, PageItems::Statuses(parse_typed(&values))),
-        "bookmarks" => (PageKind::Bookmarks, PageItems::Statuses(parse_typed(&values))),
-        "scheduled" => (PageKind::Scheduled, PageItems::Scheduled(parse_typed(&values))),
-        "directory" => (PageKind::Directory(true), PageItems::Accounts(parse_typed(&values))),
+        "notifications" => (
+            PageKind::Notifications,
+            PageItems::Notifications(parse_typed(&values)),
+        ),
+        "conversations" => (
+            PageKind::Conversations,
+            PageItems::Conversations(parse_typed(&values)),
+        ),
+        "favourites" => (
+            PageKind::Favourites,
+            PageItems::Statuses(parse_typed(&values)),
+        ),
+        "bookmarks" => (
+            PageKind::Bookmarks,
+            PageItems::Statuses(parse_typed(&values)),
+        ),
+        "scheduled" => (
+            PageKind::Scheduled,
+            PageItems::Scheduled(parse_typed(&values)),
+        ),
+        "directory" => (
+            PageKind::Directory(true),
+            PageItems::Accounts(parse_typed(&values)),
+        ),
         _ => return None,
     })
 }

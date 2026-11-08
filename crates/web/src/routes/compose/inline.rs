@@ -55,11 +55,7 @@ pub fn InlineComposer(
     let submit = draft.snapshot_of_signals();
 
     view! {
-        <section
-            class="card border-2 border-base-300 bg-base-100 shadow-sm has-[textarea:focus]:border-primary/50"
-            aria-label="New post"
-        >
-            <div class="card-body gap-2 p-3">
+        <nodus_view::ComposerCard>
                 <h2 class="text-xs font-semibold uppercase tracking-wide opacity-50">"New post"</h2>
                 <textarea
                     class="textarea textarea-ghost min-h-20 w-full resize-none p-1 text-[15px] focus:bg-transparent focus:outline-none"
@@ -99,8 +95,7 @@ pub fn InlineComposer(
                 {move || draft.notice.get().map(|line| view! {
                     <p class="text-xs text-success">{line}</p>
                 })}
-            </div>
-        </section>
+        </nodus_view::ComposerCard>
     }
 }
 

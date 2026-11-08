@@ -108,4 +108,3 @@ pub fn Settings(section: String) -> impl IntoView {
         </section>
     }
 }
-

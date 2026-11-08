@@ -53,7 +53,8 @@ fn read() -> ClockFormat {
     // Through the platform seam, not `window.local_storage()`: this value is read while the
     // tree renders, and a render that reaches for the document cannot run anywhere but a
     // browser. `platform::storage` answers `None` instead of failing.
-    crate::platform::storage::get(KEY).map_or(ClockFormat::TwentyFour, |value| ClockFormat::of(&value))
+    crate::platform::storage::get(KEY)
+        .map_or(ClockFormat::TwentyFour, |value| ClockFormat::of(&value))
 }
 
 fn write(format: ClockFormat) {

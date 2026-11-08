@@ -15,8 +15,29 @@ use lol_html::{RewriteStrSettings, element, rewrite_str};
 /// Elements a post may keep. Anything not listed is removed together with its content,
 /// so a `<script>` cannot survive as text either.
 const KEEP: &[&str] = &[
-    "p", "br", "a", "span", "strong", "em", "b", "i", "u", "s", "del", "ins", "code", "pre",
-    "blockquote", "ul", "ol", "li", "h1", "h2", "h3", "h4", "img",
+    "p",
+    "br",
+    "a",
+    "span",
+    "strong",
+    "em",
+    "b",
+    "i",
+    "u",
+    "s",
+    "del",
+    "ins",
+    "code",
+    "pre",
+    "blockquote",
+    "ul",
+    "ol",
+    "li",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "img",
 ];
 
 /// The attributes worth keeping, per element.
@@ -24,8 +45,14 @@ fn allowed(tag: &str, name: &str) -> bool {
     matches!(
         (tag, name),
         ("a", "href" | "class" | "rel" | "target" | "title")
-            | ("img", "src" | "alt" | "class" | "title" | "width" | "height")
-            | ("span" | "p" | "code" | "pre" | "blockquote" | "ul" | "ol" | "li", "class")
+            | (
+                "img",
+                "src" | "alt" | "class" | "title" | "width" | "height"
+            )
+            | (
+                "span" | "p" | "code" | "pre" | "blockquote" | "ul" | "ol" | "li",
+                "class"
+            )
     )
 }
 
@@ -110,7 +137,10 @@ mod tests {
     fn links_get_rel_and_target() {
         let html = body("<p><a href=\"https://example.org/x\">x</a></p>");
         assert!(html.contains("href=\"https://example.org/x\""), "{html}");
-        assert!(html.contains("rel=\"nofollow noopener noreferrer\""), "{html}");
+        assert!(
+            html.contains("rel=\"nofollow noopener noreferrer\""),
+            "{html}"
+        );
         assert!(html.contains("target=\"_blank\""), "{html}");
     }
 

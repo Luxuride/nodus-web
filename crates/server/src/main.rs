@@ -25,8 +25,8 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::json;
 
-mod mastodon;
 mod html;
+mod mastodon;
 mod render;
 mod session;
 
@@ -63,11 +63,7 @@ impl App {
 }
 
 /// A public timeline, painted with the same body the home page uses.
-async fn public_feed(
-    State(app): State<Arc<App>>,
-    headers: HeaderMap,
-    local: bool,
-) -> Response {
+async fn public_feed(State(app): State<Arc<App>>, headers: HeaderMap, local: bool) -> Response {
     let Some(session) = session_of(&app, &headers) else {
         return Html(render::landing(&app.bundle())).into_response();
     };
@@ -124,10 +120,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/session", get(whoami).post(sign_in).delete(sign_out))
         .route("/", get(index))
         .route("/home", get(home))
-        .route("/local", get(|state, headers| public_feed(state, headers, true)))
-        .route("/federated", get(|state, headers| {
-            public_feed(state, headers, false)
-        }))
+        .route(
+            "/local",
+            get(|state, headers| public_feed(state, headers, true)),
+        )
+        .route(
+            "/federated",
+            get(|state, headers| public_feed(state, headers, false)),
+        )
         .fallback(shell)
         .with_state(app);
 
@@ -268,9 +268,7 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
     render::set_staff(session.admin);
     let assets = app.bundle();
     let painted = match Client::new(&session.host, &session.token) {
-        Ok(client) => {
-            read_page(&client, &assets, &session.acct, path, uri.query()).await
-        }
+        Ok(client) => read_page(&client, &assets, &session.acct, path, uri.query()).await,
         Err(message) => {
             tracing::warn!(%message, "session could not be used; painting the skeleton");
             None

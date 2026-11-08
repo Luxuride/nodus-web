@@ -4,12 +4,12 @@
 //! (`Link: rel="next"`) and the payload shapes are the ones the browser app already uses.
 //! A second hand-written HTTP layer would be a second place to be wrong about Mastodon.
 
+use nodus_instance::LocalId;
 use nodus_instance::actions::{Browse, RegistrationActions, ScheduleActions, Search as SearchApi};
 use nodus_instance::model::{
-    Account, Context, Conversation, List, Notification, PageParams, ScheduledStatus,
-    SearchResults, Status,
+    Account, Context, Conversation, List, Notification, PageParams, ScheduledStatus, SearchResults,
+    Status,
 };
-use nodus_instance::LocalId;
 use nodus_instance::{HttpInstance, Instance, InstanceApi};
 use nodus_runtime::reads::{Headless, Reads};
 

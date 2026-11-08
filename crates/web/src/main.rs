@@ -36,9 +36,9 @@ use crate::routes::sign_in::SignIn;
 use crate::routes::status::{PublicThread, Thread};
 use crate::state::bridge::{init, revision, with_sdk};
 
-use leptos::prelude::*;
 #[cfg(feature = "admin")]
 use crate::ui::icons::Icon;
+use leptos::prelude::*;
 #[cfg(feature = "admin")]
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
@@ -402,7 +402,6 @@ fn staff_rail_items() -> impl IntoView {
     view! { <StaffRail/> }
 }
 
-
 /// The probe behind the moderation doors.
 #[cfg(feature = "admin")]
 #[component]
@@ -433,4 +432,3 @@ fn StaffRail() -> impl IntoView {
         </Show>
     }
 }
-

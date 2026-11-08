@@ -17,6 +17,8 @@ use std::fmt::Write as _;
 
 use nodus_instance::model::{MediaKind, Status};
 
+use crate::html::body as body_html;
+
 /// The assets `trunk` produced. Discovered at startup, because the names carry content
 /// hashes: writing them down here would mean a stale page after every build.
 #[derive(Debug, Clone)]
@@ -64,9 +66,11 @@ impl Assets {
     }
 }
 
-/// Escape text for HTML. The status body is HTML from the instance, which this server
-/// cannot sanitise honestly — so it renders as text, and the client (which has a parser and
-/// a sanitiser) is what turns it back into a formatted body after it takes over.
+
+/// Escapes text for HTML attributes and text nodes.
+///
+/// Status bodies are not escaped here any more: they are rewritten by [`crate::html`],
+/// which keeps the parts of Mastodon's markup that a post is made of.
 #[must_use]
 pub fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
@@ -81,42 +85,6 @@ pub fn escape(text: &str) -> String {
         }
     }
     out
-}
-
-/// Turns a status body into text that keeps the author's line breaks.
-///
-/// Mastodon answers with HTML fragments (`<p>…</p>`, `<br>`, links, `<span>` for
-/// mentions). Escaping that markup shows the tags themselves, and collapsing it loses
-/// every newline, so the tags are turned into the whitespace they stand for and the rest
-/// is stripped — the rendered page is *text*, and the client's own renderer takes over
-/// the moment wasm boots.
-fn body_text(html: &str) -> String {
-    let mut text = String::with_capacity(html.len());
-    let mut rest = html;
-    while let Some(index) = rest.find('<') {
-        text.push_str(&rest[..index]);
-        let Some(end) = rest[index..].find('>') else {
-            rest = &rest[index..];
-            break;
-        };
-        let tag = &rest[index..=index + end];
-        let lower = tag.to_ascii_lowercase();
-        // Every tag that stands for a break becomes the whitespace it means; a paragraph
-        // opening *and* closing both cost a newline is acceptable, and collapsing them is
-        // what produced one long run-on paragraph before.
-        if lower.starts_with("<br") || lower.starts_with("<p") || lower.starts_with("</p") || lower.starts_with("</div") {
-            text.push('\n');
-        }
-        rest = &rest[index + end + 1..];
-    }
-    text.push_str(rest);
-    text.replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .trim()
-        .to_owned()
 }
 
 /// The island: what the client should adopt rather than fetch.
@@ -236,7 +204,7 @@ fn status_card(status: &Status) -> String {
         handle = escape(&inner.account.acct),
         sid = escape(&inner.id),
         when = escape(&stamp(&inner.created_at)),
-        body = escape(&body_text(&inner.content)),
+        body = body_html(&inner.content),
         replies = inner.replies_count,
         reblogs = inner.reblogs_count,
         favourites = inner.favourites_count,

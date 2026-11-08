@@ -26,6 +26,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 mod mastodon;
+mod html;
 mod render;
 mod session;
 

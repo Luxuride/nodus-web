@@ -32,6 +32,10 @@ pub(super) fn ComposerBar(
     busy: ReadSignal<bool>,
     /// Opens the media picker.
     on_add_media: Callback<()>,
+    /// Turns the post into a poll.
+    on_add_poll: Callback<()>,
+    /// Whether the poll editor is already showing.
+    poll_open: ReadSignal<bool>,
     on_submit: Callback<()>,
 ) -> impl IntoView {
     let count = move || text.get().chars().count();
@@ -61,6 +65,17 @@ pub(super) fn ComposerBar(
             >
                 <span class="text-base leading-none">"+"</span>
                 <span>"Media"</span>
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-outline btn-sm gap-1 border-dashed"
+                title="Ask a question instead"
+                disabled=move || busy.get() || poll_open.get()
+                on:click=move |_| on_add_poll.run(())
+            >
+                <span class="text-base leading-none">"+"</span>
+                <span>"Poll"</span>
             </button>
 
             <VisibilityPicker visibility=visibility set_visibility=set_visibility/>

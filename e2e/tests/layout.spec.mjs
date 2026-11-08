@@ -18,11 +18,12 @@ test('the rail groups reading, finding and library, with the feeds under Feed', 
   await page.goto('/')
   // The rail renders after the session is adopted, so read the labels only once it is
   // there: an empty list would make every `indexOf` -1 and the comparison meaningless.
-  await expect(page.getByRole('link', { name: 'Home' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Home' })).toBeVisible()
 
   const labels = await railLabels(page)
+  // Home is the front door; the feeds are tabs inside it, not doors of their own.
   const order = [
-    'Feed', 'Home', 'Local', 'Federated', 'Messages', 'Notifications',
+    'Home', 'Messages', 'Notifications',
     'Search', 'People',
     'Saved', 'Scheduled', 'Lists',
     'Settings',
@@ -45,11 +46,11 @@ test('a rail click is a client-side navigation, not a page load', async ({ page 
     window.__marker = 'kept'
   })
 
-  await page.getByRole('link', { name: 'Feed' }).click()
+  await page.getByRole('link', { name: 'Messages' }).click()
 
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/messages$/)
   expect(await page.evaluate(() => window.__marker)).toBe('kept')
-  await expect(page.locator('nav a.menu-active')).toHaveText('Feed')
+  await expect(page.locator('nav a.menu-active')).toHaveText('Messages')
 })
 
 test('the composer sits above the home timeline, open', async ({ page }) => {
@@ -68,26 +69,27 @@ test('the composer sits above the home timeline, open', async ({ page }) => {
   expect(composerBox.y).toBeLessThan(timelineTop.y)
 })
 
-test('a feed can be hidden from the rail in settings', async ({ page }) => {
+test('a feed can be hidden from the home tabs in settings', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'the rail is hidden on a phone');
   await stubApi(page)
   await signedIn(page)
   await page.goto('/home')
-  await expect(page.getByRole('link', { name: 'Local' })).toBeVisible()
+  const tabs = page.getByRole('tablist').first()
+  await expect(tabs.getByRole('tab', { name: 'Local' })).toBeVisible()
 
-  await page.goto('/settings')
-  await page.getByRole('tab', { name: 'Feeds' }).click()
+  await page.goto('/settings/feeds')
   await page.getByRole('checkbox', { name: /Local/ }).uncheck()
 
-  // The door is gone, and it is gone without a reload: the rail is rendered from the
+  // The tab is gone, and it is gone without a reload: the strip is rendered from the
   // preference signal.
-  await expect(page.getByRole('link', { name: 'Local' })).toHaveCount(0)
+  await page.goto('/home')
+  await expect(page.getByRole('tablist').first().getByRole('tab', { name: 'Local' })).toHaveCount(0)
   // Home is untouched.
-  await expect(page.getByRole('link', { name: 'Home' })).toBeVisible()
+  await expect(page.getByRole('tablist').first().getByRole('tab', { name: 'Home' })).toHaveCount(1)
 
   // Turning it back on restores it, so the test leaves the profile as it found it.
+  await page.goto('/settings/feeds')
   await page.getByRole('checkbox', { name: /Local/ }).check()
-  await expect(page.getByRole('link', { name: 'Local' })).toBeVisible()
 })
 
 test('the account menu lists the signed-in identity', async ({ page }) => {
@@ -109,6 +111,7 @@ test('the account menu lists the signed-in identity', async ({ page }) => {
 test('home stays in the navigation, and the feed can be closed', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'the rail is hidden on a phone');
   await stubApi(page, {});
+  await signedIn(page);
   await page.goto('/settings/feeds');
   // Home is the front door: its switch exists so the rule is visible, not so it can be
   // turned off.
@@ -119,6 +122,6 @@ test('home stays in the navigation, and the feed can be closed', async ({ page }
   const feed = page.locator('label', { hasText: 'Feed' }).locator('input[type="checkbox"]').first();
   await feed.uncheck();
   await page.goto('/local');
-  await expect(page.getByRole('tablist').getByRole('link', { name: 'Feed' })).toHaveCount(0);
-  await expect(page.getByRole('tablist').getByRole('link', { name: 'Home' })).toHaveCount(1);
+  await expect(page.getByRole('tablist').getByRole('tab', { name: 'Feed' })).toHaveCount(0);
+  await expect(page.getByRole('tablist').getByRole('tab', { name: 'Home' })).toHaveCount(1);
 });

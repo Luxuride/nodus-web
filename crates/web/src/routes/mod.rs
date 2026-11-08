@@ -2,12 +2,14 @@
 //! [`crate::state::bridge`] and never talks to a transport or to storage.
 
 pub mod account;
+#[cfg(feature = "admin")]
 pub mod admin;
 pub mod callback;
 pub mod compose;
 pub mod conversations;
 pub mod directory;
 pub mod feed;
+pub mod filtering;
 pub mod format;
 pub mod home;
 pub mod lists;

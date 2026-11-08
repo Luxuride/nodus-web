@@ -20,16 +20,25 @@ pub enum Tab {
 
 impl Tab {
     /// Every section, in the order a reader is likely to want them.
-    pub const ALL: [Self; 8] = [
-        Self::Account,
-        Self::Profile,
-        Self::Privacy,
-        Self::Feeds,
-        Self::Filters,
-        Self::Tags,
-        Self::Instance,
-        Self::Administration,
-    ];
+    ///
+    /// Administration is listed only in a moderator build: a tab that answers "this build
+    /// has no moderation screens" is a dead end the reader has to walk into to discover.
+    #[must_use]
+    pub fn all() -> Vec<Self> {
+        let mut sections = vec![
+            Self::Account,
+            Self::Profile,
+            Self::Privacy,
+            Self::Feeds,
+            Self::Filters,
+            Self::Tags,
+            Self::Instance,
+        ];
+        if cfg!(feature = "admin") {
+            sections.push(Self::Administration);
+        }
+        sections
+    }
 
     pub fn label(self) -> &'static str {
         match self {
@@ -62,7 +71,7 @@ impl Tab {
     /// The section a `/settings/{slug}` address names; an unknown slug reads as the
     /// first section rather than a blank screen.
     pub fn of(slug: &str) -> Self {
-        Self::ALL
+        Self::all()
             .into_iter()
             .find(|section| section.slug() == slug)
             .unwrap_or(Self::Account)
@@ -87,7 +96,7 @@ impl Tab {
 pub fn SettingsTabs(tab: ReadSignal<Tab>) -> impl IntoView {
     view! {
         <div role="tablist" class="tabs tabs-box mb-4 w-fit flex-wrap">
-            <For each=|| Tab::ALL key=|section| section.slug() let:section>
+            <For each=Tab::all key=|section| section.slug() let:section>
                 <a
                     role="tab"
                     class="tab"

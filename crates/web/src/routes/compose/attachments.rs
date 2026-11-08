@@ -140,44 +140,117 @@ pub fn Attachments(
             </Show>
             <ul class="flex flex-wrap gap-2">
                 <For each=move || media.get() key=|attachment| attachment.id.clone() let:attachment>
-                    {
-                        let id = attachment.id.clone();
-                        // Owned before the view: the fallback closure must be `'static`,
-                        // and `attachment` is dropped when this iteration ends.
-                        // A signal, not a `String`: the fallback closure must be `Fn`,
-                        // and a captured `String` would make it `FnOnce`.
-                        let (kind_label, _) = signal(format!("{:?}", attachment.kind));
-                        let is_image = attachment.kind == MediaKind::Image;
-                        view! {
-                            <li class="relative">
-                                <Show
-                                    when=move || is_image
-                                    fallback=move || view! {
-                                        <span class="badge badge-outline badge-sm">
-                                            {kind_label}
-                                        </span>
-                                    }
-                                >
-                                    <img
-                                        class="h-20 w-20 rounded-box object-cover"
-                                        src=attachment.preview_url.clone().unwrap_or_default()
-                                        alt=attachment.description.clone().unwrap_or_default()
-                                    />
-                                </Show>
-                                <button
-                                    class="btn btn-circle btn-xs absolute -right-1 -top-1"
-                                    title="Remove this attachment"
-                                    on:click=move |_| {
-                                        media.update(|list| list.retain(|item| item.id != id));
-                                    }
-                                >
-                                    "×"
-                                </button>
-                            </li>
-                        }
-                    }
+                    <AttachmentTile attachment=attachment media=media set_error=set_error/>
                 </For>
             </ul>
         </div>
+    }
+}
+
+/// One attachment: what it is, and the alt text that makes it readable to someone who
+/// cannot see it.
+///
+/// Alt text is edited after the upload because that is when the writer knows what the
+/// picture is going to say in the post; asking for it before the transfer would be asking
+/// about a picture nobody can see yet.
+#[component]
+fn AttachmentTile(
+    attachment: MediaAttachment,
+    media: RwSignal<Vec<MediaAttachment>>,
+    set_error: WriteSignal<Option<String>>,
+) -> impl IntoView {
+    let remove_id = attachment.id.clone();
+    let save_id = attachment.id.clone();
+    // A signal, not a `String`: the fallback closure must be `Fn`, and a captured
+    // `String` moved into it once would make the whole component `FnOnce`.
+    let (label, _) = signal(format!("{:?}", attachment.kind));
+    let has_label = attachment
+        .description
+        .as_deref()
+        .is_some_and(|description| !description.trim().is_empty());
+    let is_image = attachment.kind == MediaKind::Image;
+    let (editing, set_editing) = signal(false);
+    let (alt, set_alt) = signal(attachment.description.clone().unwrap_or_default());
+    let (label_set, set_label_set) = signal(has_label);
+    let alive = Alive::new();
+
+    let save = move |()| {
+        let id = save_id.clone();
+        let text = alt.get_untracked();
+        spawn_local(async move {
+            match actions::update_media(&id, &text).await {
+                Ok(updated) => {
+                    media.update(|list| {
+                        if let Some(slot) = list.iter_mut().find(|item| item.id == updated.id) {
+                            *slot = updated;
+                        }
+                    });
+                    alive.if_alive(|| {
+                        set_label_set.set(!text.trim().is_empty());
+                        set_editing.set(false);
+                    });
+                }
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            }
+        });
+    };
+    // `Callback` is `Copy`, so the field and the blur can both ask for the same save.
+    let save = Callback::new(save);
+
+    view! {
+        <li class="relative flex flex-col gap-1">
+            <Show
+                when=move || is_image
+                fallback=move || {
+                    view! { <span class="badge badge-outline badge-sm">{label.get()}</span> }
+                }
+            >
+                <img
+                    class="h-20 w-20 rounded-box object-cover"
+                    src=attachment.preview_url.clone().unwrap_or_default()
+                    alt=attachment.description.clone().unwrap_or_default()
+                />
+            </Show>
+
+            <button
+                type="button"
+                class="btn btn-circle btn-xs absolute -right-1 -top-1"
+                title="Remove this attachment"
+                on:click=move |_| {
+                    media.update(|list| list.retain(|item| item.id != remove_id));
+                }
+            >
+                "×"
+            </button>
+
+            <div class="flex items-center gap-1">
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-xs px-1"
+                    title="Describe this attachment for someone who cannot see it"
+                    class:text-warning=move || !label_set.get()
+                    on:click=move |_| set_editing.update(|open| *open = !*open)
+                >
+                    {move || if label_set.get() { "Alt ✓" } else { "Alt" }}
+                </button>
+            </div>
+
+            <Show when=move || editing.get()>
+                <input
+                    class="input input-bordered input-xs w-40"
+                    placeholder="What does it show?"
+                    aria-label="Attachment description"
+                    prop:value=alt
+                    on:input=move |event| set_alt.set(event_target_value(&event))
+                    on:keydown=move |event| {
+                        if event.key() == "Enter" {
+                            event.prevent_default();
+                            save.run(());
+                        }
+                    }
+                    on:blur=move |_| save.run(())
+                />
+            </Show>
+        </li>
     }
 }

@@ -23,8 +23,9 @@ test('a timeline is fetched once, and revisited from the store', async ({ page }
   await expect(page.getByText('Hello from the fixture.')).toBeVisible()
 
   // Away and back: the same page, inside the minute it stays fresh.
-  await page.getByRole('link', { name: 'Local' }).click()
-  await page.getByRole('link', { name: 'Home' }).click()
+  const tabs = page.getByRole('tablist').first()
+  await tabs.getByRole('tab', { name: 'Local' }).click()
+  await tabs.getByRole('tab', { name: 'Home' }).click()
   await expect(page.getByText('Hello from the fixture.')).toBeVisible()
 
   const home = asked.filter((path) => path.includes('/timelines/home'))

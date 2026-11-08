@@ -9,6 +9,7 @@
 mod banner;
 
 use leptos::prelude::*;
+use nodus_instance::model::FilterContext;
 
 mod tabs;
 
@@ -18,7 +19,7 @@ pub use tabs::PrimaryTabs;
 
 use self::banner::Banner;
 use crate::routes::compose::inline::InlineComposer;
-use crate::routes::status::StatusCard;
+use crate::routes::filtering::Filtered;
 use crate::state::alive::Alive;
 use crate::state::bridge::{revision, timeline};
 use crate::ui::page::PageHeader;
@@ -152,7 +153,7 @@ pub fn Home(which: Timeline) -> impl IntoView {
                     key=|status| status.id.clone()
                     let:status
                 >
-                    <StatusCard status=status/>
+                    <Filtered status=status context=FilterContext::Home/>
                 </For>
             </ul>
 

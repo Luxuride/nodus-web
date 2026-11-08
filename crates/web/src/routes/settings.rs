@@ -12,6 +12,7 @@ use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, sign_out, with_sdk};
 
 mod accounts;
+#[cfg(feature = "admin")]
 mod admin;
 pub(crate) mod clock;
 mod feeds;
@@ -20,15 +21,18 @@ pub(crate) mod instance;
 mod profile;
 pub(crate) mod sensitive;
 pub(crate) mod sync;
+mod moderation;
 mod tabs;
 pub(crate) mod tags;
 
 use accounts::AccountsCard;
+#[cfg(feature = "admin")]
 use admin::AdministrationCard;
 use clock::ClockCard;
 use feeds::FeedsCard;
 use filters::FiltersCard;
 use instance::InstanceCard;
+use moderation::ModerationLinks;
 use profile::ProfileCard;
 use sensitive::SensitiveCard;
 use tabs::{SettingsTabs, Tab};
@@ -72,7 +76,8 @@ pub fn Settings(section: String) -> impl IntoView {
             <SettingsTabs tab=tab/>
 
             <Show when=move || tab.get() == Tab::Account>
-                            <div class="card mb-4 border border-base-300 bg-base-100 shadow-sm">
+                <ModerationLinks/>
+                <div class="card mb-4 border border-base-300 bg-base-100 shadow-sm">
                 <div class="card-body gap-2 p-4">
                     <h2 class="card-title text-base">"Session"</h2>
                     <dl class="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
@@ -150,10 +155,31 @@ pub fn Settings(section: String) -> impl IntoView {
                 <InstanceCard/>
             </Show>
 
-            <Show when=move || tab.get() == Tab::Administration>
-                <AdministrationCard/>
-            </Show>
+            // The section is only listed in a moderator build (`Tab::all`), so this arm
+            // exists for an address someone kept, not for the tab bar.
+            <Show when=move || tab.get() == Tab::Administration>{administration()}</Show>
 
         </section>
+    }
+}
+
+/// The administration section, when this build has one.
+///
+/// A function instead of a `#[cfg]` inside `view!`: attributes do not reach the body of a
+/// view expression, so the alternative was a reference to a component that a build without
+/// the feature never defines.
+#[cfg(feature = "admin")]
+fn administration() -> impl IntoView {
+    view! { <AdministrationCard/> }
+}
+
+/// What a build without the moderation screens answers when the address is kept.
+#[cfg(not(feature = "admin"))]
+fn administration() -> impl IntoView {
+    view! {
+        <p class="text-sm opacity-70">
+            "This build has no moderation screens. A moderator build is "
+            <code>"trunk build --release --features admin"</code> "."
+        </p>
     }
 }

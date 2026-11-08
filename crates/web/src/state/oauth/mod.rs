@@ -37,6 +37,10 @@ pub(super) const SCOPES: &str = "read write follow";
 /// Both the registration and the token must carry these, and Mastodon refuses an
 /// authorization request that asks for more than the app was registered with — which
 /// is why the upgrade registers a second app rather than widening the first.
+#[cfg_attr(
+    not(feature = "admin"),
+    allow(dead_code, reason = "the moderation screens are compiled out of this build")
+)]
 pub(super) const ADMIN_SCOPES: &str = "read write follow admin:read admin:write";
 
 /// Where the instance sends the browser back.
@@ -65,6 +69,10 @@ pub async fn begin(host: &str) -> Result<(), String> {
 ///
 /// Nothing about the session changes if the operator refuses; the callback simply has
 /// no token to store.
+#[cfg_attr(
+    not(feature = "admin"),
+    allow(dead_code, reason = "the moderation screens are compiled out of this build")
+)]
 pub async fn begin_admin(host: &str) -> Result<(), String> {
     begin_with(host, ADMIN_SCOPES, pending::Purpose::Admin).await
 }

@@ -19,10 +19,18 @@ Measured on a mid-tier Android over throttled 4G, cold cache, brotli:
 | Memory after 30 min of scrolling | < 150 MB | manual, milestone |
 
 Current baseline (the whole client: timelines, threads, profiles, composer with
-upload and scheduling, notifications, messages, saved, lists, directory, search and the
-eight settings sections): **2.19 MB wasm / 776 KB gzipped**, plus 50 KB JS (10 KB
-gzipped) and 219 KB CSS (36 KB gzipped) — **822 KB transferred**, inside the 900 KB
-budget with ~78 KB to spare. The budget was measured when the client had five screens;
+upload, scheduling and polls, notifications, messages, saved, lists, directory, search and
+seven settings sections): **2.00 MB wasm / 728 KB gzipped** for the default build, plus
+50 KB JS (10 KB gzipped) and 219 KB CSS (36 KB gzipped) — **774 KB transferred**, inside
+the 900 KB budget with ~126 KB to spare.
+
+The moderation screens are a Cargo feature, `admin`, off by default: they cost 261 KB of
+wasm (81 KB gzipped), which is the difference between the two measured builds —
+`trunk build --release` gives 2 003 335 B (727 775 B gzipped) and
+`trunk build --release --features admin` gives 2 265 107 B (808 349 B gzipped). A
+moderator build is the second command; `https://nodus.luxuride.eu` is deployed from it,
+because its operator moderates. Everything else — including the muted and blocked lists,
+which belong to the account rather than to moderation — is in both builds. The budget was measured when the client had five screens;
 it held, and the number is written here so the next feature has to argue with it. What moved it: the instance surface (thirty-odd
 endpoints and their models), `serde_json`, the `web_sys` bindings, and the admin screens.
 The CSS is daisyUI's used-component set, which is where the 217 KB goes and why themes

@@ -16,7 +16,7 @@ use nodus_instance::actions::{
 };
 use nodus_instance::model::{
     Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId,
-    MediaAttachment, ProfileUpdate, Relationship, SearchResults, Status,
+    MediaAttachment, PollDraft, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -114,6 +114,8 @@ pub struct NewStatus {
     pub spoiler_text: String,
     /// Whether the attachment sits behind the warning.
     pub sensitive: bool,
+    /// A poll to attach; `None` for a plain post.
+    pub poll: Option<PollDraft>,
 }
 
 impl NewStatus {
@@ -126,6 +128,7 @@ impl NewStatus {
             media_ids: Vec::new(),
             spoiler_text: String::new(),
             sensitive: false,
+            poll: None,
         }
     }
 
@@ -149,6 +152,7 @@ impl NewStatus {
             media_ids: self.media_ids.clone(),
             spoiler_text: self.spoiler_text.clone(),
             sensitive: self.sensitive,
+            poll: self.poll.clone(),
         }
     }
 }
@@ -156,6 +160,14 @@ impl NewStatus {
 /// Publishes a status.
 pub async fn publish(status: &NewStatus) -> Result<Status, String> {
     call(transport()?.post_status(&status.draft())).await
+}
+
+/// Sets or replaces one attachment's alt text.
+///
+/// The instance answers with the media as it now stands, so the caller can replace its
+/// copy rather than patch a field and hope the rest did not move.
+pub async fn update_media(id: &str, description: &str) -> Result<MediaAttachment, String> {
+    call(transport()?.update_media(id, description)).await
 }
 
 /// Rewrites a status the signed-in account wrote.
@@ -355,6 +367,7 @@ pub async fn schedule(
         media_ids: Vec::new(),
         spoiler_text: String::new(),
         sensitive: false,
+        poll: None,
     };
     call(transport()?.schedule(&draft, at))
         .await

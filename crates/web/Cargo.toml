@@ -11,6 +11,13 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+# The moderation screens are the largest optional slice of the client and most readers
+# never open them. Off by default; a moderator build is
+# `trunk build --release --features admin` (see web/docs/05-quality.md).
+default = []
+admin = []
+
 [dependencies]
 nodus-shared = { workspace = true }
 nodus-sdk = { workspace = true }

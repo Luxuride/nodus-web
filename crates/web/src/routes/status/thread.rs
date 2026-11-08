@@ -6,9 +6,10 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use nodus_instance::model::FilterContext;
 use nodus_instance::model::Status;
 
-use super::StatusCard;
+use crate::routes::filtering::Filtered;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 use crate::state::bridge::timeline;
@@ -70,14 +71,14 @@ pub fn Thread(id: String) -> impl IntoView {
             <Show when=move || !ancestors.get().is_empty()>
                 <ul class="flex flex-col gap-3">
                     <For each=move || ancestors.get() key=|status| status.id.clone() let:status>
-                        <StatusCard status=status/>
+                        <Filtered status=status context=FilterContext::Thread/>
                     </For>
                 </ul>
             </Show>
 
             <Show when=move || status.get().is_some()>
                 <ul class="flex flex-col gap-3">
-                    {move || status.get().map(|status| view! { <StatusCard status=status/> })}
+                    {move || status.get().map(|status| view! { <Filtered status=status context=FilterContext::Thread/> })}
                 </ul>
             </Show>
 
@@ -87,7 +88,7 @@ pub fn Thread(id: String) -> impl IntoView {
                 </h2>
                 <ul class="flex flex-col gap-3">
                     <For each=move || replies.get() key=|status| status.id.clone() let:status>
-                        <StatusCard status=status/>
+                        <Filtered status=status context=FilterContext::Thread/>
                     </For>
                 </ul>
             </Show>

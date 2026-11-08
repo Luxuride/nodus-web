@@ -169,7 +169,21 @@ fn App() -> impl IntoView {
                             }
                             Route::Lists if signed_in => view! { <Lists/> }.into_any(),
                             Route::Admin if signed_in => {
-                                view! { <crate::routes::admin::Admin/> }.into_any()
+                                #[cfg(feature = "admin")]
+                                {
+                                    view! { <crate::routes::admin::Admin/> }.into_any()
+                                }
+                                #[cfg(not(feature = "admin"))]
+                                {
+                                    view! {
+                                        <p class="text-sm opacity-70">
+                                            "This build has no moderation screens. A moderator build "
+                                            "is " <code>"trunk build --release --features admin"</code>
+                                            "."
+                                        </p>
+                                    }
+                                    .into_any()
+                                }
                             }
                             Route::Settings(section) if signed_in => view! { <Settings section=section/> }.into_any(),
                             Route::Thread { id, .. } if signed_in => {

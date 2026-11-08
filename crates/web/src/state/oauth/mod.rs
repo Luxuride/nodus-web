@@ -39,7 +39,10 @@ pub(super) const SCOPES: &str = "read write follow";
 /// is why the upgrade registers a second app rather than widening the first.
 #[cfg_attr(
     not(feature = "admin"),
-    allow(dead_code, reason = "the moderation screens are compiled out of this build")
+    allow(
+        dead_code,
+        reason = "the moderation screens are compiled out of this build"
+    )
 )]
 pub(super) const ADMIN_SCOPES: &str = "read write follow admin:read admin:write";
 
@@ -71,7 +74,10 @@ pub async fn begin(host: &str) -> Result<(), String> {
 /// no token to store.
 #[cfg_attr(
     not(feature = "admin"),
-    allow(dead_code, reason = "the moderation screens are compiled out of this build")
+    allow(
+        dead_code,
+        reason = "the moderation screens are compiled out of this build"
+    )
 )]
 pub async fn begin_admin(host: &str) -> Result<(), String> {
     begin_with(host, ADMIN_SCOPES, pending::Purpose::Admin).await

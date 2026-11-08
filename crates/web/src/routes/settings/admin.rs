@@ -8,13 +8,9 @@ use crate::state::alive::Alive;
 use crate::state::bridge::{admin, admin_host, forget_admin_token};
 use crate::state::oauth;
 
-mod approvals;
 mod grant;
-mod invites;
 
-use approvals::Approvals;
 use grant::AdminGrant;
-use invites::Invites;
 
 /// Registration control, plus the way into the moderation screens.
 ///
@@ -73,22 +69,23 @@ pub fn AdministrationCard() -> impl IntoView {
 
         <Show when=move || verdict.get() == Some(admin::Staff::Yes)>
             <div class="flex flex-col gap-3">
-                <Approvals/>
-                <Invites/>
-
                 <div class="card border border-base-300 bg-base-100 shadow-sm">
                     <div class="card-body gap-2 p-4">
-                        <h2 class="card-title text-base">"Moderation"</h2>
+                        <h2 class="card-title text-base">"Administration"</h2>
                         <p class="text-sm opacity-70">
-                            "Reports, account standing, federation and announcements live in their own screen."
+                            "Reports, account standing, registrations, federation and
+                             announcements each have their own section under /admin."
                         </p>
-                        <div class="card-actions mt-1 gap-2">
+                        <div class="card-actions mt-1 flex-wrap gap-2">
                             <a
-                                class="btn btn-ghost btn-sm"
-                                href=Route::Admin.path()
-                                on:click=move |event| crate::router::link(event, Route::Admin)
+                                class="btn btn-primary btn-sm"
+                                href=Route::Admin(crate::router::ADMIN_DEFAULT.to_owned()).path()
+                                on:click=move |event| crate::router::link(
+                                    event,
+                                    Route::Admin(crate::router::ADMIN_DEFAULT.to_owned()),
+                                )
                             >
-                                "Open moderation"
+                                "Open administration"
                             </a>
                             <a
                                 class="btn btn-ghost btn-sm"
@@ -107,6 +104,10 @@ pub fn AdministrationCard() -> impl IntoView {
                         </div>
                     </div>
                 </div>
+
+                <button class="btn btn-ghost btn-xs w-fit" on:click=move |_| forget.run(())>
+                    "Forget the admin grant"
+                </button>
             </div>
         </Show>
     }

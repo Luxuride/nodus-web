@@ -1,4 +1,4 @@
-//! Instance management: what the dashboard counts, and how federation is steered.
+//! The dashboard: what this instance counted over the last week.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -6,10 +6,6 @@ use nodus_instance::model::AdminMeasure;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{admin, revision};
-
-mod federation;
-
-use federation::Federation;
 
 /// How many days the dashboard counts over.
 const DAYS: f64 = 7.0;
@@ -23,9 +19,9 @@ const KEYS: [(&str, &str); 5] = [
     ("resolved_reports", "Reports resolved"),
 ];
 
-/// Dashboard counts and the federation controls.
+/// Dashboard counts over the last seven days.
 #[component]
-pub fn Server() -> impl IntoView {
+pub fn Overview() -> impl IntoView {
     let revision = revision();
     let (measures, set_measures) = signal(Vec::<AdminMeasure>::new());
     let (error, set_error) = signal(None::<String>);
@@ -92,7 +88,6 @@ pub fn Server() -> impl IntoView {
                 </div>
             </div>
 
-            <Federation/>
         </div>
     }
 }

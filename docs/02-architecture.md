@@ -275,3 +275,15 @@ so the dev origin contains no CORS surprises.
     event-shaped pages (notifications, conversations) stale, because events arrived that
     this client never saw. Writes are never queued: an action attempted offline fails
     visibly, because a favourite the server never received must not look applied.
+
+### Administration is an area, not a tab
+
+`/admin` is its own addressable area with six sections — `overview`, `reports`, `accounts`,
+`registrations`, `federation`, `announcements` — one URL each (`/admin/{slug}`), the same
+shape as Settings and Saved. The reasons are the ones that produced the tab strips in the
+first place: a section can be bookmarked, sent to another moderator, and reloaded, and the
+browser's back button does what it says. Unknown slugs land on the overview rather than on
+an error, because a stale bookmark should still be useful.
+
+The gate is a probe against the instance, not a local role check: the token is the
+authority, and an area that draws controls which answer 403 teaches nothing.

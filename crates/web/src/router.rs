@@ -74,7 +74,7 @@ pub enum Route {
     Mutes,
     /// Accounts the viewer blocked.
     Blocks,
-    Admin,
+    Admin(String),
     /// Settings, with the section in the address (`/settings/privacy`). Empty is the
     /// account section, so `/settings` stays a working link.
     Settings(String),
@@ -123,7 +123,7 @@ impl Route {
             Self::ComposeEdit(id) => format!("/compose/{id}"),
             Self::Mutes => "/mutes".to_owned(),
             Self::Blocks => "/blocks".to_owned(),
-            Self::Admin => "/admin".to_owned(),
+            Self::Admin(section) => format!("/admin/{section}"),
             Self::Settings(section) => format!("/settings/{section}"),
             // The OAuth flow registers this path as `redirect_uris`; sharing the
             // constant is what keeps the address bar and the registered URI identical.
@@ -174,6 +174,11 @@ impl Route {
                 return Self::Settings(section.to_owned());
             }
         }
+        if let Some(section) = trimmed.strip_prefix("/admin/") {
+            if !section.is_empty() {
+                return Self::Admin(section.to_owned());
+            }
+        }
         if let Some(shelf) = trimmed.strip_prefix("/saved/") {
             if !shelf.is_empty() {
                 return Self::Saved(shelf.to_owned());
@@ -205,7 +210,7 @@ impl Route {
             "/compose" => Self::Compose,
             "/mutes" => Self::Mutes,
             "/blocks" => Self::Blocks,
-            "/admin" => Self::Admin,
+            "/admin" => Self::Admin(ADMIN_DEFAULT.to_owned()),
             "/settings" => Self::Settings(SECTION_DEFAULT.to_owned()),
             _ => Self::Feed,
         }
@@ -327,6 +332,10 @@ pub fn navigate(to: Route) {
 pub const SECTION_DEFAULT: &str = "account";
 /// The shelf `/saved` means when no shelf is named.
 pub const SHELF_DEFAULT: &str = "favourites";
+
+/// The administration section `/admin` lands on. Declared here rather than in the admin
+/// module so a build without the moderation screens can still parse the address.
+pub const ADMIN_DEFAULT: &str = "overview";
 
 pub const BASE: &str = match option_env!("NODUS_BASE") {
     Some(base) => base,

@@ -9,7 +9,7 @@ use crate::state::bridge::{admin, revision};
 
 /// Relays followed, plus the domains allowed through a block.
 #[component]
-pub fn Federation() -> impl IntoView {
+pub(super) fn Federation() -> impl IntoView {
     view! {
         <div class="flex flex-col gap-3">
             <Relays/>

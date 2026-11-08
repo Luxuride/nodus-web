@@ -3,8 +3,8 @@
 use super::{admin_transport, instance_transport};
 use nodus_instance::actions::{AdminActions, RegistrationActions};
 use nodus_instance::model::{
-    AdminAccount, AdminMeasure, DomainAllow, DomainBlock, DomainSeverity,
-    ModerationAction, Relay, Report, ReportState,
+    AdminAccount, AdminMeasure, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Relay,
+    Report, ReportState,
 };
 
 /// How many rows a moderation screen asks for.

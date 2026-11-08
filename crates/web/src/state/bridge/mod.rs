@@ -34,7 +34,10 @@ pub mod accounts;
 pub mod actions;
 #[cfg_attr(
     not(feature = "admin"),
-    allow(dead_code, reason = "the moderation screens are compiled out of this build")
+    allow(
+        dead_code,
+        reason = "the moderation screens are compiled out of this build"
+    )
 )]
 pub mod admin;
 mod admin_token;

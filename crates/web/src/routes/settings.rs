@@ -7,7 +7,6 @@
 
 use leptos::prelude::*;
 
-use crate::router::{self, Route};
 use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, sign_out, with_sdk};
 
@@ -18,10 +17,10 @@ pub(crate) mod clock;
 mod feeds;
 pub(crate) mod filters;
 pub(crate) mod instance;
+mod moderation;
 mod profile;
 pub(crate) mod sensitive;
 pub(crate) mod sync;
-mod moderation;
 mod tabs;
 pub(crate) mod tags;
 
@@ -96,37 +95,8 @@ pub fn Settings(section: String) -> impl IntoView {
             </div>
 
                 <AccountsCard/>
-                            <div class="card mt-4 border border-base-300 bg-base-100 shadow-sm">
-                <div class="card-body gap-2 p-4">
-                    <h2 class="card-title text-base">"Moderation"</h2>
-                    <p class="text-sm opacity-70">
-                        "Muting hides an account from your timelines; blocking also stops it following you."
-                    </p>
-                    <div class="card-actions mt-1 gap-2">
-                        <a
-                            class="btn btn-ghost btn-sm"
-                            href=Route::Admin.path()
-                            on:click=move |event| router::link(event, Route::Admin)
-                        >
-                            "Instance moderation"
-                        </a>
-                        <a
-                            class="btn btn-ghost btn-sm"
-                            href=Route::Mutes.path()
-                            on:click=move |event| router::link(event, Route::Mutes)
-                        >
-                            "Muted accounts"
-                        </a>
-                        <a
-                            class="btn btn-ghost btn-sm"
-                            href=Route::Blocks.path()
-                            on:click=move |event| router::link(event, Route::Blocks)
-                        >
-                            "Blocked accounts"
-                        </a>
-                    </div>
-                </div>
-            </div>
+                <ModerationLinks/>
+
             </Show>
 
             <Show when=move || tab.get() == Tab::Profile>

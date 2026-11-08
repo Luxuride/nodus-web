@@ -9,7 +9,7 @@ use crate::state::bridge::admin;
 
 /// Blocked domains, with an add form.
 #[component]
-pub fn DomainList() -> impl IntoView {
+pub(super) fn BlockedList() -> impl IntoView {
     let alive = Alive::new();
     let (blocks, set_blocks) = signal(Vec::<DomainBlock>::new());
     let (domain, set_domain) = signal(String::new());

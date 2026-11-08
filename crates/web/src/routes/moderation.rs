@@ -118,7 +118,7 @@ pub fn Moderation(section: String) -> impl IntoView {
     });
 
     view! {
-        <nodus_view::Screen width=nodus_view::Width::Wide>
+        <nodus_view::Screen>
             <PageHeader
                 title="Moderation"
                 description="Decisions about people: reports, accounts, registrations and blocked domains."

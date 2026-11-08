@@ -106,7 +106,7 @@ pub fn Admin(section: String) -> impl IntoView {
     });
 
     view! {
-        <nodus_view::Screen width=nodus_view::Width::Wide>
+        <nodus_view::Screen>
             <PageHeader
                 title="Administration"
                 description="This instance: what it counted, who it talks to, what it says."

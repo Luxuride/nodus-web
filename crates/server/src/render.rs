@@ -601,10 +601,7 @@ pub fn list_page(
         &chrome(
             true,
             path,
-            &format!(
-                "{}{inner}",
-                page_header(heading, description)
-            ),
+            &format!("{}{inner}", page_header(heading, description)),
         ),
         island.as_deref(),
     )

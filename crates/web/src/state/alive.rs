@@ -24,7 +24,45 @@ use leptos::prelude::on_cleanup;
 
 thread_local! {
     /// One slot per live component; `false` once its scope was cleaned up.
-    static FLAGS: RefCell<Vec<bool>> = const { RefCell::new(Vec::new()) };
+    static FLAGS: RefCell<Slots> = const { RefCell::new(Slots::new()) };
+}
+
+/// The slot table, with a free list.
+///
+/// Without the free list this vector gained one entry per component that had *ever*
+/// mounted: navigating for a while grew it without bound, and every `if_alive` walked a
+/// longer vector. Recycling keeps the table as large as the live tree.
+struct Slots {
+    alive: Vec<bool>,
+    free: Vec<usize>,
+}
+
+impl Slots {
+    const fn new() -> Self {
+        Self {
+            alive: Vec::new(),
+            free: Vec::new(),
+        }
+    }
+
+    fn take(&mut self) -> usize {
+        if let Some(slot) = self.free.pop() {
+            self.alive[slot] = true;
+            slot
+        } else {
+            self.alive.push(true);
+            self.alive.len() - 1
+        }
+    }
+
+    fn release(&mut self, slot: usize) {
+        if let Some(alive) = self.alive.get_mut(slot) {
+            if *alive {
+                *alive = false;
+                self.free.push(slot);
+            }
+        }
+    }
 }
 
 /// Tracks whether the owning component is still mounted.
@@ -38,24 +76,16 @@ impl Alive {
     /// owner): outside any owner, `on_cleanup` has nothing to register with and the flag
     /// would stay true forever.
     pub fn new() -> Self {
-        let slot = FLAGS.with(|flags| {
-            let mut flags = flags.borrow_mut();
-            flags.push(true);
-            flags.len() - 1
-        });
+        let slot = FLAGS.with(|flags| flags.borrow_mut().take());
         on_cleanup(move || {
-            FLAGS.with(|flags| {
-                if let Some(alive) = flags.borrow_mut().get_mut(slot) {
-                    *alive = false;
-                }
-            });
+            FLAGS.with(|flags| flags.borrow_mut().release(slot));
         });
         Self(slot)
     }
 
     /// Whether the component is still mounted.
     pub fn is_alive(self) -> bool {
-        FLAGS.with(|flags| flags.borrow().get(self.0).copied().unwrap_or(false))
+        FLAGS.with(|flags| flags.borrow().alive.get(self.0).copied().unwrap_or(false))
     }
 
     /// Runs `write` only while the component is mounted.

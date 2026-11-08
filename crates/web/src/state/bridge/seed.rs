@@ -11,9 +11,16 @@
 use nodus_instance::model::Status;
 use nodus_sdk::Timeline;
 
-use super::with_sdk;
+use super::{handle, with_sdk};
 
 static ADOPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+thread_local! {
+    /// An island read before the SDK existed. `main` reads the island first (the mount
+    /// replaces the node it lives in), but the SDK is installed during `bridge::init`,
+    /// which runs later — so the parsed page waits here rather than panicking.
+    static PENDING: std::cell::RefCell<Option<Island>> = const { std::cell::RefCell::new(None) };
+}
 
 /// What the server writes into `#nodus-page`.
 #[derive(Debug, serde::Deserialize)]
@@ -54,12 +61,23 @@ pub fn install() {
     if island.which != "home" || island.statuses.is_empty() {
         return;
     }
+    if handle().is_some() {
+        adopt(island);
+    } else {
+        PENDING.with(|pending| *pending.borrow_mut() = Some(island));
+    }
+}
+
+/// Adopts an island that was read before the SDK was installed.
+pub fn adopt_pending() {
+    let pending = PENDING.with(|pending| pending.borrow_mut().take());
+    if let Some(island) = pending {
+        adopt(island);
+    }
+}
+
+fn adopt(island: Island) {
     with_sdk(|sdk| {
-        sdk.adopt_page(
-            Timeline::Home,
-            None,
-            island.statuses.clone(),
-            island.cursor.clone(),
-        );
+        sdk.adopt_page(Timeline::Home, None, island.statuses, island.cursor);
     });
 }

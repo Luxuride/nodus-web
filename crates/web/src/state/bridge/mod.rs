@@ -158,6 +158,36 @@ pub fn init() {
     // Reading, validating and re-installing the stored record is the session
     // module's job; `init` only asks for it once the unauthenticated SDK exists.
     session::restore_saved();
+
+    // The server-painted page was read before this SDK existed (the mount replaces the
+    // node the island lives in), so it waited; adopt it now that there is a store.
+    seed::adopt_pending();
+}
+
+thread_local! {
+    /// Whether a repaint is already scheduled for this microtask.
+    static REPAINT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Schedules one repaint for the current microtask, however many writes arrive.
+///
+/// Every store notifies its own subscribers, so one action (a favourite, a page landing,
+/// a socket frame) used to bump the same revision several times and rebuild every list
+/// several times in a row. Coalescing turns a burst into one render; the flag resets
+/// inside the microtask, so a later write schedules the next one.
+fn schedule_repaint() {
+    if REPAINT.with(std::cell::Cell::get) {
+        return;
+    }
+    REPAINT.with(|scheduled| scheduled.set(true));
+    let callback = wasm_bindgen::closure::Closure::once_into_js(move || {
+        REPAINT.with(|scheduled| scheduled.set(false));
+        let _ = revision().try_update(|generation| *generation += 1);
+    });
+    let callback: js_sys::Function = wasm_bindgen::JsCast::unchecked_into(callback);
+    if let Some(window) = web_sys::window() {
+        window.queue_microtask(&callback);
+    }
 }
 
 /// Creates the app-lifetime signals while no owner exists.
@@ -244,9 +274,7 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
     // `try_update`, not `update`: this callback runs from socket frames and background
     // ticks, which outlive any single screen. A disposed signal must be a missed repaint,
     // never a panic inside a task poll.
-    let bump = move || {
-        let _ = revision.try_update(|generation| *generation += 1);
-    };
+    let bump = schedule_repaint;
     let mut subscriptions = Vec::new();
     {
         let state = sdk.state();

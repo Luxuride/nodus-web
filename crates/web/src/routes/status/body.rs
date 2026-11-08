@@ -139,6 +139,12 @@ fn MediaTile(
     // pushed the page down by its own height, which is what "the website jumps" means.
     let (width, _) = signal(media.meta_width);
     let (height, _) = signal(media.meta_height);
+    // A `<video>` element owns a decoder from the moment it exists, even with
+    // `preload="metadata"`, and a timeline of a hundred posts mounted a hundred of them:
+    // the tab grew until scrolling stuttered. The poster is a picture until the reader
+    // asks to play, so a feed costs images and nothing else.
+    let (playing, set_playing) = signal(false);
+    let (listening, set_listening) = signal(false);
 
     let open_viewer = move |_| {
         let all = items.get_untracked();
@@ -200,11 +206,12 @@ fn MediaTile(
                     referrerpolicy="no-referrer"
                 />
             </Show>
-            <Show when=move || plays && interactive>
+            <Show when=move || plays && interactive && playing.get()>
                 <video
                     class="max-h-[32rem] w-full rounded-box bg-base-300"
                     style=veil
                     controls
+                    autoplay
                     playsinline
                     preload="metadata"
                     poster=move || preview.get()
@@ -224,13 +231,45 @@ fn MediaTile(
                     </a>
                 </p>
             </Show>
-            <Show when=move || listens && interactive>
+            <Show when=move || plays && interactive && !playing.get()>
+                <button
+                    type="button"
+                    class="relative block w-full cursor-pointer"
+                    title="Play this video"
+                    on:click=move |_| set_playing.set(true)
+                >
+                    <img
+                        class="max-h-[32rem] w-full rounded-box bg-base-300 object-cover"
+                        style=veil
+                        src=move || preview.get()
+                        alt=move || description.get()
+                        loading="lazy"
+                        decoding="async"
+                        referrerpolicy="no-referrer"
+                    />
+                    <span class="absolute inset-0 flex items-center justify-center">
+                        <span class="flex h-14 w-14 items-center justify-center rounded-full bg-base-100/80 text-xl">
+                            "▶"
+                        </span>
+                    </span>
+                </button>
+            </Show>
+            <Show when=move || listens && interactive && listening.get()>
                 <audio
                     class="w-full"
                     controls
                     preload="metadata"
                     src=move || url.get()
                 ></audio>
+            </Show>
+            <Show when=move || listens && interactive && !listening.get()>
+                <button
+                    type="button"
+                    class="btn btn-outline btn-sm gap-2"
+                    on:click=move |_| set_listening.set(true)
+                >
+                    "▶ Play audio"
+                </button>
             </Show>
             <Show when=move || !is_image && !plays && !listens && interactive>
                 <a

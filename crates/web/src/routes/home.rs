@@ -9,6 +9,10 @@
 mod banner;
 
 use leptos::prelude::*;
+
+mod tabs;
+
+pub use tabs::PrimaryTabs;
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
 
@@ -109,13 +113,16 @@ pub fn Home(which: Timeline) -> impl IntoView {
         <div class="flex flex-col gap-3">
             <PageHeader title=title description=description/>
 
-            // The composer sits above the content on the home timeline only: it is
-            // where a reader writes to the people they follow, and it must not follow
-            // them into Local or Federated, where it would suggest they are posting
-            // there.
+            // The composer sits above the timelines: it is where a reader writes to the
+            // people they follow, and it must not follow them into Local or Federated,
+            // where it would suggest they are posting there.
             <Show when=inline>
                 <InlineComposer which=which set_reload=set_reload/>
             </Show>
+
+            // Under the composer, the way between timelines: Home is the arrival point,
+            // and nothing here is a mode the reader has to remember.
+            <PrimaryTabs/>
 
             <Banner/>
 

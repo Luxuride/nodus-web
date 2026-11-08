@@ -108,8 +108,8 @@ fn EmptyFeed() -> impl IntoView {
                     "Follow a few accounts to give the recommender something to work with, or turn on background sync in "
                     <a
                         class="link link-primary"
-                        href=Route::Settings.path()
-                        on:click=move |event| link(event, Route::Settings)
+                        href=Route::Settings(crate::router::SECTION_DEFAULT.to_owned()).path()
+                        on:click=move |event| link(event, Route::Settings(crate::router::SECTION_DEFAULT.to_owned()))
                     >
                         "Settings"
                     </a>

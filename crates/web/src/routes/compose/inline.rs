@@ -15,58 +15,28 @@ use crate::state::alive::Alive;
 use crate::state::bridge::{actions, timeline};
 
 mod bar;
+mod schedule;
+
+use bar::Notice;
+use schedule::SchedulePanel;
 
 /// How long a post may be. Mastodon's default; an instance may configure another, and the
 /// counter says "the instance refuses" rather than pretending this number is a law.
 pub(super) const LIMIT: usize = 500;
 
-/// When a post should go out.
-///
-/// Presets, not a date picker: this box is the short path, and an instant the reader has
-/// to assemble is the long one. Every preset is computed in the browser's own zone, which
-/// is the zone the reader is looking at the clock in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum When {
-    Now,
-    In30,
-    In2h,
-    Tomorrow,
-}
-
-impl When {
-    pub(super) const ALL: [Self; 4] = [Self::Now, Self::In30, Self::In2h, Self::Tomorrow];
-
-    pub(super) const fn label(self) -> &'static str {
-        match self {
-            Self::Now => "Send now",
-            Self::In30 => "In 30 minutes",
-            Self::In2h => "In 2 hours",
-            Self::Tomorrow => "Tomorrow at 9",
-        }
+/// A `datetime-local` value as an RFC-3339 instant, or `None` when it is empty or not a
+/// date the browser understands — the caller then tells the reader to pick one instead of
+/// posting at a guessed time.
+fn custom_time(value: &str) -> Option<String> {
+    if value.trim().is_empty() {
+        return None;
     }
-
-    /// An RFC-3339 instant, or `None` for "send it now".
-    pub(super) fn at(self) -> Option<String> {
-        let start = match self {
-            Self::Now => return None,
-            Self::In30 => js_sys::Date::now() + 1_800_000.0,
-            Self::In2h => js_sys::Date::now() + 7_200_000.0,
-            Self::Tomorrow => {
-                let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(js_sys::Date::now()));
-                date.set_hours(9);
-                date.set_minutes(0);
-                date.set_seconds(0);
-                date.set_milliseconds(0);
-                // It is already past nine: the reader meant tomorrow, not a minute ago.
-                if date.get_time() <= js_sys::Date::now() {
-                    date.set_date(date.get_date() + 1);
-                }
-                date.get_time()
-            }
-        };
-        let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(start));
-        Some(date.to_iso_string().into())
+    let parsed = js_sys::Date::new(&wasm_bindgen::JsValue::from_str(value));
+    let millis = parsed.get_time();
+    if millis.is_nan() {
+        return None;
     }
+    Some(parsed.to_iso_string().into())
 }
 
 /// A box above the timeline: write, attach, post.
@@ -81,7 +51,9 @@ pub fn InlineComposer(
     let (visibility, set_visibility) = signal(Visibility::Public);
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
-    let (when, set_when) = signal(When::Now);
+    // `YYYY-MM-DDTHH:mm` as the input reports it, in this browser's zone. Empty means
+    // "send it now": scheduling is an exception, not the default path.
+    let (custom, set_custom) = signal(String::new());
     let (notice, set_notice) = signal(None::<String>);
     let media = RwSignal::new(Vec::<MediaAttachment>::new());
     let alive = Alive::new();
@@ -102,8 +74,12 @@ pub fn InlineComposer(
             .collect();
 
         let chosen = visibility.get_untracked();
-        let target = when.get_untracked();
-        let at = target.at();
+        let custom = custom.get_untracked();
+        let at = custom_time(&custom);
+        if !custom.is_empty() && at.is_none() {
+            set_error.set(Some("That is not a date and time this browser can read.".to_owned()));
+            return;
+        }
 
         set_busy.set(true);
         set_error.set(None);
@@ -114,7 +90,7 @@ pub fn InlineComposer(
                 // instance, so the media ids travel with the request that creates it.
                 Some(at) => actions::schedule(&draft.text, chosen, &at)
                     .await
-                    .map(|()| format!("Scheduled: {}", target.label().to_lowercase())),
+                    .map(|()| format!("Scheduled: {}", Notice::of(&custom))),
                 None => actions::publish(&draft).await.map(|_| String::new()),
             };
             match outcome {
@@ -124,7 +100,7 @@ pub fn InlineComposer(
                     if alive.is_alive() {
                         set_text.set(String::new());
                         media.set(Vec::new());
-                        set_when.set(When::Now);
+                        set_custom.set(String::new());
                         // A scheduled post is not in the timeline yet, so refreshing it
                         // would fetch the same page and change nothing.
                         if scheduled.is_empty() {
@@ -164,10 +140,10 @@ pub fn InlineComposer(
 
                 <ComposerBar
                     text=text
+                    at=custom
+                    set_at=set_custom
                     visibility=visibility
                     set_visibility=set_visibility
-                    when=when
-                    set_when=set_when
                     busy=busy
                     on_add_media=Callback::new(move |()| attachments::request_pick())
                     on_submit=on_submit
@@ -197,7 +173,7 @@ fn VisibilityPicker(
 ) -> impl IntoView {
     view! {
         <select
-            class="select select-bordered select-xs w-fit"
+            class="select select-bordered select-sm w-fit"
             aria-label="Who can see this post"
             on:change=move |event| {
                 let value = event_target_value(&event);

@@ -32,10 +32,17 @@ use sensitive::SensitiveCard;
 use tabs::{SettingsTabs, Tab};
 use tags::FeaturedTagsCard;
 
+/// The section a `/settings/{slug}` address names.
+/// A Leptos component receives its props by value; the body only reads it.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "a Leptos component receives its props by value"
+)]
 #[component]
-pub fn Settings() -> impl IntoView {
+pub fn Settings(section: String) -> impl IntoView {
     let revision = revision();
-    let (tab, set_tab) = signal(Tab::Account);
+    // The address decides the section: `/settings/privacy` opens Privacy.
+    let (tab, _set_tab) = signal(Tab::of(&section));
 
     let host = move || {
         revision.get();
@@ -60,7 +67,7 @@ pub fn Settings() -> impl IntoView {
         <section class="mx-auto w-full max-w-2xl px-4 py-6">
             <h1 class="mb-5 text-xl font-semibold tracking-tight">"Settings"</h1>
 
-            <SettingsTabs tab=tab set_tab=set_tab/>
+            <SettingsTabs tab=tab/>
 
             <Show when=move || tab.get() == Tab::Account>
                             <div class="card mb-4 border border-base-300 bg-base-100 shadow-sm">

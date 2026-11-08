@@ -8,6 +8,7 @@ use leptos::prelude::*;
 
 use super::status::StatusCard;
 use crate::state::alive::Alive;
+use crate::router::Route;
 use crate::state::bridge::{pages, revision};
 use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
@@ -29,6 +30,22 @@ impl Shelf {
         }
     }
 
+    /// The address this shelf lives at.
+    fn slug(self) -> &'static str {
+        match self {
+            Self::Favourites => "favourites",
+            Self::Bookmarks => "bookmarks",
+        }
+    }
+
+    /// The shelf a `/saved/{slug}` address names.
+    fn of(slug: &str) -> Self {
+        match slug {
+            "bookmarks" => Self::Bookmarks,
+            _ => Self::Favourites,
+        }
+    }
+
     /// The tab label.
     fn label(self) -> &'static str {
         match self {
@@ -39,10 +56,17 @@ impl Shelf {
 }
 
 /// The saved screen: a tab per shelf and one list beneath it.
+/// The shelf a `/saved/{slug}` address names.
+/// A Leptos component receives its props by value; the body only reads it.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "a Leptos component receives its props by value"
+)]
 #[component]
-pub fn Saved() -> impl IntoView {
+pub fn Saved(shelf: String) -> impl IntoView {
     let revision = revision();
-    let (shelf, set_shelf) = signal(Shelf::Favourites);
+    // The address decides the shelf: `/saved/bookmarks` opens Bookmarks.
+    let (shelf, _set_shelf) = signal(Shelf::of(&shelf));
     let (loading, set_loading) = signal(!pages::held(&PageKind::Favourites) && !pages::held(&PageKind::Bookmarks));
     let (error, set_error) = signal(None::<String>);
 
@@ -73,7 +97,7 @@ pub fn Saved() -> impl IntoView {
 
     // The first page only: switching tabs clears the list instead of merging, because a
     // favourite is not a bookmark and one list holding both would be a lie about which.
-    Effect::new(move |_| load(Shelf::Favourites, None));
+    Effect::new(move |_| load(shelf.get_untracked(), None));
 
     let more = move || {
         if let Some(after) = cursor() {
@@ -90,21 +114,17 @@ pub fn Saved() -> impl IntoView {
                     key=|which| which.label()
                     let:which
                 >
-                    <button
+                    <a
                         role="tab"
                         class="tab"
+                        href=format!("/saved/{}", which.slug())
                         class:tab-active=move || shelf.get() == which
-                        on:click=move |_| {
-                            if shelf.get_untracked() != which {
-                                set_shelf.set(which);
-                                // The SDK may already hold this shelf; `ensure` decides
-                                // whether the network is needed, so no list is cleared.
-                                load(which, None);
-                            }
+                        on:click=move |event| {
+                            crate::router::link(event, Route::Saved(which.slug().to_owned()));
                         }
                     >
                         {which.label()}
-                    </button>
+                    </a>
                 </For>
             </div>
 

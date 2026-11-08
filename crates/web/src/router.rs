@@ -60,8 +60,8 @@ pub enum Route {
     Search,
     /// People the instance suggests.
     Directory,
-    /// Favourites and bookmarks.
-    Saved,
+    /// Favourites and bookmarks; the shelf is part of the address (`/saved/bookmarks`).
+    Saved(String),
     /// Posts waiting to be published.
     Scheduled,
     /// Hand-picked accounts with a timeline each.
@@ -75,8 +75,9 @@ pub enum Route {
     /// Accounts the viewer blocked.
     Blocks,
     Admin,
-    /// Instance, sync consent and sign-out.
-    Settings,
+    /// Settings, with the section in the address (`/settings/privacy`). Empty is the
+    /// account section, so `/settings` stays a working link.
+    Settings(String),
     /// Where the instance returns the browser after authorization. The query string
     /// carries the code and `state`, so this route is matched regardless of sign-in.
     OauthCallback,
@@ -115,7 +116,7 @@ impl Route {
             Self::Notifications => "/notifications".to_owned(),
             Self::Search => "/search".to_owned(),
             Self::Directory => "/directory".to_owned(),
-            Self::Saved => "/saved".to_owned(),
+            Self::Saved(which) => format!("/saved/{which}"),
             Self::Scheduled => "/scheduled".to_owned(),
             Self::Lists => "/lists".to_owned(),
             Self::Compose => "/compose".to_owned(),
@@ -123,7 +124,7 @@ impl Route {
             Self::Mutes => "/mutes".to_owned(),
             Self::Blocks => "/blocks".to_owned(),
             Self::Admin => "/admin".to_owned(),
-            Self::Settings => "/settings".to_owned(),
+            Self::Settings(section) => format!("/settings/{section}"),
             // The OAuth flow registers this path as `redirect_uris`; sharing the
             // constant is what keeps the address bar and the registered URI identical.
             Self::OauthCallback => CALLBACK_PATH.to_owned(),
@@ -166,6 +167,18 @@ impl Route {
                 };
             }
         }
+        // Submenus are addresses, not client state: `/settings/privacy` and
+        // `/saved/bookmarks` stay readable, shareable and back-button-friendly.
+        if let Some(section) = trimmed.strip_prefix("/settings/") {
+            if !section.is_empty() {
+                return Self::Settings(section.to_owned());
+            }
+        }
+        if let Some(shelf) = trimmed.strip_prefix("/saved/") {
+            if !shelf.is_empty() {
+                return Self::Saved(shelf.to_owned());
+            }
+        }
         if let Some(id) = trimmed.strip_prefix("/accounts/") {
             if !id.is_empty() {
                 return Self::Account(id.to_owned());
@@ -186,14 +199,14 @@ impl Route {
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,
             "/directory" => Self::Directory,
-            "/saved" => Self::Saved,
+            "/saved" => Self::Saved(SHELF_DEFAULT.to_owned()),
             "/scheduled" => Self::Scheduled,
             "/lists" => Self::Lists,
             "/compose" => Self::Compose,
             "/mutes" => Self::Mutes,
             "/blocks" => Self::Blocks,
             "/admin" => Self::Admin,
-            "/settings" => Self::Settings,
+            "/settings" => Self::Settings(SECTION_DEFAULT.to_owned()),
             _ => Self::Feed,
         }
     }
@@ -310,6 +323,11 @@ pub fn navigate(to: Route) {
 /// Where this bundle is mounted: the root for a release build, a prefix for a diagnostic
 /// one (`NODUS_BASE=/debug`). Every route path is composed from it, so an asset or a link
 /// cannot point outside the mount by accident.
+/// The section `/settings` means when no section is named.
+pub const SECTION_DEFAULT: &str = "account";
+/// The shelf `/saved` means when no shelf is named.
+pub const SHELF_DEFAULT: &str = "favourites";
+
 pub const BASE: &str = match option_env!("NODUS_BASE") {
     Some(base) => base,
     None => "",

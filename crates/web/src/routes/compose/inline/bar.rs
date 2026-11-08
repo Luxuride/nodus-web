@@ -1,25 +1,51 @@
-//! The row under the textarea: visibility, when to send, the counter, the button.
+//! The row under the textarea: media, visibility, when to send, the counter, the button.
 
 use leptos::prelude::*;
 use nodus_instance::model::Visibility;
 
-use super::{LIMIT, VisibilityPicker, When};
+use super::{LIMIT, SchedulePanel, VisibilityPicker};
+
+/// What the green notice says after a post was queued instead of sent.
+pub(super) struct Notice;
+
+impl Notice {
+    /// `2026-11-09T09:00` reads better with a space than with the `T` the input emits.
+    pub(super) fn of(custom: &str) -> String {
+        custom.replace('T', " ")
+    }
+}
 
 /// Every control that describes *how* the post goes out, kept apart from the box that
 /// holds the text so neither half outgrows what one screen can read.
+///
+/// Scheduling is one absolute field rather than a menu of presets: "tomorrow at nine" is
+/// the same answer as "2026-11-09T09:00", and a picker that starts at the current minute
+/// needs no arithmetic of ours to be correct in the reader's zone. Empty means now.
 #[component]
 pub(super) fn ComposerBar(
     text: ReadSignal<String>,
     visibility: ReadSignal<Visibility>,
     set_visibility: WriteSignal<Visibility>,
-    when: ReadSignal<When>,
-    set_when: WriteSignal<When>,
+    /// The instant to send at (`YYYY-MM-DDTHH:mm`), or empty to send now.
+    at: ReadSignal<String>,
+    set_at: WriteSignal<String>,
     busy: ReadSignal<bool>,
     /// Opens the media picker.
     on_add_media: Callback<()>,
     on_submit: Callback<()>,
 ) -> impl IntoView {
     let count = move || text.get().chars().count();
+    // A time in the field means this press queues the post instead of publishing it, and
+    // the button says which it will do.
+    let scheduling = move || !at.get().trim().is_empty();
+    let open = RwSignal::new(false);
+    let describe_when = move |value: &str| {
+        if value.trim().is_empty() {
+            "now".to_owned()
+        } else {
+            value.replace('T', " ").replacen('-', "/", 2)
+        }
+    };
     view! {
         <div class="flex flex-wrap items-center gap-2">
             <button
@@ -35,31 +61,6 @@ pub(super) fn ComposerBar(
 
             <VisibilityPicker visibility=visibility set_visibility=set_visibility/>
 
-            <select
-                class="select select-bordered select-xs w-auto"
-                aria-label="When to send"
-                // Bound to the signal both ways: the value returns to "Send now" once the
-                // post has gone out, and the reader sees that it did.
-                prop:value=move || {
-                    When::ALL
-                        .iter()
-                        .position(|option| *option == when.get())
-                        .unwrap_or(0)
-                        .to_string()
-                }
-                on:change=move |event| {
-                    let index = event_target_value(&event).parse::<usize>().unwrap_or(0);
-                    set_when.set(When::ALL.get(index).copied().unwrap_or(When::Now));
-                }
-            >
-                // Written out rather than generated: four fixed presets, and a static
-                // option is the only shape the view macro accepts inside a select.
-                <option value="0">"Send now"</option>
-                <option value="1">"In 30 minutes"</option>
-                <option value="2">"In 2 hours"</option>
-                <option value="3">"Tomorrow at 9"</option>
-            </select>
-
             // The count and the action sit at the far end: the left edge answers "how
             // does this go out", the right edge answers "is it ready to".
             <div class="ml-auto flex items-center gap-2">
@@ -72,13 +73,34 @@ pub(super) fn ComposerBar(
                     {move || format!("{}/{LIMIT}", count())}
                 </span>
 
-                <button
-                    class="btn btn-primary btn-sm gap-1"
-                    disabled=move || busy.get() || text.get().trim().is_empty()
-                    on:click=move |_| on_submit.run(())
-                >
-                    {move || if busy.get() { "Posting…" } else { "Post" }}
-                </button>
+                // Post and its caret are one control: the caret opens the schedule
+                // panel, and the label above says what the pair will do.
+                <div class="relative join">
+                    <button
+                        class="btn btn-primary btn-sm join-item gap-1"
+                        disabled=move || busy.get() || text.get().trim().is_empty()
+                        on:click=move |_| on_submit.run(())
+                    >
+                        {move || match (busy.get(), scheduling()) {
+                            (true, _) => "Posting…",
+                            (false, true) => "Schedule",
+                            (false, false) => "Post",
+                        }}
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm join-item border-l border-primary-content/25 px-2"
+                        title=move || format!("Send {}, or pick a time", describe_when(&at.get()))
+                        aria-label="Change when this posts"
+                        aria-expanded=move || open.get().to_string()
+                        on:click=move |_| open.update(|shown| *shown = !*shown)
+                    >
+                        <span class="text-[0.6rem] leading-none">"▼"</span>
+                    </button>
+                    <Show when=move || open.get()>
+                        <SchedulePanel at=at set_at=set_at open=open/>
+                    </Show>
+                </div>
             </div>
         </div>
     }

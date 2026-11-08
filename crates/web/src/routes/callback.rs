@@ -32,7 +32,7 @@ pub fn Callback() -> impl IntoView {
             Ok(finished) if finished.purpose == oauth::Purpose::Admin => {
                 match bridge::keep_admin_token(&finished.host, &finished.token).await {
                     // Back to the screen that asked, where the panels now answer.
-                    Ok(()) => navigate(Route::Settings),
+                    Ok(()) => navigate(Route::Settings(crate::router::SECTION_DEFAULT.to_owned())),
                     Err(message) => alive.if_alive(|| error.set(Some(message))),
                 }
             }

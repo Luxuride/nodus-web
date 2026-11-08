@@ -9,6 +9,7 @@
 mod media;
 mod public;
 mod router;
+mod shell;
 mod routes;
 mod scroll;
 mod state;
@@ -81,8 +82,14 @@ fn App() -> impl IntoView {
         with_sdk(|sdk| sdk.state().session.get().is_some())
     });
 
+    // The sheet is a signal, not a route: opening it must not change the address bar.
+    let sheet = RwSignal::new(false);
+
     view! {
         <div class="min-h-screen bg-base-200 text-base-content">
+            <Show when=move || signed_in.get()>
+                <shell::MobileTop/>
+            </Show>
             // No top bar: the rail already carries the name and the navigation, and a
             // bar above it only cost vertical space on every screen.
             // Two columns above `sm`: the rail is navigation, not decoration, so on a
@@ -92,14 +99,12 @@ fn App() -> impl IntoView {
             // pushes the timeline off-screen.
             <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row">
                 <Show when=move || signed_in.get()>
-                <nav class="order-2 w-full xl:order-1 xl:w-44 xl:shrink-0">
+                <nav class="hidden shrink-0 xl:block xl:w-44">
                     <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
                         <li class="menu-title hidden xl:block">"Read"</li>
-                        <RailItem label="Feed" icon=Icon::Sparkle hint="Posts picked for you, ranked by the backend" route=Route::Feed/>
-                        // One destination per feed, and only the ones this reader kept:
-                        // a tab group could not be linked to, and a hidden feed must not
-                        // leave a door in the rail.
-                        <FeedItems/>
+                        // One door for the timelines; the composer's tab strip under
+                        // the heading is what switches between them.
+                        <RailItem label="Home" icon=Icon::Home hint="Your timeline, the feed, and the instance's" route=Route::Home/>
                         <RailItem label="Messages" icon=Icon::Mail hint="Direct conversations" route=Route::Messages/>
                         <RailItem label="Notifications" icon=Icon::Bell hint="Mentions, boosts, favourites and follow requests" route=Route::Notifications/>
 
@@ -108,16 +113,16 @@ fn App() -> impl IntoView {
                         <RailItem label="People" icon=Icon::Users hint="Accounts this instance suggests" route=Route::Directory/>
 
                         <li class="menu-title hidden xl:block">"Library"</li>
-                        <RailItem label="Saved" icon=Icon::Bookmark hint="Your favourites and bookmarks" route=Route::Saved/>
+                        <RailItem label="Saved" icon=Icon::Bookmark hint="Your favourites and bookmarks" route=Route::Saved(crate::router::SHELF_DEFAULT.to_owned())/>
                         <RailItem label="Scheduled" icon=Icon::Clock hint="Posts waiting to be published" route=Route::Scheduled/>
                         <RailItem label="Lists" icon=Icon::List hint="Hand-picked accounts with a timeline each" route=Route::Lists/>
 
                         <li class="menu-title hidden xl:block">"Account"</li>
-                        <RailItem label="Settings" icon=Icon::Settings hint="Profile, tags, filters, sync and this instance" route=Route::Settings/>
+                        <RailItem label="Settings" icon=Icon::Settings hint="Profile, tags, filters, sync and this instance" route=Route::Settings(crate::router::SECTION_DEFAULT.to_owned())/>
                     </ul>
                 </nav>
                 </Show>
-                <main class="order-3 min-w-0 flex-1">
+                <main class="min-w-0 flex-1 pb-24 xl:pb-0">
                     {move || {
                         // The callback comes first, before the signed-in gate: the
                         // instance redirects here while the app is still signed out, and
@@ -147,7 +152,7 @@ fn App() -> impl IntoView {
                             }
                             Route::Search if signed_in => view! { <Search/> }.into_any(),
                             Route::Directory if signed_in => view! { <Directory/> }.into_any(),
-                            Route::Saved if signed_in => view! { <Saved/> }.into_any(),
+                            Route::Saved(shelf) if signed_in => view! { <Saved shelf=shelf/> }.into_any(),
                             Route::Scheduled if signed_in => view! { <Scheduled/> }.into_any(),
                             Route::Compose if signed_in => view! { <Compose/> }.into_any(),
                             Route::ComposeEdit(id) if signed_in => {
@@ -165,7 +170,7 @@ fn App() -> impl IntoView {
                             Route::Admin if signed_in => {
                                 view! { <crate::routes::admin::Admin/> }.into_any()
                             }
-                            Route::Settings if signed_in => view! { <Settings/> }.into_any(),
+                            Route::Settings(section) if signed_in => view! { <Settings section=section/> }.into_any(),
                             Route::Thread { id, .. } if signed_in => {
                                 view! { <Thread id=id/> }.into_any()
                             }
@@ -202,7 +207,7 @@ fn App() -> impl IntoView {
                             Route::Directory => {
                                 view! { <SignIn note="Sign in to find people."/> }.into_any()
                             }
-                            Route::Saved => {
+                            Route::Saved(_) => {
                                 view! { <SignIn note="Sign in to see what you saved."/> }
                                     .into_any()
                             }
@@ -219,7 +224,7 @@ fn App() -> impl IntoView {
                                 view! { <SignIn note="Sign in to manage who you muted or blocked."/> }
                                     .into_any()
                             }
-                            Route::Settings => {
+                            Route::Settings(_) => {
                                 view! {
                                     <SignIn note="Sign in to change your settings."/>
                                 }
@@ -248,44 +253,14 @@ fn App() -> impl IntoView {
                     }}
                 </main>
             </div>
+            <Show when=move || signed_in.get()>
+                <shell::MobileBar open=sheet/>
+                <shell::MobileSheet open=sheet/>
+            </Show>
             <crate::media::ImageModal/>
             <Footer/>
         </div>
     }
-}
-
-/// The rail's feed entries, filtered by what this reader kept.
-///
-/// Rendered from a component rather than inline so the list follows the preference
-/// signal: hiding "Local" in Settings removes the door immediately, without a reload.
-#[component]
-fn FeedItems() -> impl IntoView {
-    let Some(changed) = crate::state::feeds::revision() else {
-        return view! { <li></li> }.into_any();
-    };
-    let feeds = move || {
-        changed.get();
-        crate::state::feeds::Feed::ALL
-            .into_iter()
-            .filter(|feed| crate::state::feeds::enabled(*feed))
-            .collect::<Vec<_>>()
-    };
-    view! {
-        <For each=feeds key=|feed| feed.key() let:feed>
-            {match feed {
-                crate::state::feeds::Feed::Home => view! {
-                    <RailItem label="Home" icon=Icon::Home hint="Posts from the accounts you follow" route=Route::Home/>
-                }.into_any(),
-                crate::state::feeds::Feed::Local => view! {
-                    <RailItem label="Local" icon=Icon::Users hint="Posts from accounts on this instance" route=Route::Local/>
-                }.into_any(),
-                crate::state::feeds::Feed::Federated => view! {
-                    <RailItem label="Federated" icon=Icon::Globe hint="Posts this instance received from elsewhere" route=Route::Federated/>
-                }.into_any(),
-            }}
-        </For>
-    }
-    .into_any()
 }
 
 /// The foot of every screen: what this is, and the two links a client owes its server.

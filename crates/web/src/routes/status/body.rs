@@ -10,6 +10,7 @@ use super::chips::StatusChips;
 use super::poll::PollView;
 use super::sensitive;
 use crate::routes::feed::posts::plain_text;
+use crate::ui::emoji_text::EmojiText;
 
 /// Content, media and poll of one status.
 #[component]
@@ -35,14 +36,34 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
                 >
                     <summary class="cursor-pointer text-xs opacity-60">"Show content"</summary>
                     <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">
-                        {move || plain_text(&shown.get().content)}
+                        <span>
+                            {move || {
+                                let status = shown.get();
+                                view! {
+                                    <EmojiText
+                                        text=plain_text(&status.content)
+                                        emojis=status.emojis.clone()
+                                    />
+                                }
+                            }}
+                        </span>
                     </p>
                 </details>
             </div>
         </Show>
         <Show when=move || shown.get().spoiler_text.trim().is_empty()>
             <p class="whitespace-pre-line text-sm leading-relaxed">
-                {move || plain_text(&shown.get().content)}
+                <span>
+                            {move || {
+                                let status = shown.get();
+                                view! {
+                                    <EmojiText
+                                        text=plain_text(&status.content)
+                                        emojis=status.emojis.clone()
+                                    />
+                                }
+                            }}
+                        </span>
             </p>
         </Show>
 
@@ -146,7 +167,12 @@ fn MediaTile(
     let (playing, set_playing) = signal(false);
     let (listening, set_listening) = signal(false);
 
-    let open_viewer = move |_| {
+    // The click belongs to the picture: without stopping it here the card's own
+    // click-to-open handler sees the same press and navigates to the post, so the reader
+    // gets the thread instead of the enlargement they asked for.
+    let open_viewer = move |event: web_sys::MouseEvent| {
+        event.prevent_default();
+        event.stop_propagation();
         let all = items.get_untracked();
         let pictures: Vec<crate::media::Picture> = all
             .iter()
@@ -178,9 +204,17 @@ fn MediaTile(
         <li class="self-start overflow-hidden rounded-box">
             <Show when=move || is_image && interactive>
                 // A click expands in place, on the picture the reader pointed at.
-                <button type="button" class="w-full cursor-zoom-in" on:click=open_viewer>
+                <button type="button" class="block w-full cursor-zoom-in" on:click=open_viewer>
+                    // The aspect box is what keeps a blurred picture and a sharp one the
+                    // same height: the veil scales the image to hide its soft edges, and
+                    // scaling an image that is itself the layout box moved everything
+                    // below it by a few pixels the moment it was revealed.
+                    <div
+                        class="relative w-full overflow-hidden rounded-box bg-base-300"
+                        style=move || aspect_ratio(width.get(), height.get())
+                    >
                     <img
-                        class="h-auto w-full rounded-box bg-base-300 object-cover"
+                        class="absolute inset-0 h-full w-full object-cover"
                         style=veil
                         src=move || preview.get()
                         alt=move || description.get()
@@ -191,6 +225,7 @@ fn MediaTile(
                         decoding="async"
                         referrerpolicy="no-referrer"
                     />
+                    </div>
                 </button>
             </Show>
             <Show when=move || is_image && !interactive>
@@ -284,5 +319,18 @@ fn MediaTile(
                 </a>
             </Show>
         </li>
+    }
+}
+
+/// A CSS `aspect-ratio` for a picture of the reported size, with a 16:9 fallback.
+///
+/// Used instead of `width`/`height` attributes because the veil scales the image inside the
+/// box: the box has to own the height, or revealing the media shifts the page.
+fn aspect_ratio(width: Option<u32>, height: Option<u32>) -> String {
+    match (width, height) {
+        (Some(width), Some(height)) if width > 0 && height > 0 => {
+            format!("aspect-ratio: {width} / {height};")
+        }
+        _ => "aspect-ratio: 16 / 9;".to_owned(),
     }
 }

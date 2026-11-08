@@ -80,7 +80,7 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                 <div
                     class="cursor-pointer"
                     on:click=move |event: web_sys::MouseEvent| {
-                        if event.default_prevented() {
+                        if event.default_prevented() || inside_control(&event) {
                             return;
                         }
                         router::link(event, thread_id(&shown.get_untracked()));
@@ -171,4 +171,24 @@ fn status_header(shown: ReadSignal<Status>) -> impl IntoView {
                     </a>
         </header>
     }
+}
+
+/// Whether the press landed on something that owns its own click.
+///
+/// The body wrapper opens the post on any press, which is what a reader expects from the
+/// text — but a picture, a poll option, a link or the "show content" summary all have a
+/// destination of their own, and stealing it made the card feel broken.
+fn inside_control(event: &web_sys::MouseEvent) -> bool {
+    use wasm_bindgen::JsCast as _;
+
+    event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
+        .and_then(|element| {
+            element
+                .closest("a, button, input, textarea, select, summary, video, audio")
+                .ok()
+                .flatten()
+        })
+        .is_some()
 }

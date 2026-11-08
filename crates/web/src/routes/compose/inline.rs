@@ -573,7 +573,8 @@ fn EmojiHints(query: ReadSignal<Option<crate::ui::editor::EmojiQuery>>) -> impl 
                         {hints
                             .options
                             .into_iter()
-                            .map(|hint| {
+                            .enumerate()
+                            .map(|(row, hint)| {
                                 let code = hint.code.clone();
                                 let preview = hint.preview.clone();
                                 let label = format!(":{code}:");
@@ -585,11 +586,24 @@ fn EmojiHints(query: ReadSignal<Option<crate::ui::editor::EmojiQuery>>) -> impl 
                                 } else {
                                     view! { <span class="text-base">{preview}</span> }.into_any()
                                 };
+                                // The highlighted row is the one Enter and Tab take, and the
+                                // arrows move it, so it has to be visible from the keyboard.
+                                let picked = row == hints.active;
+                                let tone = if picked {
+                                    "flex w-full items-center gap-2 rounded bg-base-200 px-2 py-1 text-left text-sm"
+                                } else {
+                                    "flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-base-200"
+                                };
                                 view! {
-                                    <li role="option" class="flex items-center gap-2">
+                                    <li
+                                        role="option"
+                                        class="flex items-center gap-2"
+                                        aria-selected=picked.to_string()
+                                        data-active=picked.to_string()
+                                    >
                                         <button
                                             type="button"
-                                            class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-base-200"
+                                            class=tone
                                             on:mousedown=move |event: web_sys::MouseEvent| {
                                                 event.prevent_default();
                                                 let code = code.clone();

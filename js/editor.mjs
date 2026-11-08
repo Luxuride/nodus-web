@@ -114,10 +114,39 @@ function mount(element, options = {}) {
     if (options.length === 0) {
       return null;
     }
-    return { code, from: $from.pos - code.length - 1, to: $from.pos, options };
+    // The first row is selected by default, so Enter and Tab work without looking.
+    return { code, from: $from.pos - code.length - 1, to: $from.pos, options, active: 0 };
   };
 
   /** Replaces the pending token — the one typed, not the one chosen — with the emoji. */
+  /**
+   * Sends the pending token, its options, the caret and the highlighted row to Rust.
+   *
+   * Called on every keystroke and on every arrow press: the arrow changes which row is
+   * highlighted, and the list re-renders from this, so there is one source of truth.
+   */
+  const emit = () => {
+    if (!hint) {
+      onQuery("", [], 0, 0, 0);
+      return;
+    }
+    let left = 0;
+    let top = 0;
+    try {
+      const caret = view.coordsAtPos(view.state.selection.from);
+      const host = element.getBoundingClientRect();
+      left = Math.max(0, Math.round(caret.left - host.left));
+      top = Math.round(caret.bottom - host.top);
+    } catch {
+      left = 0;
+      top = 0;
+    }
+    onQuery(hint.code, hint.options, left, top, hint.active);
+  };
+
+  /** Which suggestion Enter and Tab will take. */
+  const chosen = () => hint && hint.options[hint.active] ? hint.options[hint.active][0] : null;
+
   const accept = (code) => {
     if (!code) {
       return false;
@@ -164,12 +193,23 @@ function mount(element, options = {}) {
     handleKeyDown: (view, event) => {
       if (event.key === "Escape" && hint) {
         hint = null;
-        onQuery("", []);
+        emit();
+        return true;
+      }
+      if (hint && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+        event.preventDefault();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        const last = hint.options.length - 1;
+        hint.active = Math.min(last, Math.max(0, hint.active + step));
+        emit();
         return true;
       }
       if (event.key === "Tab" && hint) {
         event.preventDefault();
-        accept(hint.options[0][0]);
+        const picked = chosen();
+        if (picked) {
+          accept(picked);
+        }
         return true;
       }
       if (event.key !== "Enter" || event.isComposing) {
@@ -179,7 +219,10 @@ function mount(element, options = {}) {
       // `:blob` is never what the writer meant.
       if (hint) {
         event.preventDefault();
-        accept(hint.options[0][0]);
+        const picked = chosen();
+        if (picked) {
+          accept(picked);
+        }
         return true;
       }
       if (event.shiftKey) {
@@ -204,22 +247,10 @@ function mount(element, options = {}) {
         const before = hint;
         hint = trailing(view.state);
         if (hint?.code !== before?.code || hint?.options.length !== before?.options.length) {
-          // Where the caret is, so the list can sit at the word instead of at the box.
-          let left = 0;
-          let top = 0;
-          if (hint) {
-            try {
-              const caret = view.coordsAtPos(view.state.selection.from);
-              const host = element.getBoundingClientRect();
-              left = Math.max(0, Math.round(caret.left - host.left));
-              top = Math.round(caret.bottom - host.top);
-            } catch {
-              left = 0;
-              top = 0;
-            }
-          }
-          onQuery(hint?.code ?? "", hint?.options ?? [], left, top);
+          emit();
         }
+      }
+      if (transaction.docChanged) {
         onText(toDraft(view.state.doc));
       }
     },

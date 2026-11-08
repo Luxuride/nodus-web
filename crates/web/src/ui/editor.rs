@@ -423,6 +423,8 @@ pub struct EmojiHintsValue {
     pub options: Vec<EmojiHint>,
     pub left: f64,
     pub top: f64,
+    /// Which row Enter and Tab will take; the arrows move it in the editor.
+    pub active: usize,
 }
 
 /// The JS callback that carries the pending `:token` and the caret's place in the box.
@@ -431,9 +433,9 @@ pub struct EmojiHintsValue {
 /// body is one wire crossing (a code, an array of pairs, two coordinates) and nothing else.
 fn query_callback(
     query: RwSignal<Option<EmojiQuery>>,
-) -> Closure<dyn FnMut(String, js_sys::Array, f64, f64)> {
-    Closure::<dyn FnMut(String, js_sys::Array, f64, f64)>::new(
-        move |code: String, list: js_sys::Array, left: f64, top: f64| {
+) -> Closure<dyn FnMut(String, js_sys::Array, f64, f64, u32)> {
+    Closure::<dyn FnMut(String, js_sys::Array, f64, f64, u32)>::new(
+        move |code: String, list: js_sys::Array, left: f64, top: f64, active: u32| {
             if code.is_empty() {
                 query.set(None);
                 return;
@@ -447,7 +449,12 @@ fn query_callback(
                     Some(EmojiHint { code, preview })
                 })
                 .collect();
-            query.set(Some(EmojiHintsValue { options, left, top }));
+            query.set(Some(EmojiHintsValue {
+                options,
+                left,
+                top,
+                active: usize::try_from(active).unwrap_or_default(),
+            }));
         },
     )
 }

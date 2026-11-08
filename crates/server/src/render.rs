@@ -450,9 +450,8 @@ pub fn feed(
             true,
             path,
             &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">{heading}{header}\
-                   <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
-                 </div>",
+                "{heading}{header}\
+                   <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}",
                 heading = page_header(title, timeline_description(which)),
                 header = timeline_header(path)
             ),
@@ -603,7 +602,7 @@ pub fn list_page(
             true,
             path,
             &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">{}{inner}</div>",
+                "{}{inner}",
                 page_header(heading, description)
             ),
         ),

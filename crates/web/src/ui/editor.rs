@@ -111,6 +111,11 @@ pub fn RichEditor(
     placeholder: String,
     /// Enter with the modifier held posts; the editor calls this on Enter alone.
     on_submit: Callback<()>,
+    /// The `:token` being completed right now, and the codes that match it.
+    ///
+    /// The editor knows the catalogue and the document, so it decides what is pending; this
+    /// signal is only how that reaches a popup rendered outside the contenteditable.
+    query: RwSignal<Option<EmojiQuery>>,
 ) -> impl IntoView {
     let element = NodeRef::<leptos::html::Div>::new();
     let mounted = StoredValue::new(false);
@@ -163,17 +168,26 @@ pub fn RichEditor(
             set_text.set(value);
         });
         let on_submit = Closure::<dyn FnMut()>::new(move || on_submit.run(()));
-
-        let options = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&options, &"initial".into(), &initial.into());
-        let _ = js_sys::Reflect::set(&options, &"placeholder".into(), &hint.get_value().into());
-        let _ = js_sys::Reflect::set(&options, &"onText".into(), on_text.as_ref().unchecked_ref());
-        let _ = js_sys::Reflect::set(
-            &options,
-            &"onSubmit".into(),
-            on_submit.as_ref().unchecked_ref(),
+        let on_query = Closure::<dyn FnMut(String, js_sys::Array)>::new(
+            move |code: String, list: js_sys::Array| {
+                if code.is_empty() {
+                    query.set(None);
+                    return;
+                }
+                let options: Vec<String> =
+                    list.iter().filter_map(|item| item.as_string()).collect();
+                query.set(Some((code, options)));
+            },
         );
-        let _ = js_sys::Reflect::set(&options, &"emoji".into(), &catalogue_js(&catalogue));
+
+        let options = mount_options(
+            &initial,
+            &hint.get_value(),
+            &catalogue,
+            on_text.as_ref().unchecked_ref(),
+            on_submit.as_ref().unchecked_ref(),
+            on_query.as_ref().unchecked_ref(),
+        );
 
         let Some(mounted_handle) = call_method(&editor, "mount", &[target.into(), options.into()])
             .and_then(|value| value.dyn_into::<js_sys::Object>().ok())
@@ -186,12 +200,12 @@ pub fn RichEditor(
         // ProseMirror keeps these for the document's lifetime, so they outlive this frame.
         on_text.forget();
         on_submit.forget();
+        on_query.forget();
         mounted.set_value(true);
         true
     });
 
     let mount_button = when_ready(std::rc::Rc::clone(&boot), handle);
-
 
     // External changes (an edit loaded, a form reset) replace the document; the writer's
     // own keystrokes arrive here too and are filtered by comparing with what we were told.
@@ -250,6 +264,21 @@ fn catalogue_js(catalogue: &[CustomEmoji]) -> wasm_bindgen::JsValue {
         array.push(&entry);
     }
     array.into()
+}
+
+/// Takes the pending suggestion in the mounted editor: `:blob` becomes the emoji.
+///
+/// The editor owns the token range and the catalogue, so the click comes back here rather
+/// than editing the draft text and guessing where the caret was.
+pub fn accept_active(code: &str) -> bool {
+    ACTIVE.with(|active| {
+        let borrowed = active.borrow();
+        let Some(handle) = borrowed.as_ref() else {
+            return false;
+        };
+        call_method(&handle.0, "accept", &[code.into()])
+            .is_some_and(|value| value.as_bool().unwrap_or(false))
+    })
 }
 
 /// Inserts text into the composer that is currently on screen.
@@ -391,3 +420,24 @@ pub fn EmojiPanel(
     }
 }
 
+/// The `:token` the editor is completing and the shortcodes that match it.
+pub type EmojiQuery = (String, Vec<String>);
+
+/// The options object `mount` reads. Kept out of `boot` so that function stays readable.
+fn mount_options(
+    initial: &str,
+    placeholder: &str,
+    catalogue: &[CustomEmoji],
+    on_text: &js_sys::Function,
+    on_submit: &js_sys::Function,
+    on_query: &js_sys::Function,
+) -> js_sys::Object {
+    let options = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&options, &"initial".into(), &initial.into());
+    let _ = js_sys::Reflect::set(&options, &"placeholder".into(), &placeholder.into());
+    let _ = js_sys::Reflect::set(&options, &"onText".into(), on_text);
+    let _ = js_sys::Reflect::set(&options, &"onSubmit".into(), on_submit);
+    let _ = js_sys::Reflect::set(&options, &"emoji".into(), &catalogue_js(catalogue));
+    let _ = js_sys::Reflect::set(&options, &"onQuery".into(), on_query);
+    options
+}

@@ -104,13 +104,17 @@ pub fn InlineComposer(
                     insert=emoji_insert
                 />
                 <DraftsPanel open=draft_token insert=resume/>
-                <crate::ui::editor::RichEditor
-                    text=draft.text.read_only()
-                    set_text=draft.text.write_only()
-                    emoji=emoji_catalogue
-                    placeholder="What's on your mind?"
-                    on_submit=Callback::new(move |()| submit.submit())
-                />
+                <div class="relative">
+                    <crate::ui::editor::RichEditor
+                        text=draft.text.read_only()
+                        set_text=draft.text.write_only()
+                        emoji=emoji_catalogue
+                        placeholder="What's on your mind?"
+                        on_submit=Callback::new(move |()| submit.submit())
+                        query=draft.emoji_query
+                    />
+                    <EmojiHints query=draft.emoji_query.read_only()/>
+                </div>
 
                 <ComposerBar
                     text=draft.text.read_only()
@@ -198,14 +202,16 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
     Effect::new(move |_| {
         live.set_value((kept_text.get(), kept_visibility.get(), kept_language.get()));
     });
-    let on_unload = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(move |_event: web_sys::Event| {
-        let (text, visibility, language) = live.get_value();
-        // The `:draft` token is a command, not writing: keeping it would fill the list with
-        // the very word that opens it.
-        if !is_command(&text) {
-            crate::ui::drafts::keep(&text, visibility, &language);
-        }
-    });
+    let on_unload = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(
+        move |_event: web_sys::Event| {
+            let (text, visibility, language) = live.get_value();
+            // The `:draft` token is a command, not writing: keeping it would fill the list with
+            // the very word that opens it.
+            if !is_command(&text) {
+                crate::ui::drafts::keep(&text, visibility, &language);
+            }
+        },
+    );
     if let Some(window) = web_sys::window() {
         let _ = window
             .add_event_listener_with_callback("beforeunload", on_unload.as_ref().unchecked_ref());
@@ -218,7 +224,11 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
         }
         let text = kept_text.get_untracked();
         if !is_command(&text) {
-            crate::ui::drafts::keep(&text, kept_visibility.get_untracked(), &kept_language.get_untracked());
+            crate::ui::drafts::keep(
+                &text,
+                kept_visibility.get_untracked(),
+                &kept_language.get_untracked(),
+            );
         }
     });
 
@@ -263,6 +273,8 @@ struct Draft {
     hide_totals: RwSignal<bool>,
     /// Empty means "let the instance guess".
     language: RwSignal<String>,
+    /// The `:token` the editor is completing, mirrored here so the hint list is daisyUI's.
+    emoji_query: RwSignal<Option<crate::ui::editor::EmojiQuery>>,
     /// What the last successful post went out as: visibility and language, shown in the
     /// pickers' own style so the confirmation reads as the same choice, not a second claim.
     done: RwSignal<Option<(Visibility, String)>>,
@@ -290,6 +302,7 @@ impl Draft {
             multiple: RwSignal::new(false),
             hide_totals: RwSignal::new(false),
             language: RwSignal::new(String::new()),
+            emoji_query: RwSignal::new(None),
             done: RwSignal::new(None),
             alive: Alive::new(),
             which,
@@ -530,5 +543,52 @@ fn focus_textarea() {
         .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
     {
         let _ = field.focus();
+    }
+}
+
+/// The codes that match the token being typed, above the body.
+///
+/// Keyboard handling lives in the editor (Enter and Tab take the first match, Escape
+/// dismisses); this list exists so the writer can see *what* will be taken, and can click a
+/// row instead. Pressing a row must not blur the editor into a half-typed token, so the row
+/// calls back into the mounted editor rather than editing the text signal.
+#[component]
+fn EmojiHints(query: ReadSignal<Option<crate::ui::editor::EmojiQuery>>) -> impl IntoView {
+    view! {
+        <Show when=move || query.get().is_some()>
+            {move || {
+                let (code, options) = query.get()?;
+                Some(view! {
+                    <ul
+                        class="absolute bottom-full left-0 z-40 mb-1 max-h-48 w-64 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-xl"
+                        data-emoji-hints=""
+                        role="listbox"
+                        aria-label="Emoji matching the typed code"
+                    >
+                        <li class="px-2 py-1 text-xs opacity-60">{format!(":{code}")}</li>
+                        {options
+                            .into_iter()
+                            .map(|option| {
+                                let label = option.clone();
+                                view! {
+                                    <li role="option">
+                                        <button
+                                            type="button"
+                                            class="w-full rounded px-2 py-1 text-left text-sm hover:bg-base-200"
+                                            on:mousedown=move |event: web_sys::MouseEvent| {
+                                                event.prevent_default();
+                                                let _ = crate::ui::editor::accept_active(&label);
+                                            }
+                                        >
+                                            {format!(":{option}:")}
+                                        </button>
+                                    </li>
+                                }
+                            })
+                            .collect_view()}
+                    </ul>
+                })
+            }}
+        </Show>
     }
 }

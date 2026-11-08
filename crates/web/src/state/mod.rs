@@ -6,7 +6,7 @@
 
 pub mod alive;
 pub mod bridge;
-pub mod epoch;
 pub mod clock_format;
+pub mod epoch;
 pub mod feeds;
 pub mod oauth;

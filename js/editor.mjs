@@ -42,11 +42,12 @@ function placeholder(text) {
 function mount(element, options = {}) {
   const {
     initial = "",
-    placeholder: hint = EMPTY,
+    placeholder: placeholderText = EMPTY,
     emoji = [],
     onText = () => {},
     onSubmit = () => {},
     onPickEmoji = () => {},
+    onQuery = () => {},
   } = options;
 
   if (typeof element.__nodusDestroy === "function") {
@@ -54,6 +55,49 @@ function mount(element, options = {}) {
   }
 
   let index = buildIndex(emoji);
+  let codes = [...index.keys()].map((token) => token.slice(1, -1));
+  // The token being completed right now, if any: `{ code, from, to }` in document positions.
+  let hint = null;
+
+  const matches = (code) =>
+    codes
+      .filter((candidate) => candidate.startsWith(code))
+      .concat(codes.filter((candidate) => !candidate.startsWith(code) && candidate.includes(code)))
+      .slice(0, 8);
+
+  /** The `:token` immediately before the caret, with the range it occupies. */
+  const trailing = (state) => {
+    const { $from } = state.selection;
+    if (!$from.parent.isTextblock) {
+      return null;
+    }
+    const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+    const found = /:([A-Za-z0-9_+-]{1,40})$/.exec(before);
+    if (!found) {
+      return null;
+    }
+    const code = found[1];
+    const options = matches(code);
+    if (options.length === 0) {
+      return null;
+    }
+    return { code, from: $from.pos - code.length - 1, to: $from.pos, options };
+  };
+
+  /** Replaces the pending token with the emoji the instance knows. */
+  const accept = (code) => {
+    const token = `:${code}:`;
+    const url = index.get(token);
+    const range = hint ?? trailing(view.state);
+    if (!url || !range) {
+      return false;
+    }
+    const node = schema.node("customEmoji", { token, url });
+    const tr = view.state.tr.replaceWith(range.from, range.to, node).scrollIntoView();
+    view.dispatch(tr);
+    view.focus();
+    return true;
+  };
 
   const state = EditorState.create({
     schema,
@@ -62,7 +106,7 @@ function mount(element, options = {}) {
       history(),
       keymap({ "Mod-z": undo, "Shift-Mod-z": redo, "Mod-y": redo }),
       keymap(baseKeymap),
-      placeholder(hint),
+      placeholder(placeholderText),
     ],
   });
 
@@ -78,8 +122,25 @@ function mount(element, options = {}) {
     // Enter posts and Shift-Enter breaks the line: the same pair the textarea had, so a
     // habit formed there keeps working.
     handleKeyDown: (view, event) => {
+      if (event.key === "Escape" && hint) {
+        hint = null;
+        onQuery("", []);
+        return true;
+      }
+      if (event.key === "Tab" && hint) {
+        event.preventDefault();
+        accept(hint.options[0]);
+        return true;
+      }
       if (event.key !== "Enter" || event.isComposing) {
         return false;
+      }
+      // While a token is being completed, Enter takes the suggestion: posting a half-typed
+      // `:blob` is never what the writer meant.
+      if (hint) {
+        event.preventDefault();
+        accept(hint.options[0]);
+        return true;
       }
       if (event.shiftKey) {
         return false;
@@ -91,8 +152,21 @@ function mount(element, options = {}) {
     dispatchTransaction(transaction) {
       const next = view.state.apply(transaction);
       view.updateState(next);
+      // A finished `:token:` becomes an atom as soon as it is typed, so the writer sees the
+      // picture they will publish rather than the code the instance happens to store.
+      if (transaction.docChanged) {
+        const resolved = resolveTrailingToken(next, view.state.doc);
+        if (resolved) {
+          view.dispatch(resolved);
+        }
+      }
       if (transaction.docChanged || transaction.selectionSet) {
-        onText(toDraft(next.doc));
+        const before = hint;
+        hint = trailing(view.state);
+        if (hint?.code !== before?.code || hint?.options.length !== before?.options.length) {
+          onQuery(hint?.code ?? "", hint?.options ?? []);
+        }
+        onText(toDraft(view.state.doc));
       }
     },
   });
@@ -111,6 +185,28 @@ function mount(element, options = {}) {
       view.dispatch(view.state.tr.insertText(text, from, to).scrollIntoView());
     }
     view.focus();
+  };
+
+  /** The transaction that turns a just-completed `:token:` into its atom, if there is one. */
+  const resolveTrailingToken = (state, previous) => {
+    const { $from, empty } = state.selection;
+    if (!empty || !$from.parent.isTextblock) {
+      return null;
+    }
+    const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+    const found = /:([A-Za-z0-9_+-]+):$/.exec(before);
+    if (!found) {
+      return null;
+    }
+    const token = found[0];
+    const url = index.get(token);
+    if (!url) {
+      return null;
+    }
+    const from = $from.pos - token.length;
+    const node = schema.node("customEmoji", { token, url });
+    void previous;
+    return state.tr.replaceWith(from, $from.pos, node).scrollIntoView();
   };
 
   const destroy = () => {
@@ -137,7 +233,9 @@ function mount(element, options = {}) {
     },
     setEmoji: (list) => {
       index = buildIndex(list);
+      codes = [...index.keys()].map((token) => token.slice(1, -1));
     },
+    accept,
     insert,
     focus: () => view.focus(),
     destroy,

@@ -52,10 +52,10 @@ fn start_from_preferences(
 pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     let start = Initial::of(initial.as_ref());
     let (text, set_text) = signal(start.text);
+    let emoji_query = RwSignal::new(None); // no hint list here; the token rule still applies
     let (visibility, set_visibility) = signal(start.visibility);
     let (spoiler, set_spoiler) = signal(start.spoiler);
-    // Empty means the instance guesses; an edit keeps whatever the status was written in.
-    let (language, set_language) = signal(String::new());
+    let (language, set_language) = signal(String::new()); // empty: let the instance guess
     let (warning_open, set_warning_open) = signal(start.warning_open);
     let (sensitive, set_sensitive) = signal(start.sensitive);
     // Stored rather than captured: the submit handler and the button label both read it,
@@ -117,25 +117,18 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
         });
     });
 
-    // Fixed at mount: this form is a new post or an edit for its whole life.
     let label = if editing.get_value().is_some() {
         "Edit this status"
     } else {
         "Say something"
     };
+    let body = view! { <Body text=text set_text=set_text submit=submit query=emoji_query/> };
 
     view! {
         <nodus_view::Screen>
             <div class="form-control">
                 <span class="label-text text-xs opacity-60">{label}</span>
-                <div class="rounded-box border border-base-300 bg-base-100 p-3">
-                    <crate::ui::editor::RichEditor
-                        text=text
-                        set_text=set_text
-                        emoji=super::inline::emoji::catalogue()
-                        on_submit=submit
-                    />
-                </div>
+                {body}
             </div>
 
             <ComposerOptions
@@ -185,4 +178,25 @@ fn wire_status(
     status.sensitive = sensitive;
     status.language = (!language.is_empty()).then_some(language);
     status
+}
+
+/// The body field, apart from the form's state so `ComposeForm` stays readable.
+#[component]
+fn Body(
+    text: ReadSignal<String>,
+    set_text: WriteSignal<String>,
+    submit: Callback<()>,
+    query: RwSignal<Option<crate::ui::editor::EmojiQuery>>,
+) -> impl IntoView {
+    view! {
+        <div class="rounded-box border border-base-300 bg-base-100 p-3">
+            <crate::ui::editor::RichEditor
+                text=text
+                set_text=set_text
+                emoji=super::inline::emoji::catalogue()
+                on_submit=submit
+                query=query
+            />
+        </div>
+    }
 }

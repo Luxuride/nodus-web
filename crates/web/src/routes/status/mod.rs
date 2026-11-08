@@ -63,7 +63,6 @@ pub fn StatusCard(status: Status) -> impl IntoView {
 
     // One copy for the link targets: a signal read inside `href` would rebuild the
     // anchor on every action, and the browser would lose focus on the link.
-    let author_href = move || Route::Account(shown.get_untracked().account.id.clone()).path();
     let thread_id = move |status: &Status| thread_route(&status.id);
 
     view! {
@@ -72,7 +71,43 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                 <Show when=move || !booster_text.get().is_empty()>
                     <p class="text-xs opacity-60">{move || booster_text.get()}</p>
                 </Show>
-                <header class="flex items-center gap-3">
+                {status_header(shown)}
+
+                // The whole body opens the post: reading it in place is the point of a
+                // timeline, and reaching for the timestamp to do it is a second step nobody
+                // wants. Links inside the body keep their own destination — the delegated
+                // listener already knows a prevented click when it sees one.
+                <div
+                    class="cursor-pointer"
+                    on:click=move |event: web_sys::MouseEvent| {
+                        if event.default_prevented() {
+                            return;
+                        }
+                        router::link(event, thread_id(&shown.get_untracked()));
+                    }
+                >
+                    <StatusBody shown=shown set_shown=set_shown/>
+                </div>
+
+                <CardFooter shown=shown set_shown=set_shown busy=busy set_busy=set_busy set_error=set_error/>
+                <Show when=move || error.get().is_some()>
+                    <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
+                </Show>
+            </div>
+        </li>
+    }
+}
+
+/// The author line, kept in its own function so `StatusCard` stays under the lint's
+/// line budget: the card grew an image grid, a poll and a click-to-open wrapper, and a
+/// hundred lines of markup in one body is where a component stops being readable.
+fn status_header(shown: ReadSignal<Status>) -> impl IntoView {
+    // Computed once: a signal read inside `href` would rebuild the anchor on every
+    // action, and the browser would lose the link's focus.
+    let author_href = move || Route::Account(shown.get_untracked().account.id.clone()).path();
+    let thread_id = move |status: &Status| thread_route(&status.id);
+    view! {
+        <header class="flex items-center gap-3">
                     <a
                         class="avatar"
                         href=author_href
@@ -96,9 +131,9 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                             />
                         </div>
                     </a>
-                    <div class="min-w-0 flex-1">
+                    <div class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1">
                         <a
-                            class="block truncate font-semibold leading-tight hover:underline"
+                            class="max-w-full truncate font-semibold leading-tight hover:underline"
                             href=author_href
                             on:click=move |event| {
                                 router::link(
@@ -113,7 +148,7 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                             }}
                         </a>
                         <a
-                            class="block truncate text-sm opacity-60 hover:underline"
+                            class="max-w-full truncate text-sm opacity-60 hover:underline"
                             href=author_href
                             on:click=move |event| {
                                 router::link(
@@ -134,15 +169,6 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                     >
                         {move || relative_time(&shown.get().created_at)}
                     </a>
-                </header>
-
-                <StatusBody shown=shown set_shown=set_shown/>
-
-                <CardFooter shown=shown set_shown=set_shown busy=busy set_busy=set_busy set_error=set_error/>
-                <Show when=move || error.get().is_some()>
-                    <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-                </Show>
-            </div>
-        </li>
+        </header>
     }
 }

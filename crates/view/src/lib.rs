@@ -70,7 +70,7 @@ pub fn rail() -> Vec<Group> {
             destinations: &[
                 Destination {
                     label: "Home",
-                    href: "/home",
+                    href: "/",
                     hint: "Your timeline, the feed, and the instance's",
                 },
                 Destination {
@@ -198,7 +198,7 @@ pub fn Frame(
         <div class="min-h-screen bg-base-200 text-base-content">
             <Show when=move || signed_in.get()>
                 <header class="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-base-300 bg-base-100 px-3 py-2 xl:hidden">
-                    <a class="font-semibold tracking-tight" href="/home">"Nodus"</a>
+                    <a class="font-semibold tracking-tight" href="/">"Nodus"</a>
                 </header>
             </Show>
             <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row">
@@ -224,7 +224,7 @@ pub struct TimelineLink {
 pub const TIMELINES: [TimelineLink; 4] = [
     TimelineLink {
         label: "Home",
-        href: "/home",
+        href: "/",
     },
     TimelineLink {
         label: "Feed",
@@ -489,7 +489,7 @@ pub fn Screen(
     children: Children,
 ) -> impl IntoView {
     view! {
-        <section class=format!("mx-auto flex w-full flex-col gap-3 {}", width.class())>
+        <section class=format!("mx-auto flex w-full flex-col gap-3 px-2 {}", width.class())>
             {children()}
         </section>
     }

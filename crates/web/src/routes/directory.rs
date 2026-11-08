@@ -1,44 +1,45 @@
 //! People the instance suggests.
+//!
+//! Read out of the SDK's page store, like every other list: opening this screen again
+//! paints what was already fetched, and only a page older than the store's TTL asks the
+//! instance for more. The directory is the one list Mastodon pages by offset, so its
+//! cursor is a count — the store treats it as an opaque string either way.
 
 use leptos::prelude::*;
-
-use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
-use nodus_instance::model::Account;
-
-mod card;
+use nodus_sdk::page::PageKind;
 
 use self::card::PersonCard;
 use crate::state::alive::Alive;
-use crate::state::bridge::actions;
+use crate::state::bridge::{pages, revision};
+use crate::ui::page::PageHeader;
+
+mod card;
 
 /// Local or federated accounts, in the instance's own order of activity.
 #[component]
 pub fn Directory() -> impl IntoView {
-    let (people, set_people) = signal(Vec::<Account>::new());
+    let revision = revision();
     let (local_only, set_local_only) = signal(true);
-    let (offset, set_offset) = signal(0_u32);
+    // Starts true: the first thing this screen does is ask, so "empty" before the answer
+    // would be a guess.
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 
-    let load = move |local: bool, from: u32| {
-        let alive = alive;
+    let kind = move || PageKind::Directory(local_only.get());
+    let held = move || {
+        revision.get();
+        pages::accounts(&kind())
+    };
+    let people = move || held().map(|(list, _)| list).unwrap_or_default();
+    let cursor = move || held().and_then(|(_, cursor)| cursor);
+
+    let load = move |after: Option<String>| {
+        let kind = kind();
         spawn_local(async move {
-            match actions::directory(local, from).await {
-                Ok(page) => alive.if_alive(|| {
-                    set_people.update(|held| {
-                        if from == 0 {
-                            held.clear();
-                        }
-                        for account in page {
-                            if !held.iter().any(|known| known.id == account.id) {
-                                held.push(account);
-                            }
-                        }
-                    });
-                    set_loading.set(false);
-                }),
+            match pages::ensure_after(kind, after).await {
+                Ok(_) => alive.if_alive(|| set_loading.set(false)),
                 Err(message) => alive.if_alive(|| {
                     set_error.set(Some(message));
                     set_loading.set(false);
@@ -47,71 +48,79 @@ pub fn Directory() -> impl IntoView {
         });
     };
 
-    // Reloading from the top is the right answer for a scope change: the list is a
-    // ranking, so appending to a different ranking would mix two orders.
-    Effect::new(move |_| load(local_only.get(), 0));
+    // One effect for both scopes: switching asks the store for the other key, which is
+    // either already held or fetched once.
+    Effect::new(move |_| {
+        let _ = local_only.get();
+        load(None);
+    });
 
-    let choose = move |local: bool| {
-        set_local_only.set(local);
-        set_offset.set(0);
-        set_people.set(Vec::new());
-        set_loading.set(true);
-        set_error.set(None);
-    };
+    let more = move |()| load(cursor());
 
     view! {
-        <section class="flex flex-col gap-3">
-            <PageHeader title="People" description="Accounts this instance suggests. Pick the ones worth following."/>
+        <div class="flex flex-col gap-3">
+            <PageHeader
+                title="People"
+                description="Accounts this instance suggests, most active first."
+            />
 
             <div role="tablist" class="tabs tabs-box w-fit">
                 <button
                     role="tab"
                     class="tab"
                     class:tab-active=move || local_only.get()
-                    on:click=move |_| choose(true)
+                    on:click=move |_| set_local_only.set(true)
                 >
-                    "Local"
+                    "This instance"
                 </button>
                 <button
                     role="tab"
                     class="tab"
                     class:tab-active=move || !local_only.get()
-                    on:click=move |_| choose(false)
+                    on:click=move |_| set_local_only.set(false)
                 >
-                    "Federated"
+                    "Known elsewhere"
                 </button>
             </div>
 
             {move || error.get().map(|message| view! {
-                <div class="alert alert-error py-2 text-sm"><span>{message}</span></div>
+                <div class="alert alert-error py-2 text-sm" role="alert">
+                    <span>{message}</span>
+                </div>
             })}
 
-            <Show when=move || loading.get()>
-                <p class="text-sm opacity-60">"Looking around…"</p>
+            <Show when=move || loading.get() && people().is_empty()>
+                <div class="flex justify-center py-6">
+                    <span class="loading loading-spinner loading-md"></span>
+                </div>
             </Show>
 
-            <ul class="grid gap-3 sm:grid-cols-2">
-                <For each=move || people.get() key=|account| account.id.clone() let:account>
+            <ul class="flex flex-col gap-1">
+                <For each=people key=|account| account.id.clone() let:account>
                     <PersonCard account=account/>
                 </For>
             </ul>
 
-            <Show when=move || !loading.get() && people.get().is_empty()>
-                <p class="text-sm opacity-60">"Nobody to suggest here yet."</p>
+            <Show when=move || !loading.get() && people().is_empty()>
+                <div class="card border border-base-300 bg-base-100">
+                    <div class="card-body items-center p-6 text-center">
+                        <h2 class="card-title text-base">"Nobody to suggest yet"</h2>
+                        <p class="text-sm opacity-70">
+                            "This instance has not published a directory of accounts."
+                        </p>
+                    </div>
+                </div>
             </Show>
 
-            <Show when=move || !people.get().is_empty()>
+            <Show when=move || cursor().is_some()>
                 <button
-                    class="btn btn-sm self-start"
-                    on:click=move |_| {
-                        let next = offset.get_untracked() + 40;
-                        set_offset.set(next);
-                        load(local_only.get_untracked(), next);
-                    }
+                    class="btn btn-ghost btn-sm w-full"
+                    disabled=move || loading.get()
+                    on:click=move |_| more(())
                 >
-                    "More people"
+                    {move || if loading.get() { "Loading…" } else { "Load more" }}
                 </button>
             </Show>
-        </section>
+        </div>
     }
 }

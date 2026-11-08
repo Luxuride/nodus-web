@@ -1,85 +1,80 @@
-//! The home, local and federated timelines, rendered out of SDK state.
+//! One timeline, rendered out of SDK state.
 //!
-//! The page owns no list. It reads what the SDK holds, asks it to fill what is
-//! missing or stale, and continues the same cursor when the reader asks for more —
-//! so returning to this screen paints immediately instead of starting from a
-//! spinner.
+//! Each feed is its own address (`/home`, `/local`, `/federated`) rather than a tab on a
+//! shared page: a tab cannot be linked to, cannot be a rail destination, and cannot be
+//! hidden when the reader does not want it. The page owns no list — it reads what the
+//! SDK holds, asks it to fill what is missing or stale, and continues the same cursor
+//! when the reader asks for more.
 
 mod banner;
-mod tabs;
 
 use leptos::prelude::*;
-
-use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
 
 use self::banner::Banner;
-use self::tabs::TimelineTabs;
+use crate::routes::compose::inline::InlineComposer;
 use crate::routes::status::StatusCard;
 use crate::state::alive::Alive;
 use crate::state::bridge::{revision, timeline};
+use crate::ui::page::PageHeader;
 
-/// Which timeline the tabs ask for.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Tab {
-    Home,
-    Local,
-    Federated,
-}
-
-impl Tab {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Home => "Home",
-            Self::Local => "Local",
-            Self::Federated => "Federated",
-        }
-    }
-
-    /// What the tab holds, for the tooltip: "Local" alone does not say whose local.
-    fn hint(self) -> &'static str {
-        match self {
-            Self::Home => "Accounts you follow",
-            Self::Local => "Posts from accounts on this instance",
-            Self::Federated => "Posts this instance has received from elsewhere",
-        }
-    }
-
-    fn timeline(self) -> Timeline {
-        match self {
-            Self::Home => Timeline::Home,
-            Self::Local => Timeline::Local,
-            Self::Federated => Timeline::Federated,
-        }
+/// The title, description and empty note for one timeline.
+///
+/// The three timelines differ only in what they hold, so the copy lives here rather than
+/// being passed in by each route: "Nothing here yet" with "following a few accounts
+/// fills it" would be wrong on the federated timeline, which fills from remote traffic.
+fn copy(which: &Timeline) -> (&'static str, &'static str, &'static str) {
+    match which {
+        Timeline::Local => (
+            "Local",
+            "Posts from accounts on this instance, whether you follow them or not.",
+            "Nobody on this instance has posted yet.",
+        ),
+        Timeline::Federated => (
+            "Federated",
+            "Posts this instance has received from the accounts it knows about.",
+            "This instance has not received anything from elsewhere yet.",
+        ),
+        _ => (
+            "Home",
+            "Posts from the accounts you follow, newest first.",
+            "Nothing here yet. Following a few accounts fills it.",
+        ),
     }
 }
 
-/// A timeline with its tabs.
+/// A timeline with its composer above it (home only) and a "Load more" foot.
 #[component]
-pub fn Home() -> impl IntoView {
+pub fn Home(which: Timeline) -> impl IntoView {
+    // `Timeline` is a `Clone` enum (an account timeline carries an id), not a `Copy`
+    // one, and every closure below captures it; a `StoredValue` hands each of them a
+    // copy without turning the whole component into a `FnOnce`.
+    let which = StoredValue::new(which);
     let revision = revision();
-    let (tab, set_tab) = signal(Tab::Home);
-    // A request is in flight. Starts true because the first thing that happens is
-    // that request: "empty" before it is a guess, not a fact.
+    // A request is in flight. Starts true because the first thing that happens is that
+    // request: "empty" before it is a guess, not a fact.
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(None::<String>);
+    // Posting from the composer asks this timeline for a fresh first page, and the
+    // effect below must not fight it by loading from the cache in the same breath.
+    let (reload, set_reload) = signal(0_u32);
     let alive = Alive::new();
 
-    let which = move || tab.get().timeline();
+    let (title, description, empty_note) = copy(&which.get_value());
     let held = move || {
         revision.get();
-        timeline::read(which(), None)
+        timeline::read(which.get_value(), None)
     };
 
-    // Runs on mount and on every tab change. `ensure` answers from state when the
-    // page is inside its TTL, so switching tabs costs nothing after the first visit.
     Effect::new(move |_| {
-        let which = which();
+        // Reading `reload` joins this effect to it; the value itself is unused because
+        // the load below is unconditional.
+        let _ = reload.get();
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            match timeline::ensure(which, None, None).await {
+            match timeline::ensure(which.get_value(), None, None).await {
                 Ok(_) => alive.if_alive(|| set_loading.set(false)),
                 Err(message) => alive.if_alive(|| {
                     set_error.set(Some(message));
@@ -90,14 +85,13 @@ pub fn Home() -> impl IntoView {
     });
 
     let load_more = move || {
-        let which = which();
         let Some(cursor) = held().1 else {
             return;
         };
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            match timeline::ensure(which, None, Some(cursor)).await {
+            match timeline::ensure(which.get_value(), None, Some(cursor)).await {
                 Ok(_) => alive.if_alive(|| set_loading.set(false)),
                 Err(message) => alive.if_alive(|| {
                     set_error.set(Some(message));
@@ -107,10 +101,19 @@ pub fn Home() -> impl IntoView {
         });
     };
 
+    let inline = move || which.get_value() == Timeline::Home;
+
     view! {
         <div class="flex flex-col gap-3">
-            <PageHeader title="Home" description="Your home timeline, with the local and federated ones beside it."/>
-            <TimelineTabs tab=tab set_tab=set_tab/>
+            <PageHeader title=title description=description/>
+
+            // The composer sits above the content on the home timeline only: it is
+            // where a reader writes to the people they follow, and it must not follow
+            // them into Local or Federated, where it would suggest they are posting
+            // there.
+            <Show when=inline>
+                <InlineComposer which=which set_reload=set_reload/>
+            </Show>
 
             <Banner/>
 
@@ -120,21 +123,25 @@ pub fn Home() -> impl IntoView {
                 </div>
             })}
 
-            // Unknown is not empty: the note below appears only once a load has
-            // finished and still found nothing.
+            // Unknown is not empty: the note below appears only once a load has finished
+            // and still found nothing.
             <Show when=move || loading.get() && held().0.is_empty()>
                 <div class="flex justify-center py-6">
                     <span class="loading loading-spinner loading-md"></span>
                 </div>
             </Show>
 
-            <For
-                each=move || held().0
-                key=|status| status.id.clone()
-                let:status
-            >
-                <StatusCard status=status/>
-            </For>
+            // A list, not a run of bare `<li>`s: a screen reader announces the posts as
+            // one list, and the cards keep their own `li` roots.
+            <ul class="flex flex-col gap-2">
+                <For
+                    each=move || held().0
+                    key=|status| status.id.clone()
+                    let:status
+                >
+                    <StatusCard status=status/>
+                </For>
+            </ul>
 
             <Show when=move || {
                 !loading.get() && held().0.is_empty() && error.get().is_none()
@@ -142,9 +149,7 @@ pub fn Home() -> impl IntoView {
                 <div class="card border border-base-300 bg-base-100">
                     <div class="card-body items-center p-6 text-center">
                         <h2 class="card-title text-base">"Nothing here yet"</h2>
-                        <p class="text-sm opacity-70">
-                            "This timeline is empty. Following a few accounts fills it."
-                        </p>
+                        <p class="text-sm opacity-70">{empty_note}</p>
                     </div>
                 </div>
             </Show>

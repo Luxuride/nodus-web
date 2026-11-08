@@ -48,6 +48,19 @@ pub async fn ensure_after(kind: PageKind, cursor: Option<String>) -> Result<bool
         .map_err(|error| error.to_string())
 }
 
+/// Reloads a page even when the held one is fresh.
+///
+/// For the editor screens: after a filter is created or a tag is featured, the local
+/// copy is known to be wrong, and "known to be wrong" is the one case where the store's
+/// timestamp must be ignored.
+pub async fn refresh(kind: PageKind) -> Result<bool, String> {
+    let sdk = handle().ok_or_else(|| "the SDK is not installed".to_owned())?;
+    let limit = super::actions::PAGE;
+    sdk.ensure_page(kind, None, limit, 0)
+        .await
+        .map_err(|error| error.to_string())
+}
+
 /// When this page was fetched, in Unix milliseconds.
 ///
 /// `None` means "unknown": the page was never loaded, or the socket reconnected and

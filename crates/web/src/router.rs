@@ -36,8 +36,12 @@ thread_local! {
 pub enum Route {
     /// The recommendation Feed tab.
     Feed,
-    /// The home timeline, and the public ones beside it.
+    /// The home timeline.
     Home,
+    /// Posts from accounts on this instance.
+    Local,
+    /// Posts this instance received from elsewhere.
+    Federated,
     /// One status with its ancestors and replies.
     ///
     /// The host is part of the address because an id is local to the instance that issued
@@ -94,6 +98,8 @@ impl Route {
         match self {
             Self::Feed => "/".to_owned(),
             Self::Home => "/home".to_owned(),
+            Self::Local => "/local".to_owned(),
+            Self::Federated => "/federated".to_owned(),
             Self::Thread { host, id } => {
                 if host.is_empty() {
                     format!("/status/{id}")
@@ -171,6 +177,8 @@ impl Route {
         }
         match trimmed {
             "/home" => Self::Home,
+            "/local" => Self::Local,
+            "/federated" => Self::Federated,
             "/messages" => Self::Messages,
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,

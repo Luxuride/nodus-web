@@ -6,4 +6,5 @@
 
 pub mod alive;
 pub mod bridge;
+pub mod feeds;
 pub mod oauth;

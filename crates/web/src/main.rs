@@ -36,6 +36,7 @@ use crate::ui::icons::Icon;
 use crate::state::bridge::{init, revision, with_sdk};
 
 use leptos::prelude::*;
+use nodus_sdk::Timeline;
 
 fn main() {
     console_error_panic_hook::set_once();
@@ -45,6 +46,7 @@ fn main() {
     // Same reason: the revision signal is written by socket frames and ticks, which
     // outlive every screen, so it must not belong to one.
     crate::state::bridge::install_reactive_root();
+    crate::state::feeds::install();
     // The expander's signal, created with no owner for the same reason.
     crate::media::install();
     // The operating system decides light or dark, and may change its mind while the tab
@@ -81,14 +83,8 @@ fn App() -> impl IntoView {
 
     view! {
         <div class="min-h-screen bg-base-200 text-base-content">
-            <header class="border-b border-base-300 bg-base-100">
-                <div class="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 py-3">
-                    <span class="text-lg font-semibold tracking-tight">"nodus"</span>
-                    <span class="badge badge-ghost badge-sm">
-                        "contract " {nodus_shared::CONTRACT_VERSION}
-                    </span>
-                </div>
-            </header>
+            // No top bar: the rail already carries the name and the navigation, and a
+            // bar above it only cost vertical space on every screen.
             // Two columns above `sm`: the rail is navigation, not decoration, so on a
             // narrow screen it becomes the header's only job (a single visible tab).
             // Desktop: rail, composer, content. Narrower: composer above the rail,
@@ -98,23 +94,12 @@ fn App() -> impl IntoView {
                 <Show when=move || signed_in.get()>
                 <nav class="order-2 w-full xl:order-1 xl:w-44 xl:shrink-0">
                     <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
-                        // Writing is the first thing on the rail, above the reading
-                        // sections: it is a destination, not a panel that can be left
-                        // open over the timeline.
-                        <li class="mb-1">
-                            <a
-                                class="btn btn-primary btn-sm w-full gap-2"
-                                href=Route::Compose.path()
-                                title="Write a status, attach media, or schedule it"
-                            >
-                                <Icon icon=Icon::Pen/>
-                                "Compose"
-                            </a>
-                        </li>
-
                         <li class="menu-title hidden xl:block">"Read"</li>
                         <RailItem label="Feed" icon=Icon::Sparkle hint="Posts picked for you, ranked by the backend" route=Route::Feed/>
-                        <RailItem label="Home" icon=Icon::Home hint="Your home, local and federated timelines" route=Route::Home/>
+                        // One destination per feed, and only the ones this reader kept:
+                        // a tab group could not be linked to, and a hidden feed must not
+                        // leave a door in the rail.
+                        <FeedItems/>
                         <RailItem label="Messages" icon=Icon::Mail hint="Direct conversations" route=Route::Messages/>
                         <RailItem label="Notifications" icon=Icon::Bell hint="Mentions, boosts, favourites and follow requests" route=Route::Notifications/>
 
@@ -145,7 +130,15 @@ fn App() -> impl IntoView {
                         match route.get() {
                             Route::OauthCallback => view! { <Callback/> }.into_any(),
                             Route::Feed if signed_in => view! { <Feed/> }.into_any(),
-                            Route::Home if signed_in => view! { <Home/> }.into_any(),
+                            Route::Home if signed_in => {
+                                view! { <Home which=Timeline::Home/> }.into_any()
+                            }
+                            Route::Local if signed_in => {
+                                view! { <Home which=Timeline::Local/> }.into_any()
+                            }
+                            Route::Federated if signed_in => {
+                                view! { <Home which=Timeline::Federated/> }.into_any()
+                            }
                             Route::Messages if signed_in => {
                                 view! { <Conversations/> }.into_any()
                             }
@@ -184,6 +177,14 @@ fn App() -> impl IntoView {
                             }
                             Route::Home => {
                                 view! { <SignIn note="Sign in to see your timeline."/> }.into_any()
+                            }
+                            Route::Local => {
+                                view! { <SignIn note="Sign in to see this instance's posts."/> }
+                                    .into_any()
+                            }
+                            Route::Federated => {
+                                view! { <SignIn note="Sign in to see what this instance received."/> }
+                                    .into_any()
                             }
                             Route::Messages => {
                                 view! { <SignIn note="Sign in to read your messages."/> }
@@ -248,7 +249,77 @@ fn App() -> impl IntoView {
                 </main>
             </div>
             <crate::media::ImageModal/>
+            <Footer/>
         </div>
+    }
+}
+
+/// The rail's feed entries, filtered by what this reader kept.
+///
+/// Rendered from a component rather than inline so the list follows the preference
+/// signal: hiding "Local" in Settings removes the door immediately, without a reload.
+#[component]
+fn FeedItems() -> impl IntoView {
+    let Some(changed) = crate::state::feeds::revision() else {
+        return view! { <li></li> }.into_any();
+    };
+    let feeds = move || {
+        changed.get();
+        crate::state::feeds::Feed::ALL
+            .into_iter()
+            .filter(|feed| crate::state::feeds::enabled(*feed))
+            .collect::<Vec<_>>()
+    };
+    view! {
+        <For each=feeds key=|feed| feed.key() let:feed>
+            {match feed {
+                crate::state::feeds::Feed::Home => view! {
+                    <RailItem label="Home" icon=Icon::Home hint="Posts from the accounts you follow" route=Route::Home/>
+                }.into_any(),
+                crate::state::feeds::Feed::Local => view! {
+                    <RailItem label="Local" icon=Icon::Users hint="Posts from accounts on this instance" route=Route::Local/>
+                }.into_any(),
+                crate::state::feeds::Feed::Federated => view! {
+                    <RailItem label="Federated" icon=Icon::Globe hint="Posts this instance received from elsewhere" route=Route::Federated/>
+                }.into_any(),
+            }}
+        </For>
+    }
+    .into_any()
+}
+
+/// The foot of every screen: what this is, and the two links a client owes its server.
+#[component]
+fn Footer() -> impl IntoView {
+    let host = with_sdk(|sdk| sdk.state().session.get().map(|session| session.host));
+    view! {
+        <footer class="mt-8 border-t border-base-300 px-4 py-6 text-xs opacity-70">
+            <div class="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-3 gap-y-2">
+                <span class="font-semibold tracking-tight text-base-content">"nodus"</span>
+                <span>"A Mastodon client with a recommendation feed."</span>
+                {move || host.clone().map(|host| view! {
+                    <a
+                        class="link link-hover"
+                        href=format!("https://{host}/about")
+                        target="_blank"
+                        rel="noreferrer noopener"
+                    >
+                        "About this instance"
+                    </a>
+                })}
+                <a
+                    class="link link-hover"
+                    href="https://github.com/nodus-social"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                >
+                    "Source"
+                </a>
+                <span class="ml-auto opacity-60">
+                    "No ads, no tracking, no algorithm you cannot see."
+                </span>
+            </div>
+        </footer>
     }
 }
 

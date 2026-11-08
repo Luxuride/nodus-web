@@ -12,7 +12,7 @@ async function railLabels(page) {
     .then((labels) => labels.map((label) => label.trim().split('\n')[0]).filter(Boolean))
 }
 
-test('the rail groups reading, finding and library, with Compose before Settings', async ({ page }) => {
+test('the rail groups reading, finding and library, with the feeds under Feed', async ({ page }) => {
   await stubApi(page)
   await signedIn(page)
   await page.goto('/')
@@ -22,8 +22,7 @@ test('the rail groups reading, finding and library, with Compose before Settings
 
   const labels = await railLabels(page)
   const order = [
-    'Compose',
-    'Feed', 'Home', 'Messages', 'Notifications',
+    'Feed', 'Home', 'Local', 'Federated', 'Messages', 'Notifications',
     'Search', 'People',
     'Saved', 'Scheduled', 'Lists',
     'Settings',
@@ -53,25 +52,41 @@ test('a rail click is a client-side navigation, not a page load', async ({ page 
   await expect(page.locator('nav a.menu-active')).toHaveText('Feed')
 })
 
-test('Compose is a link at the top of the rail, not a panel', async ({ page }) => {
+test('the composer sits above the home timeline, open', async ({ page }) => {
   await stubApi(page)
   await signedIn(page)
-  await page.goto('/')
+  await page.goto('/home')
 
-  const compose = page.locator('nav a[href="/compose"]')
-  await expect(compose).toBeVisible()
+  // Above the timeline, inside `main`, and already a form: no button to reveal it.
+  const composer = page.locator('main textarea[aria-label="Write a post"]')
+  await expect(composer).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
 
-  // First item in the rail: writing is a destination, not a corner of the timeline that
-  // can be left open over it.
-  const first = page.locator('nav li').first()
-  await expect(first).toContainText('Compose')
+  // The status cards are `li.card`; the first one is the timeline's head.
+  const timelineTop = await page.locator('main ul > li.card').first().boundingBox()
+  const composerBox = await composer.boundingBox()
+  expect(composerBox.y).toBeLessThan(timelineTop.y)
+})
 
-  await page.evaluate(() => {
-    window.__marker = 'kept'
-  })
-  await compose.click()
-  await expect(page).toHaveURL(/\/compose$/)
-  expect(await page.evaluate(() => window.__marker)).toBe('kept')
+test('a feed can be hidden from the rail in settings', async ({ page }) => {
+  await stubApi(page)
+  await signedIn(page)
+  await page.goto('/home')
+  await expect(page.getByRole('link', { name: 'Local' })).toBeVisible()
+
+  await page.goto('/settings')
+  await page.getByRole('tab', { name: 'Feeds' }).click()
+  await page.getByRole('checkbox', { name: /Local/ }).uncheck()
+
+  // The door is gone, and it is gone without a reload: the rail is rendered from the
+  // preference signal.
+  await expect(page.getByRole('link', { name: 'Local' })).toHaveCount(0)
+  // Home is untouched.
+  await expect(page.getByRole('link', { name: 'Home' })).toBeVisible()
+
+  // Turning it back on restores it, so the test leaves the profile as it found it.
+  await page.getByRole('checkbox', { name: /Local/ }).check()
+  await expect(page.getByRole('link', { name: 'Local' })).toBeVisible()
 })
 
 test('the account menu lists the signed-in identity', async ({ page }) => {

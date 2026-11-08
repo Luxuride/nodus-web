@@ -65,7 +65,6 @@ pub async fn relationship(id: &str) -> Result<Option<Relationship>, String> {
     Ok(found.into_iter().next())
 }
 
-
 /// Favourites or un-favourites a status.
 pub async fn favourite(id: &str, on: bool) -> Result<Status, String> {
     let transport = transport()?;
@@ -194,10 +193,6 @@ pub async fn reject_follow_request(id: &str) -> Result<(), String> {
     call(transport()?.reject_follow_request(&LocalId(id.to_owned()))).await
 }
 
-
-
-
-
 /// Votes on a poll and returns the status it belongs to.
 pub async fn vote(poll_id: &str, choices: &[usize]) -> Result<Status, String> {
     call(transport()?.vote(poll_id, choices)).await
@@ -249,8 +244,6 @@ pub async fn mute(id: &str, on: bool) -> Result<Relationship, String> {
 pub async fn search(query: &str, resolve: bool) -> Result<SearchResults, String> {
     call(transport()?.search(query, resolve)).await
 }
-
-
 
 /// The account's lists.
 pub async fn lists() -> Result<Vec<List>, String> {
@@ -312,11 +305,6 @@ pub async fn update_profile(display_name: String, note: String) -> Result<Accoun
     Ok(account)
 }
 
-/// Every filter this account keeps.
-pub async fn filters() -> Result<Vec<Filter>, String> {
-    call(transport()?.filters()).await
-}
-
 /// Creates a filter from a draft.
 pub async fn create_filter(draft: &FilterDraft) -> Result<Filter, String> {
     call(transport()?.create_filter(draft)).await
@@ -336,11 +324,6 @@ pub async fn delete_filter(id: &str) -> Result<(), String> {
     call(transport()?.delete_filter(id)).await
 }
 
-/// The tags an account has featured on its profile.
-pub async fn featured_tags(id: &str) -> Result<Vec<nodus_instance::model::FeaturedTag>, String> {
-    call(transport()?.featured_tags(&nodus_instance::LocalId(id.to_owned()))).await
-}
-
 /// Features a tag on the signed-in account's profile.
 pub async fn feature_tag(name: &str) -> Result<(), String> {
     call(transport()?.feature_tag(name)).await.map(|_tag| ())
@@ -351,7 +334,6 @@ pub async fn unfeature_tag(id: &str) -> Result<(), String> {
     call(transport()?.unfeature_tag(id)).await
 }
 
-
 /// Marks a conversation as read.
 pub async fn mark_conversation_read(id: &str) -> Result<(), String> {
     call(transport()?.mark_conversation_read(id)).await
@@ -361,7 +343,6 @@ pub async fn mark_conversation_read(id: &str) -> Result<(), String> {
 pub async fn mute_conversation(id: &str, muted: bool) -> Result<Conversation, String> {
     call(transport()?.mute_conversation(id, muted)).await
 }
-
 
 /// Queues a draft for `at`, in RFC 3339.
 pub async fn schedule(text: &str, visibility: nodus_instance::model::Visibility, at: &str) -> Result<(), String> {
@@ -380,11 +361,6 @@ pub async fn schedule(text: &str, visibility: nodus_instance::model::Visibility,
 /// Cancels a queued post.
 pub async fn cancel_scheduled(id: &str) -> Result<(), String> {
     call(transport()?.cancel_scheduled(id)).await
-}
-
-/// Accounts the instance suggests, for finding people to follow.
-pub async fn directory(local_only: bool, offset: u32) -> Result<Vec<Account>, String> {
-    call(transport()?.directory(local_only, offset)).await
 }
 
 /// What the instance says about itself: name, version, contact, rules.

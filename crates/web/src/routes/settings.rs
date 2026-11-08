@@ -13,6 +13,7 @@ use crate::state::bridge::{revision, sign_out, with_sdk};
 
 mod accounts;
 mod admin;
+mod feeds;
 mod tabs;
 pub(crate) mod profile;
 pub(crate) mod filters;
@@ -27,6 +28,7 @@ use filters::FiltersCard;
 use instance::InstanceCard;
 use sensitive::SensitiveCard;
 use admin::AdministrationCard;
+use feeds::FeedsCard;
 use tabs::{SettingsTabs, Tab};
 use tags::FeaturedTagsCard;
 
@@ -120,6 +122,10 @@ pub fn Settings() -> impl IntoView {
 
             <Show when=move || tab.get() == Tab::Privacy>
                 <SyncCard/>
+            </Show>
+
+            <Show when=move || tab.get() == Tab::Feeds>
+                <FeedsCard/>
             </Show>
 
             <Show when=move || tab.get() == Tab::Filters>

@@ -4,35 +4,50 @@ mod add;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::FeaturedTag;
+use nodus_sdk::page::{PageItems, PageKind};
 
 use crate::state::alive::Alive;
-use crate::state::bridge::actions;
+use crate::state::bridge::{actions, pages, revision};
 
 use self::add::AddTag;
 
 /// Lists, adds and removes the tags on the account's profile.
 #[component]
 pub fn FeaturedTagsCard() -> impl IntoView {
-    let (tags, set_tags) = signal(Vec::<FeaturedTag>::new());
+    let revision = revision();
+    // The list is the SDK's, not this component's: opening Settings again paints what the
+    // store already holds, and only a page past its TTL asks the instance.
+    let tags = move || {
+        revision.get();
+        pages::items(&PageKind::FeaturedTags, |items| match items {
+            PageItems::FeaturedTags(list) => Some(list),
+            _ => None,
+        })
+        .map(|(list, _)| list)
+        .unwrap_or_default()
+    };
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 
-    let reload = move || {
+    // Two verbs: the mount may trust the store, a change may not.
+    let read = move || {
         let alive = alive;
-        let Some(id) = actions::viewer_id() else {
-            return;
-        };
         spawn_local(async move {
-            match actions::featured_tags(&id).await {
-                Ok(list) => alive.if_alive(|| set_tags.set(list)),
-                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            if let Err(message) = pages::ensure(PageKind::FeaturedTags).await {
+                alive.if_alive(|| set_error.set(Some(message)));
+            }
+        });
+    };
+    let reload = move || {
+        spawn_local(async move {
+            if let Err(message) = pages::refresh(PageKind::FeaturedTags).await {
+                alive.if_alive(|| set_error.set(Some(message)));
             }
         });
     };
 
-    Effect::new(move |_| reload());
+    Effect::new(move |_| read());
 
     let remove = move |id: String| {
         set_busy.set(true);
@@ -58,12 +73,12 @@ pub fn FeaturedTagsCard() -> impl IntoView {
                     "Tags on your profile, so a visitor sees what you post about."
                 </p>
 
-                <Show when=move || tags.get().is_empty() fallback=|| ()>
+                <Show when=move || tags().is_empty() fallback=|| ()>
                     <p class="text-sm opacity-60">"No featured tags yet."</p>
                 </Show>
 
                 <ul class="flex flex-wrap gap-2">
-                    <For each=move || tags.get() key=|tag| tag.id.clone() let:tag>
+                    <For each=tags key=|tag| tag.id.clone() let:tag>
                         {
                             let id = tag.id.clone();
                             view! {

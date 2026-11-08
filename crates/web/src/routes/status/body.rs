@@ -126,6 +126,10 @@ fn MediaTile(
 ) -> impl IntoView {
     let is_image = media.kind == MediaKind::Image;
     let kind = media.kind;
+    // Video and audio are played in place: a link that opens a tab is a worse answer than
+    // a player, and the instance already served a poster frame for the video case.
+    let plays = matches!(kind, MediaKind::Video | MediaKind::Gifv);
+    let listens = kind == MediaKind::Audio;
     let id = StoredValue::new(media.id.clone());
     let (url, _) = signal(media.url.clone().unwrap_or_default());
     let (preview, _) = signal(media.preview_url.clone().unwrap_or_default());
@@ -196,7 +200,39 @@ fn MediaTile(
                     referrerpolicy="no-referrer"
                 />
             </Show>
-            <Show when=move || !is_image && interactive>
+            <Show when=move || plays && interactive>
+                <video
+                    class="max-h-[32rem] w-full rounded-box bg-base-300"
+                    style=veil
+                    controls
+                    playsinline
+                    preload="metadata"
+                    poster=move || preview.get()
+                    src=move || url.get()
+                    aria-label=move || description.get()
+                    crossorigin="anonymous"
+                ></video>
+                <p class="mt-1 flex flex-wrap gap-x-3 text-xs opacity-60">
+                    <span>{description.get()}</span>
+                    <a
+                        class="link link-hover"
+                        href=move || url.get()
+                        target="_blank"
+                        rel="nofollow noopener noreferrer"
+                    >
+                        "Open original"
+                    </a>
+                </p>
+            </Show>
+            <Show when=move || listens && interactive>
+                <audio
+                    class="w-full"
+                    controls
+                    preload="metadata"
+                    src=move || url.get()
+                ></audio>
+            </Show>
+            <Show when=move || !is_image && !plays && !listens && interactive>
                 <a
                     class="btn btn-ghost btn-sm w-full"
                     href=move || url.get()

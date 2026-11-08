@@ -59,6 +59,25 @@ pub async fn ensure(
     tag: Option<String>,
     cursor: Option<String>,
 ) -> Result<bool, String> {
+    ensure_with(which, tag, cursor, TTL_MS).await
+}
+
+/// Loads the newest page even when the held one is still fresh.
+///
+/// Used after the reader posts: their own status is older than nothing, but the
+/// held page was fetched before it existed, so trusting its timestamp would show a
+/// timeline missing the post the reader just wrote.
+pub async fn refresh(which: Timeline, tag: Option<String>) -> Result<bool, String> {
+    ensure_with(which, tag, None, 0).await
+}
+
+/// The one implementation: `ttl_ms` of zero means "ask".
+async fn ensure_with(
+    which: Timeline,
+    tag: Option<String>,
+    cursor: Option<String>,
+    ttl_ms: i64,
+) -> Result<bool, String> {
     let sdk = handle().ok_or_else(|| "the SDK is not installed".to_owned())?;
     let limit = super::actions::PAGE;
     let cursor = cursor.as_deref();
@@ -66,23 +85,23 @@ pub async fn ensure(
     // cannot outlive this call to be awaited in a shared tail.
     let loaded = match (which, tag) {
         (Timeline::Tag, Some(tag)) => {
-            sdk.ensure_timeline(TimelineRequest::Tag(&tag), cursor, limit, TTL_MS)
+            sdk.ensure_timeline(TimelineRequest::Tag(&tag), cursor, limit, ttl_ms)
                 .await
         }
         (Timeline::Account(id), _) => {
-            sdk.ensure_timeline(TimelineRequest::Account(&id), cursor, limit, TTL_MS)
+            sdk.ensure_timeline(TimelineRequest::Account(&id), cursor, limit, ttl_ms)
                 .await
         }
         (Timeline::Local, _) => {
-            sdk.ensure_timeline(TimelineRequest::Local, cursor, limit, TTL_MS)
+            sdk.ensure_timeline(TimelineRequest::Local, cursor, limit, ttl_ms)
                 .await
         }
         (Timeline::Federated, _) => {
-            sdk.ensure_timeline(TimelineRequest::Federated, cursor, limit, TTL_MS)
+            sdk.ensure_timeline(TimelineRequest::Federated, cursor, limit, ttl_ms)
                 .await
         }
         _ => {
-            sdk.ensure_timeline(TimelineRequest::Home, cursor, limit, TTL_MS)
+            sdk.ensure_timeline(TimelineRequest::Home, cursor, limit, ttl_ms)
                 .await
         }
     }

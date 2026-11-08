@@ -9,6 +9,7 @@ pub enum Tab {
     Account,
     Profile,
     Privacy,
+    Feeds,
     Filters,
     Tags,
     Instance,
@@ -17,10 +18,11 @@ pub enum Tab {
 
 impl Tab {
     /// Every section, in the order a reader is likely to want them.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Account,
         Self::Profile,
         Self::Privacy,
+        Self::Feeds,
         Self::Filters,
         Self::Tags,
         Self::Instance,
@@ -32,6 +34,7 @@ impl Tab {
             Self::Account => "Account",
             Self::Profile => "Profile",
             Self::Privacy => "Privacy",
+            Self::Feeds => "Feeds",
             Self::Filters => "Filters",
             Self::Tags => "Tags",
             Self::Instance => "Instance",
@@ -45,6 +48,7 @@ impl Tab {
             Self::Account => "This session, connected accounts, muting and blocking",
             Self::Profile => "Display name, bio, and how sensitive media is shown",
             Self::Privacy => "Background sync consent and the token it uses",
+            Self::Feeds => "Which timelines the navigation offers",
             Self::Filters => "Words and phrases to hide or warn about",
             Self::Tags => "Hashtags pinned to your profile",
             Self::Instance => "The rules this instance publishes",

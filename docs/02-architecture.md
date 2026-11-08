@@ -252,3 +252,14 @@ so the dev origin contains no CORS surprises.
     by the admin calls, forgotten on sign-out and on request. A token that cannot
     moderate is never a `false` the UI can hide behind: "no grant" and "the instance said
     no" are different answers.
+
+11. **The SDK is the store; a screen is a reader.** The SDK lives beside the app for the
+    whole session: it holds the data (`AppState`), the freshness of that data
+    (`fetched_at` per page, entities keyed by id), and the housekeeping (the driver
+    decides when to backfill, the socket decides what to correct). A screen asks for what
+    it needs and subscribes to changes; it does not own a copy of a list, and it does not
+    fetch on mount unless the store has nothing. Concretely: read through
+    `state::bridge::{timeline, pages}` (which call `Sdk::read_timeline` / `Sdk::page`),
+    ask for a load with `ensure*` (TTL-aware, cheap when fresh), use `refresh` only after
+    this client changed something the store still believes, and render from `revision()`
+    so socket frames and ticks repaint without a reload.

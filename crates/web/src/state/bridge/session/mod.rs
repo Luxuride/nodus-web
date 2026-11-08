@@ -100,6 +100,9 @@ pub async fn sign_in(host: &str, token: &str) -> Result<(), String> {
     // After `sign_in`, because the account handle it returns is what a restored
     // session needs to display before its first request.
     save_session(host, token, &session);
+    // Tell the SSR host, so its documents can be painted for this account. Failure is
+    // not an error the reader needs: the client works without a server session.
+    announce_to_server(host, token);
 
     ui.refreshing.set(true);
     load_first_page(&sdk, ui).await;
@@ -118,6 +121,7 @@ pub fn sign_out() {
         super::forget(&key);
     }
     clear_session();
+    forget_on_server();
     wasm_bindgen_futures::spawn_local(async move {
         // `sign_out` dispatches `SignedOut` before awaiting the cache clear, so the
         // UI flips on the next microtask; a cache failure has nothing left to show.
@@ -294,4 +298,51 @@ fn restore(stored: StoredSession) {
 /// user narrow this, and PKCE will request exactly what the app uses.
 fn scopes() -> Vec<String> {
     vec!["read".to_owned(), "write".to_owned(), "follow".to_owned()]
+}
+
+/// Hands the session to the SSR host, which keeps it behind an opaque cookie.
+///
+/// The request is same-origin (`/api/session`), so the cookie it sets is `HttpOnly` and
+/// invisible to this code — the point. If the deployment has no SSR host, the request
+/// 404s and nothing changes.
+fn announce_to_server(host: &str, token: &str) {
+    let body = serde_json::json!({ "host": host, "token": token }).to_string();
+    wasm_bindgen_futures::spawn_local(async move {
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        let init = web_sys::RequestInit::new();
+        init.set_method("POST");
+        init.set_credentials(web_sys::RequestCredentials::SameOrigin);
+        init.set_body(&wasm_bindgen::JsValue::from_str(&body));
+        let Ok(request) = web_sys::Request::new_with_str_and_init("/api/session", &init) else {
+            return;
+        };
+        let _ = request.headers().set("content-type", "application/json");
+        if let Ok(response) =
+            wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await
+        {
+            let _ = response;
+        }
+    });
+}
+
+/// Tells the SSR host to forget this browser's session.
+fn forget_on_server() {
+    wasm_bindgen_futures::spawn_local(async move {
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        let init = web_sys::RequestInit::new();
+        init.set_method("DELETE");
+        init.set_credentials(web_sys::RequestCredentials::SameOrigin);
+        let Ok(request) = web_sys::Request::new_with_str_and_init("/api/session", &init) else {
+            return;
+        };
+        if let Ok(response) =
+            wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await
+        {
+            let _ = response;
+        }
+    });
 }

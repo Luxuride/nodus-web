@@ -47,6 +47,7 @@ pub mod notices;
 pub mod pages;
 mod posts;
 mod runtime;
+pub mod seed;
 pub mod session;
 pub mod timeline;
 
@@ -153,6 +154,11 @@ pub fn init() {
     if let Some(base) = api_base() {
         let _ = install(&Instance { base }, "");
     }
+
+    // The server-painted page, if this document has one, goes into the store before any
+    // component renders: the first client frame then shows the same statuses the HTML
+    // already shows instead of a spinner.
+    seed::install();
 
     // Reading, validating and re-installing the stored record is the session
     // module's job; `init` only asks for it once the unauthenticated SDK exists.

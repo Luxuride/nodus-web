@@ -20,6 +20,7 @@ use nodus_instance::model::{MediaKind, Status};
 #[derive(Debug, Clone)]
 pub struct Assets {
     pub script: String,
+    pub wasm: String,
     pub stylesheet: Option<String>,
 }
 
@@ -29,6 +30,7 @@ impl Assets {
     #[must_use]
     pub fn discover(dist: &std::path::Path) -> Self {
         let mut script = None;
+        let mut wasm = None;
         let mut stylesheet = None;
         if let Ok(entries) = std::fs::read_dir(dist) {
             for entry in entries.flatten() {
@@ -40,8 +42,13 @@ impl Assets {
                 let is_css = path
                     .extension()
                     .is_some_and(|extension| extension.eq_ignore_ascii_case("css"));
+                let is_wasm = path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("wasm"));
                 if name.starts_with("nodus-web") && is_js {
                     script = Some(format!("/{name}"));
+                } else if name.starts_with("nodus-web") && is_wasm {
+                    wasm = Some(format!("/{name}"));
                 } else if name.starts_with("tailwind") && is_css {
                     stylesheet = Some(format!("/{name}"));
                 }
@@ -49,6 +56,7 @@ impl Assets {
         }
         Self {
             script: script.unwrap_or_else(|| "/nodus-web.js".to_owned()),
+            wasm: wasm.unwrap_or_else(|| "/nodus-web_bg.wasm".to_owned()),
             stylesheet,
         }
     }
@@ -287,7 +295,11 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> Strin
              <title>{title}</title>\
              <script>(function(){{var d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=d?'dark':'light';}})()</script>\
              {stylesheet}\
-             <script type=\"module\" src=\"{script}\"></script>\
+             <script type=\"module\">\
+               import init, * as bindings from '{script}';\
+               await init({{ module_or_path: '{wasm}' }});\
+               window.wasmBindings = bindings;\
+             </script>\
            </head>\
            <body class=\"min-h-screen bg-base-200\">\
              <main id=\"app\" class=\"px-2 py-4\">{body}</main>\
@@ -296,5 +308,6 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> Strin
          </html>",
         title = escape(title),
         script = escape(&assets.script),
+        wasm = escape(&assets.wasm),
     )
 }

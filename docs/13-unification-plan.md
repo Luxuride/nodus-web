@@ -77,3 +77,24 @@ markup the component already owns. It never falls back to a different hand-built
 
 Push notifications are explicitly **last in scope**; nothing in this refactor should assume
 they exist.
+
+## State (2026-11-09)
+
+Shared and wired: `Frame`, `Rail`, icon set, `Screen`, `PageHeader`, `ComposerCard`,
+`TimelineTabs`, `NotificationCard`, media rules, `MediaGrid`, `StatusHeader`, `StatusFooter`.
+
+Shared but **not yet wired** (declared in `nodus-view`, no call sites): `lists::AccountRow`,
+`lists::ConversationRow`, `lists::ListRow`, `lists::ScheduledRow`, `chrome::MoreButton`,
+`chrome::Skeleton`, `chrome::TimelineHeader`.
+
+Written but not compiled (module declarations deliberately removed): `status_body.rs`,
+`status_card.rs` — `StatusBody` moves `Status` into several `view!` closures, so each captured
+field needs a signal or `StoredValue` before the `FnOnce` closures compile.
+
+Rule settled by three reviews: **the row owns its boxes, the screen owns its verbs.** A verb
+that is the screen's (list undo, list rename/delete, the post menu, share) arrives as a
+`ChildrenFn` slot or is simply not the row's prop; a verb the row can justify (open, select,
+cancel) arrives as an `Option<Callback<..>>` and renders disabled-but-identical when absent.
+
+Still strings in `crates/server/src/render.rs`: `profile_page`, `thread_page`,
+`timeline_header`/`page_header` adapters, `tabs_for`, `skeleton`, `more_button`.

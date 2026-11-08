@@ -55,15 +55,40 @@ function mount(element, options = {}) {
   }
 
   let index = buildIndex(emoji);
+  // Standard emoji, loaded once per document: the instance catalogue is often empty (a new
+  // server publishes `[]`), and a composer that suggests nothing looks broken.
+  let standard = new Map();
+  const loadStandard = async () => {
+    try {
+      const response = await fetch("/vendor/emoji-data.json");
+      const data = await response.json();
+      for (const entry of data) {
+        const char = entry.unicode;
+        const code = entry.shortcodes?.[0] ?? entry.label?.toLowerCase().replace(/[^a-z0-9_]+/g, "_");
+        if (char && code && !standard.has(code)) {
+          standard.set(code, char);
+        }
+      }
+    } catch (error) {
+      console.warn("nodus: the standard emoji list did not load", error);
+    }
+  };
+  void loadStandard();
   let codes = [...index.keys()].map((token) => token.slice(1, -1));
   // The token being completed right now, if any: `{ code, from, to }` in document positions.
   let hint = null;
 
-  const matches = (code) =>
-    codes
-      .filter((candidate) => candidate.startsWith(code))
-      .concat(codes.filter((candidate) => !candidate.startsWith(code) && candidate.includes(code)))
-      .slice(0, 8);
+  const matches = (code) => {
+    // The instance's own emoji first — they are what a reader on this server expects — and
+    // the standard set after it, so `:smile` still completes on an instance with none.
+    const custom = codes.filter((candidate) => candidate.startsWith(code));
+    const rest = codes.filter((c) => !c.startsWith(code) && c.includes(code));
+    const plain = [...standard.keys()].filter((candidate) => candidate.startsWith(code));
+    const found = [...custom, ...rest, ...plain].filter(
+      (candidate, at, all) => all.indexOf(candidate) === at,
+    );
+    return found.slice(0, 8);
+  };
 
   /** The `:token` immediately before the caret, with the range it occupies. */
   const trailing = (state) => {
@@ -88,6 +113,13 @@ function mount(element, options = {}) {
   const accept = (code) => {
     const token = `:${code}:`;
     const url = index.get(token);
+    if (!url && standard.has(code)) {
+      // A standard emoji is inserted as its character: an image atom for it would be wrong
+      // on other software, and unreadable in plain text.
+      view.dispatch(view.state.tr.insertText(standard.get(code)).scrollIntoView());
+      view.focus();
+      return true;
+    }
     const range = hint ?? trailing(view.state);
     if (!url || !range) {
       return false;

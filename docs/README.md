@@ -30,6 +30,7 @@ Nodus/          ← superproject (submodules, .devcontainer)
 | [03-data-layer.md](03-data-layer.md) | Contract client, transports, token/PKCE, IndexedDB cache, optimistic updates |
 | [04-ui.md](04-ui.md) | Rendering rules, sanitization, virtualization, theming, a11y, i18n |
 | [05-quality.md](05-quality.md) | Performance budget, testing, CI, release, risks |
+| [06-ssr.md](06-ssr.md) | The server-rendered first page: the opaque cookie, the island the client adopts, deployment |
 
 ## The two claims this repository must satisfy
 

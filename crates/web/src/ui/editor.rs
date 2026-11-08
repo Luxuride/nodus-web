@@ -20,6 +20,10 @@ use wasm_bindgen::closure::Closure;
 struct Handle(js_sys::Object);
 
 thread_local! {
+    /// The mounted editor, so a button outside the editor (the emoji picker) can insert
+    /// into it. One composer is on screen at a time by design; the last mount wins.
+    static ACTIVE: std::cell::RefCell<Option<Handle>> = const { std::cell::RefCell::new(None) };
+
     /// Scripts already injected, so two composers share one download.
     static SCRIPTS: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
 }
@@ -165,6 +169,7 @@ pub fn RichEditor(
                 web_sys::console::error_1(&"nodus: mounting the editor failed".into());
                 return;
             };
+            ACTIVE.with(|active| *active.borrow_mut() = Some(Handle(mounted_handle.clone())));
             handle.set_value(Some(Handle(mounted_handle)));
             // The closures must outlive the call: ProseMirror keeps them for the document's
             // lifetime, so they are leaked deliberately and released with the editor.
@@ -226,4 +231,84 @@ fn catalogue_js(catalogue: &[CustomEmoji]) -> wasm_bindgen::JsValue {
         array.push(&entry);
     }
     array.into()
+}
+
+/// Inserts text into the composer that is currently on screen.
+///
+/// Returns `false` when no editor is mounted, so a caller can fall back to appending to the
+/// draft instead of silently dropping what the reader picked.
+pub fn insert_active(text: &str) -> bool {
+    ACTIVE.with(|active| {
+        let borrowed = active.borrow();
+        let Some(handle) = borrowed.as_ref() else {
+            return false;
+        };
+        call_method(&handle.0, "insert", &[text.into()]).is_some()
+    })
+}
+
+/// The emoji picker `emoji-picker-element` provides, mounted on demand.
+///
+/// Kept separate from the composer so opening it costs one fetch, not a bundle: the picker's
+/// database is an order of magnitude larger than the editor itself.
+#[component]
+pub fn EmojiPanel(
+    /// Whether the panel is showing.
+    open: ReadSignal<bool>,
+    /// Called when the picker hands back an emoji.
+    set_open: WriteSignal<bool>,
+) -> impl IntoView {
+    let host = NodeRef::<leptos::html::Div>::new();
+    let mounted = StoredValue::new(false);
+
+    Effect::new(move |_| {
+        if !open.get() || mounted.get_value() {
+            return;
+        }
+        let Some(node) = host.get() else {
+            return;
+        };
+        mounted.set_value(true);
+        let target: web_sys::Element = node.unchecked_into();
+        let catalogue = crate::routes::compose::inline::emoji::catalogue().get_untracked();
+
+        let on_pick = Closure::<dyn FnMut(String)>::new(move |text: String| {
+            // A unicode emoji is text; a `:shortcode:` becomes an atom inside the editor.
+            insert_active(&text);
+        });
+
+        let promise = load_script("/vendor/picker.js", "nodusPicker");
+        leptos::task::spawn_local(async move {
+            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+            let Some(picker) = global("nodusPicker") else {
+                web_sys::console::error_1(&"nodus: the picker bundle did not load".into());
+                return;
+            };
+            let callback: &js_sys::Function = on_pick.as_ref().unchecked_ref();
+            let _ = call_method(
+                &picker,
+                "create",
+                &[target.into(), catalogue_js(&catalogue), callback.into()],
+            );
+            on_pick.forget();
+        });
+
+        // Closing throws the element away: it is cheap to rebuild and its database is
+        // cached by the browser, while a hidden picker keeps a large DOM alive.
+        on_cleanup(move || mounted.set_value(false));
+    });
+
+    view! {
+        <Show when=move || open.get()>
+            <div class="rounded-box border border-base-300 bg-base-100 p-2 shadow-sm">
+                <div node_ref=host></div>
+                <button
+                    class="btn btn-ghost btn-xs mt-1 w-full"
+                    on:click=move |_| set_open.set(false)
+                >
+                    "Close"
+                </button>
+            </div>
+        </Show>
+    }
 }

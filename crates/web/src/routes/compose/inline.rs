@@ -21,7 +21,7 @@ mod poll;
 mod schedule;
 
 use bar::Notice;
-use emoji::{Picker, Suggestions};
+use emoji::Suggestions;
 use poll::PollEditor;
 use schedule::SchedulePanel;
 
@@ -104,12 +104,7 @@ pub fn InlineComposer(
                     on_submit=Callback::new(move |()| submit.submit())
                 />
 
-                <Picker
-                    open=picking
-                    set_open=set_picking
-                    catalogue=emoji_catalogue
-                    insert=emoji_insert
-                />
+                <crate::ui::editor::EmojiPanel open=picking set_open=set_picking/>
                 <ComposerBar
                     text=draft.text.read_only()
                     at=draft.custom.read_only()

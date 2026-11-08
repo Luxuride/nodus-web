@@ -58,7 +58,7 @@ pub fn Directory() -> impl IntoView {
     let more = move |()| load(cursor());
 
     view! {
-        <div class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <PageHeader
                 title="People"
                 description="Accounts this instance suggests, most active first."
@@ -121,6 +121,6 @@ pub fn Directory() -> impl IntoView {
                     {move || if loading.get() { "Loading…" } else { "Load more" }}
                 </button>
             </Show>
-        </div>
+        </nodus_view::Screen>
     }
 }

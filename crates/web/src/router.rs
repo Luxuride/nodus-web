@@ -101,8 +101,8 @@ impl Route {
     /// The route below the mount point.
     fn suffix(&self) -> String {
         match self {
-            Self::Feed => "/".to_owned(),
-            Self::Home => "/home".to_owned(),
+            Self::Feed => "/feed".to_owned(),
+            Self::Home => "/".to_owned(),
             Self::Local => "/local".to_owned(),
             Self::Federated => "/federated".to_owned(),
             Self::Thread { host, id } => {
@@ -204,7 +204,7 @@ impl Route {
             }
         }
         match trimmed {
-            "/home" => Self::Home,
+            "/feed" => Self::Feed,
             "/local" => Self::Local,
             "/federated" => Self::Federated,
             "/messages" => Self::Messages,
@@ -220,7 +220,7 @@ impl Route {
             "/admin" => Self::Admin(ADMIN_DEFAULT.to_owned()),
             "/moderation" => Self::Moderation(MODERATION_DEFAULT.to_owned()),
             "/settings" => Self::Settings(SECTION_DEFAULT.to_owned()),
-            _ => Self::Feed,
+            _ => Self::Home,
         }
     }
 }

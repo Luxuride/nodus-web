@@ -43,7 +43,7 @@ pub fn Feed() -> impl IntoView {
             <TimelineHeader/>
 
             <div class="mb-5 flex items-baseline justify-between gap-4">
-                <h1 class="text-xl font-semibold tracking-tight">"Feed"</h1>
+                <nodus_view::PageHeader title="Feed" description="People this instance suggests, and what they are posting."/>
                 {move || {
                     revision.get();
                     view! {

@@ -82,8 +82,58 @@ pub async fn refresh(which: Timeline, tag: Option<String>) -> Result<bool, Strin
     ensure_with(which, tag, None, 0).await
 }
 
-/// The one implementation: `ttl_ms` of zero means "ask".
+thread_local! {
+    /// The timelines a request is already on its way for.
+    ///
+    /// The alias `/home` redirects to `/`, and the redirect mounts the screen a second time
+    /// before the first answer arrives, so both ask for the same page and the reader pays
+    /// twice. Keyed by what the request names, not by the request's parameters: the same
+    /// timeline at a different cursor is a different page.
+    static IN_FLIGHT: std::cell::RefCell<std::collections::HashSet<(String, Option<String>)>> =
+        std::cell::RefCell::new(std::collections::HashSet::new());
+}
+
+/// A key that names this timeline and page, or `None` when the shape is malformed.
+fn claim_key(which: &Timeline, tag: Option<&str>, cursor: Option<&str>) -> (String, Option<String>) {
+    let name = match (which, tag) {
+        (Timeline::Tag, Some(tag)) => format!("tag:{tag}"),
+        (Timeline::Account(id), _) => format!("account:{id}"),
+        (Timeline::List(id), _) => format!("list:{id}"),
+        (Timeline::Tag | Timeline::Home | Timeline::Local | Timeline::Federated, _) => {
+            format!("{which:?}")
+        }
+    };
+    (name, cursor.map(ToOwned::to_owned))
+}
+
+/// Whether this call took the in-flight slot, or a request already holds it.
+fn claim(key: &(String, Option<String>)) -> bool {
+    IN_FLIGHT.with(|held| held.borrow_mut().insert(key.clone()))
+}
+
+fn release(key: &(String, Option<String>)) {
+    IN_FLIGHT.with(|held| {
+        held.borrow_mut().remove(key);
+    });
+}
+
 async fn ensure_with(
+    which: Timeline,
+    tag: Option<String>,
+    cursor: Option<String>,
+    ttl_ms: i64,
+) -> Result<bool, String> {
+    let key = claim_key(&which, tag.as_deref(), cursor.as_deref());
+    if !claim(&key) {
+        return Ok(false);
+    }
+    let answer = ensure_requested(which, tag, cursor, ttl_ms).await;
+    release(&key);
+    answer
+}
+
+/// The one implementation: `ttl_ms` of zero means "ask".
+async fn ensure_requested(
     which: Timeline,
     tag: Option<String>,
     cursor: Option<String>,

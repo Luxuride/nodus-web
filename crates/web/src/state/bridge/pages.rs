@@ -39,13 +39,48 @@ pub async fn ensure(kind: PageKind) -> Result<bool, String> {
     ensure_after(kind, None).await
 }
 
+thread_local! {
+    /// The pages a request is already on its way for.
+    ///
+    /// Two mounts of the same screen — a route alias, a tab that renders twice while the
+    /// shell settles — would otherwise ask for the same page twice: the second call cannot
+    /// see a fresh entry because the first has not answered yet, and the reader pays for a
+    /// request whose result is thrown away. Keyed by kind and cursor, because "one more
+    /// page" is a different request from "the first page".
+    static IN_FLIGHT: std::cell::RefCell<std::collections::HashSet<(PageKind, Option<String>)>> =
+        std::cell::RefCell::new(std::collections::HashSet::new());
+}
+
+/// Takes the in-flight slot for one page, or reports that a request already holds it.
+fn claim(kind: &PageKind, cursor: Option<&str>) -> bool {
+    IN_FLIGHT.with(|held| {
+        held.borrow_mut()
+            .insert((kind.clone(), cursor.map(ToOwned::to_owned)))
+    })
+}
+
+fn release(kind: &PageKind, cursor: Option<&str>) {
+    IN_FLIGHT.with(|held| {
+        held.borrow_mut()
+            .remove(&(kind.clone(), cursor.map(ToOwned::to_owned)));
+    });
+}
+
 /// Loads one more page, older than what the reader already has.
 pub async fn ensure_after(kind: PageKind, cursor: Option<String>) -> Result<bool, String> {
-    let sdk = handle().ok_or_else(|| "the SDK is not installed".to_owned())?;
-    let limit = super::actions::PAGE;
-    sdk.ensure_page(kind, cursor.as_deref(), limit, TTL_MS)
-        .await
-        .map_err(|error| error.to_string())
+    if !claim(&kind, cursor.as_deref()) {
+        return Ok(false);
+    }
+    let answer = async {
+        let sdk = handle().ok_or_else(|| "the SDK is not installed".to_owned())?;
+        let limit = super::actions::PAGE;
+        sdk.ensure_page(kind.clone(), cursor.as_deref(), limit, TTL_MS)
+            .await
+            .map_err(|error| error.to_string())
+    }
+    .await;
+    release(&kind, cursor.as_deref());
+    answer
 }
 
 /// Reloads a page even when the held one is fresh.

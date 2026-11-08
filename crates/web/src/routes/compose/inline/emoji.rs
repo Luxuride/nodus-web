@@ -100,20 +100,19 @@ pub fn EmojiButton(emoji: CustomEmoji, insert: Callback<String>) -> impl IntoVie
 /// must not take focus away from the box they are in.
 #[component]
 pub fn Suggestions(
-    query: String,
+    query: Signal<String>,
+    open: ReadSignal<bool>,
     catalogue: ReadSignal<Vec<CustomEmoji>>,
     insert: Callback<String>,
 ) -> impl IntoView {
-    let query = StoredValue::new(query);
     let matches = move || {
-        let query = query.with_value(Clone::clone);
-        suggest(&catalogue.get(), &query, 8)
+        suggest(&catalogue.get(), &query.get(), 8)
             .into_iter()
             .cloned()
             .collect::<Vec<_>>()
     };
     view! {
-        <Show when=move || !matches().is_empty()>
+        <Show when=move || open.get() && !matches().is_empty()>
             <ul class="menu menu-horizontal flex-wrap gap-1 rounded-box bg-base-100 p-1 shadow">
                 <For each=matches key=|emoji| emoji.shortcode.clone() let:emoji>
                     <li>
@@ -128,7 +127,8 @@ pub fn Suggestions(
 /// The picker: the whole catalogue, searchable.
 #[component]
 pub fn Picker(
-    open: RwSignal<bool>,
+    open: ReadSignal<bool>,
+    set_open: WriteSignal<bool>,
     catalogue: ReadSignal<Vec<CustomEmoji>>,
     insert: Callback<String>,
 ) -> impl IntoView {
@@ -146,7 +146,7 @@ pub fn Picker(
     };
     let close = move |()| {
         set_query.set(String::new());
-        open.set(false);
+        set_open.set(false);
     };
     view! {
         <Show when=move || open.get()>

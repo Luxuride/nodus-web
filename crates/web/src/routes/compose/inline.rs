@@ -8,6 +8,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{MediaAttachment, Visibility};
+use wasm_bindgen::JsCast as _;
 
 use crate::routes::compose::attachments::{self, Attachments};
 use crate::routes::compose::inline::bar::ComposerBar;
@@ -20,6 +21,7 @@ mod poll;
 mod schedule;
 
 use bar::Notice;
+use emoji::{Picker, Suggestions};
 use poll::PollEditor;
 use schedule::SchedulePanel;
 
@@ -51,21 +53,66 @@ pub fn InlineComposer(
     set_reload: WriteSignal<u32>,
 ) -> impl IntoView {
     let draft = Draft::new(which, set_reload);
+    // One catalogue for both controls — the suggestions popup and the picker ask the
+    // instance once, not once per keystroke and once per open.
+    let emoji_catalogue = emoji::catalogue();
+    let (picking, set_picking) = signal(false);
+    let (emoji_open, set_emoji_open) = signal(false);
     // `Draft` is not `Copy` (it owns nothing but holds the SDK handle), so the submit
     // handler gets its own copy of the `Copy` half and the rest of the view keeps `draft`.
     let submit = draft.snapshot_of_signals();
+    // The completion replaces the shortcode being typed; the picker appends because no
+    // token is in progress. One callback for both, so a picked emoji and a completed one
+    // leave the text in the same shape.
+    let text_field = draft.text;
+    let emoji_insert = Callback::new(move |label: String| {
+        let text = text_field.get_untracked();
+        let next = emoji::pending(&text).map_or_else(
+            || format!("{text}{label} "),
+            |(colon, _)| emoji::complete(&text, colon, &label),
+        );
+        text_field.set(next);
+        set_emoji_open.set(false);
+        set_picking.set(false);
+        focus_textarea();
+    });
 
     view! {
         <nodus_view::ComposerCard>
                 <h2 class="text-xs font-semibold uppercase tracking-wide opacity-50">"New post"</h2>
+                // The suggestions sit above the box, where the writer is already looking:
+                // a dialog would steal focus and swallow the next keystroke.
+                <Suggestions
+                    query=Signal::derive(move || {
+                        emoji::pending(&draft.text.get())
+                            .map(|(_, query)| query)
+                            .unwrap_or_default()
+                    })
+                    open=emoji_open
+                    catalogue=emoji_catalogue
+                    insert=emoji_insert
+                />
                 <textarea
+                    id="nodus-composer-text"
                     class="textarea textarea-ghost min-h-20 w-full resize-none p-1 text-[15px] focus:bg-transparent focus:outline-none"
                     placeholder="What's on your mind?"
                     aria-label="Write a post"
                     prop:value=draft.text
-                    on:input=move |event| draft.text.set(event_target_value(&event))
+                    on:input=move |event| {
+                        let text = event_target_value(&event);
+                        draft.text.set(text.clone());
+                        // Remembered so the completion knows which colon to replace; the
+                        // popup closes as soon as the token stops looking like one.
+                        set_emoji_open.set(emoji::pending(&text).is_some());
+                    }
                 />
 
+                <Picker
+                    open=picking
+                    set_open=set_picking
+                    catalogue=emoji_catalogue
+                    insert=emoji_insert
+                />
                 <ComposerBar
                     text=draft.text.read_only()
                     at=draft.custom.read_only()
@@ -74,8 +121,14 @@ pub fn InlineComposer(
                     set_visibility=draft.visibility.write_only()
                     busy=draft.busy.read_only()
                     on_add_media=Callback::new(move |()| attachments::request_pick())
-                    on_add_poll=Callback::new(move |()| draft.poll_open.set(true))
-                    poll_open=draft.poll_open.read_only()
+                    // A toggle, not a latch: with a latch the control is a no-op the moment the
+                    // editor is open, which is what made it read as broken.
+                    on_add_emoji=Callback::new(move |()| set_picking.set(true))
+                    on_add_poll=Callback::new(move |()| {
+                        draft
+                            .poll_open
+                            .update(|open| *open = !*open);
+                    })
                     on_submit=Callback::new(move |()| submit.submit())
                 />
 
@@ -346,5 +399,19 @@ fn VisibilityPicker(
                 </option>
             </For>
         </select>
+    }
+}
+
+/// Returns the caret to the box after an emoji is inserted: the picker's own input took it,
+/// and a writer who has to click back into the text loses the sentence's place.
+fn focus_textarea() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    if let Some(field) = document
+        .get_element_by_id("nodus-composer-text")
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
+    {
+        let _ = field.focus();
     }
 }

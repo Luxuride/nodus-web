@@ -8,6 +8,7 @@
 
 use leptos::prelude::*;
 use nodus_instance::model::PollDraft;
+use wasm_bindgen::JsCast as _;
 
 /// How long a poll may stay open, in seconds, with the label the select shows.
 pub(super) const DURATIONS: [(u32, &str); 4] = [
@@ -108,6 +109,7 @@ fn Options(options: RwSignal<Vec<String>>) -> impl IntoView {
             <div class="flex items-center gap-1">
                 <input
                     class="input input-bordered input-sm w-full"
+                    id=move || format!("poll-option-{index}")
                     placeholder=move || format!("Option {}", index + 1)
                     aria-label=move || format!("Poll option {}", index + 1)
                     prop:value=move || options.get().get(index).cloned().unwrap_or_default()
@@ -146,9 +148,21 @@ fn PollSettings(
             <button
                 type="button"
                 class="btn btn-outline btn-xs gap-1 border-dashed"
-                title="A poll holds at most four options"
+                title=move || {
+                    if options.get().len() >= 4 {
+                        "A poll holds at most four options"
+                    } else {
+                        "Add another option"
+                    }
+                }
                 disabled=move || options.get().len() >= 4
-                on:click=move |_| options.update(|list| list.push(String::new()))
+                on:click=move |_| {
+                    let added = options.with_untracked(Vec::len);
+                    options.update(|list| list.push(String::new()));
+                    // The row that was just added takes focus: the button otherwise reads
+                    // as broken, because it appends an empty field below the fold.
+                    focus_option(added);
+                }
             >
                 "+"
                 "Add option"
@@ -157,6 +171,14 @@ fn PollSettings(
             <select
                 class="select select-bordered select-sm w-fit"
                 aria-label="How long the poll stays open"
+                prop:value=move || {
+                    let held = expires_in.get();
+                    DURATIONS
+                        .iter()
+                        .position(|(seconds, _)| *seconds == held)
+                        .unwrap_or(0)
+                        .to_string()
+                }
                 on:change=move |event| {
                     let index = event_target_value(&event).parse::<usize>().unwrap_or(0);
                     expires_in.set(DURATIONS.get(index).map_or(86_400, |(seconds, _)| *seconds));
@@ -191,5 +213,22 @@ fn PollSettings(
                 "Hide counts until it closes"
             </label>
         </div>
+    }
+}
+
+/// Puts the caret in the option that was just added.
+///
+/// `id` rather than a `NodeRef`: the rows are keyed by index, so one ref would have to be
+/// shared by every input and would end up pointing at whichever rendered last.
+fn focus_option(index: usize) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let id = format!("poll-option-{index}");
+    if let Some(field) = document
+        .get_element_by_id(&id)
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
+    {
+        let _ = field.focus();
     }
 }

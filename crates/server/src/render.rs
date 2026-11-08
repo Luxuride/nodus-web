@@ -98,7 +98,15 @@ pub struct Island<'a> {
 /// One status as markup: who, when, what.
 /// The attachment grid: images inline, video and audio with a player, and a one-picture
 /// post given the full width so it is not forced into a half-empty pair.
-fn media_grid(status: &Status) -> String {
+fn media_grid(status: &Status, blurred: bool) -> String {
+    // The same veil the client draws, inline rather than as a utility class: the gate must
+    // hold even before the stylesheet matching it arrives, and the scale is required because
+    // a blur samples outside the element and would otherwise eat its own edges.
+    let veil = if blurred {
+        "filter: blur(18px); transform: scale(1.08);"
+    } else {
+        ""
+    };
     let mut media = String::new();
     for attachment in &status.media_attachments {
         let href = attachment
@@ -128,7 +136,7 @@ fn media_grid(status: &Status) -> String {
                 "<li class=\"self-start overflow-hidden rounded-box\"><audio class=\"w-full\" controls preload=\"metadata\" src=\"{href}\"></audio></li>"
             ),
             MediaKind::Image | MediaKind::Unknown => format!(
-                "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"{alt} src=\"{href}\"></li>"
+                "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" style=\"{veil}\" aria-hidden=\"{blurred}\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"{alt} src=\"{href}\"></li>"
             ),
         };
         media.push_str(&element);
@@ -144,6 +152,16 @@ fn media_grid(status: &Status) -> String {
                 "mt-1 grid grid-cols-2 items-start"
             }
         )
+    }
+}
+
+/// "Show 1 attachment" or "Show 3 attachments", as the client says it.
+fn attachments_label(status: &Status) -> String {
+    let count = status.media_attachments.len();
+    if count == 1 {
+        "Show 1 attachment".to_owned()
+    } else {
+        format!("Show {count} attachments")
     }
 }
 
@@ -165,7 +183,19 @@ fn status_card(status: &Status) -> String {
     } else {
         inner.account.display_name.clone()
     };
-    let grid = media_grid(inner);
+    let grid = if inner.media_attachments.is_empty() {
+        String::new()
+    } else if inner.sensitive {
+        // Not a convenience: painting the sharp image and hiding it once the client boots is
+        // exactly the flash of sensitive content a reader did not consent to see.
+        format!(
+            "<div class=\"relative mt-1 overflow-hidden rounded-box\">{}<button type=\"button\" class=\"absolute inset-0 flex items-center justify-center\"><span class=\"rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm\"><span class=\"block text-sm font-medium\">Sensitive content</span><span class=\"block text-xs opacity-70\">{}</span></span></button></div>",
+            media_grid(inner, true),
+            escape(&attachments_label(inner))
+        )
+    } else {
+        media_grid(inner, false)
+    };
     let avatar = if inner.account.avatar.is_empty() {
         String::new()
     } else {
@@ -187,7 +217,7 @@ fn status_card(status: &Status) -> String {
                </div>\
                <a class=\"text-xs whitespace-nowrap opacity-50 hover:underline\" href=\"/status/{sid}\">{when}</a>\
              </header>\
-             <div class=\"text-sm whitespace-pre-wrap\">{body}</div>{grid}\
+             <div class=\"whitespace-pre-line text-sm leading-relaxed\">{body}</div>{grid}\
              <footer class=\"flex items-center justify-between gap-2 border-t border-base-200 pt-2\">\
                <span class=\"text-xs opacity-60\">{replies} replies</span>\
                <div class=\"flex items-center gap-1\">\

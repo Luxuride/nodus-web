@@ -19,7 +19,7 @@ use nodus_sdk::page::{PageItems, PageKind};
 #[component]
 pub fn Scheduled() -> impl IntoView {
     let revision = revision();
-    let (loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(!pages::held(&PageKind::Scheduled));
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 

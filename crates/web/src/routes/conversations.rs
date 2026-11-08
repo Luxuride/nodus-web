@@ -74,7 +74,7 @@ fn open_conversation(id: String, alive: Alive) {
 pub fn Conversations() -> impl IntoView {
     let revision = revision();
     let (muted, set_muted) = signal(Vec::<String>::new());
-    let (loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(!pages::held(&PageKind::Conversations));
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 

@@ -24,7 +24,7 @@ use row::NotificationRow;
 #[component]
 pub fn Notifications() -> impl IntoView {
     let revision = revision();
-    let (loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(!pages::held(&PageKind::Notifications));
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 

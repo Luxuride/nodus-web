@@ -62,6 +62,17 @@ pub async fn ensure(
     ensure_with(which, tag, cursor, TTL_MS).await
 }
 
+/// Whether the store holds this timeline at all, fresh or stale.
+#[must_use]
+pub fn held(which: Timeline, tag: Option<&str>) -> bool {
+    let Some(sdk) = handle() else {
+        return false;
+    };
+    with_request(which, tag, |request| {
+        sdk.timeline_fetched_at(&request).is_some()
+    })
+}
+
 /// Loads the newest page even when the held one is still fresh.
 ///
 /// Used after the reader posts: their own status is older than nothing, but the

@@ -43,7 +43,7 @@ impl Shelf {
 pub fn Saved() -> impl IntoView {
     let revision = revision();
     let (shelf, set_shelf) = signal(Shelf::Favourites);
-    let (loading, set_loading) = signal(true);
+    let (loading, set_loading) = signal(!pages::held(&PageKind::Favourites) && !pages::held(&PageKind::Bookmarks));
     let (error, set_error) = signal(None::<String>);
 
     // The shelf is read from the SDK: two shelves live there side by side, so switching
@@ -60,7 +60,8 @@ pub fn Saved() -> impl IntoView {
 
     let load = move |which: Shelf, after: Option<String>| {
         let alive = Alive::new();
-        set_loading.set(true);
+        // A shelf we already hold paints immediately; only an empty one looks busy.
+        set_loading.set(!pages::held(&which.kind()));
         set_error.set(None);
         spawn_local(async move {
             if let Err(message) = pages::ensure_after(which.kind(), after).await {

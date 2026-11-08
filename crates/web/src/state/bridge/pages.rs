@@ -64,15 +64,19 @@ pub async fn refresh(kind: PageKind) -> Result<bool, String> {
 /// When this page was fetched, in Unix milliseconds.
 ///
 /// `None` means "unknown": the page was never loaded, or the socket reconnected and
-/// marked it stale. A view that shows old data must say so, so this stays public even
-/// while the first caller is still being written.
-#[expect(
-    dead_code,
-    reason = "the offline banner and the people screens read it next"
-)]
+/// marked it stale. A view that shows old data must say so, which is what `held` asks.
 #[must_use]
 pub fn fetched_at(kind: &PageKind) -> Option<i64> {
     read(kind).and_then(|entry| entry.fetched_at)
+}
+
+/// Whether the store holds this page at all, fresh or stale.
+///
+/// A screen asks this before it decides to look busy: a visit to a page that is already
+/// held renders immediately, and the refresh happens behind the content.
+#[must_use]
+pub fn held(kind: &PageKind) -> bool {
+    fetched_at(kind).is_some()
 }
 
 /// Accounts from a people page, in the order the instance sent them.

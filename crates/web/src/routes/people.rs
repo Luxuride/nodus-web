@@ -69,7 +69,9 @@ pub fn PeopleList(
     kind: Kind,
 ) -> impl IntoView {
     let revision = revision();
-    let (loading, set_loading) = signal(true);
+    // Asking the store first is what makes a second visit instant: only a list nothing is
+    // held for has any reason to look busy.
+    let (loading, set_loading) = signal(!pages::held(&kind.page(&id)));
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 

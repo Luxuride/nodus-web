@@ -54,7 +54,9 @@ pub fn Home(which: Timeline) -> impl IntoView {
     let revision = revision();
     // A request is in flight. Starts true because the first thing that happens is that
     // request: "empty" before it is a guess, not a fact.
-    let (loading, set_loading) = signal(true);
+    // Only look busy when the store has nothing: a visit to a timeline we already hold
+    // paints it at once, and the refresh happens behind the content.
+    let (loading, set_loading) = signal(!timeline::held(which.get_value(), None));
     let (error, set_error) = signal(None::<String>);
     // Posting from the composer asks this timeline for a fresh first page, and the
     // effect below must not fight it by loading from the cache in the same breath.
@@ -71,7 +73,7 @@ pub fn Home(which: Timeline) -> impl IntoView {
         // Reading `reload` joins this effect to it; the value itself is unused because
         // the load below is unconditional.
         let _ = reload.get();
-        set_loading.set(true);
+        set_loading.set(!timeline::held(which.get_value(), None));
         set_error.set(None);
         spawn_local(async move {
             match timeline::ensure(which.get_value(), None, None).await {

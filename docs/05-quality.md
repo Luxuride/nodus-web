@@ -166,3 +166,23 @@ bump is part of the lockfile review.
 | Leptos API churn | pin the version in `Cargo.toml`, upgrade deliberately per milestone, keep components thin over our state layer |
 | Browser and worker rate limits collide | the worker self-limits to 50% of the reported budget and backs off when headers show the browser consuming it ([04-ingestion.md](../../recommender/docs/04-ingestion.md)) |
 | Nobody switches clients (so nobody sees the Feed) | measured, not assumed: M3 exit criterion is a 5-person pilot using it as their primary client for two weeks |
+
+## Composer assets (2026-11-08)
+
+The body editor and the emoji picker are two vendored bundles, built with `npm run build` in
+`web/js` and committed under `web/crates/web/public/vendor/`. Nothing in the Rust build or the
+deployment needs npm; rebuilding them is a deliberate act:
+
+| file | raw | gzipped | loaded |
+|---|---|---|---|
+| `vendor/editor.js` (ProseMirror + schema) | 206 KB | 64 KB | when a composer mounts |
+| `vendor/picker.js` (`emoji-picker-element`) | 38 KB | 14 KB | first time the picker opens |
+| `vendor/emoji-data.json` | 430 KB | ~120 KB | first time the picker opens |
+
+Measured budget consequence: the first paint of `/` is unchanged — both bundles are fetched
+only by a signed-in composer — and the composer adds 64 KB of JavaScript, not wasm.
+
+Why ProseMirror at all: a `:shortcode:` has to be drawn as the picture it will become, with
+the caret still in the text. A `textarea` cannot, and an overlay mirror drifts from the caret.
+The schema deliberately has no bold, links or headings: the API accepts plain text, and an
+editor that can express more than it can send lies about the post.

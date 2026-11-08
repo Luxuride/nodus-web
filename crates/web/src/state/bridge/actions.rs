@@ -23,6 +23,41 @@ pub use nodus_instance::model::Visibility;
 
 use super::instance_transport;
 
+/// The emoji this instance offers, asked for once per page load.
+///
+/// The set is large (hundreds of entries on a busy instance) and changes only when the
+/// instance's cache does, so it is fetched on demand and kept for the life of the document
+/// rather than on every keystroke that opens a suggestion list.
+#[expect(
+    clippy::future_not_send,
+    reason = "the browser transport is single-threaded; the SDK is used from one task at a time"
+)]
+pub async fn custom_emojis() -> Vec<nodus_instance::model::CustomEmoji> {
+    thread_local! {
+        static HELD: std::cell::RefCell<Option<Vec<nodus_instance::model::CustomEmoji>>> =
+            const { std::cell::RefCell::new(None) };
+    }
+    if let Some(held) = HELD.with(|held| held.borrow().clone()) {
+        return held;
+    }
+    let fresh = match instance_transport() {
+        Some(transport) => call(transport.custom_emojis()).await,
+        None => Err("the client is not installed".to_owned()),
+    };
+    match fresh {
+        Ok(emojis) => {
+            HELD.with(|held| *held.borrow_mut() = Some(emojis.clone()));
+            emojis
+        }
+        Err(message) => {
+            web_sys::console::warn_1(
+                &format!("nodus: could not read custom emojis: {message}").into(),
+            );
+            Vec::new()
+        }
+    }
+}
+
 /// The transport for the current session, or a message fit for inline display.
 fn transport() -> Result<BrowserInstance, String> {
     instance_transport().ok_or_else(|| "Not signed in.".to_owned())

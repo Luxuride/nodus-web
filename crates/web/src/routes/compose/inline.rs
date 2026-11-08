@@ -15,6 +15,7 @@ use crate::state::alive::Alive;
 use crate::state::bridge::{actions, timeline};
 
 mod bar;
+mod emoji;
 mod poll;
 mod schedule;
 

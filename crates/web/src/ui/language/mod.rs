@@ -140,7 +140,10 @@ pub fn LanguagePicker(
         <div class="relative" node_ref=host>
             <button
                 type="button"
-                class="select select-bordered select-sm w-fit min-w-44 max-w-64 gap-1 pr-2 text-left"
+                // `bg-none` kills the arrow daisyUI paints on `.select`; without it the button
+                // shows that background caret *and* the span below, which reads as two.
+                // `w-fit` lets the control follow the chosen name instead of a fixed width.
+                class="select select-bordered select-sm w-fit max-w-72 gap-1 bg-none pr-2 text-left"
                 aria-haspopup="listbox"
                 aria-expanded=move || open.get().to_string()
                 aria-label="Post language"

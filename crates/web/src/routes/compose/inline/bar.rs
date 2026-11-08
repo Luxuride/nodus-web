@@ -36,6 +36,9 @@ pub(super) fn ComposerBar(
     on_add_emoji: Callback<()>,
     /// Turns the post into a poll.
     on_add_poll: Callback<()>,
+    /// The chosen language, empty for the instance's guess.
+    language: ReadSignal<String>,
+    set_language: WriteSignal<String>,
     on_submit: Callback<()>,
 ) -> impl IntoView {
     let count = move || text.get().chars().count();
@@ -93,6 +96,7 @@ pub(super) fn ComposerBar(
 
             // The count and the action sit at the far end: the left edge answers "how
             // does this go out", the right edge answers "is it ready to".
+            <crate::ui::language::LanguagePicker language=language set_language=set_language/>
             <div class="ml-auto flex items-center gap-2">
                 <span
                     class="text-xs tabular-nums"

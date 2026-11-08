@@ -32,6 +32,8 @@ pub fn ComposerOptions(
     set_sensitive: WriteSignal<bool>,
     spoiler: ReadSignal<String>,
     set_spoiler: WriteSignal<String>,
+    language: ReadSignal<String>,
+    set_language: WriteSignal<String>,
 ) -> impl IntoView {
     view! {
         <div class="flex flex-wrap items-center gap-2">
@@ -53,6 +55,8 @@ pub fn ComposerOptions(
                     </option>
                 </For>
             </select>
+
+            <crate::ui::language::LanguagePicker language=language set_language=set_language/>
 
             <button
                 class="btn btn-ghost btn-sm"

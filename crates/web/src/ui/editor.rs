@@ -1,0 +1,229 @@
+//! The editable body: `ProseMirror`, mounted and spoken to from Rust.
+//!
+//! Why a JS editor at all: the composer has to show a `:shortcode:` as the picture it will
+//! become, mid-sentence, with the caret still in the text. A `textarea` cannot draw an image
+//! inside its text, and the workarounds (a mirrored overlay, a preview box below) either
+//! drift from the caret or move the target the writer is looking at. `ProseMirror` is the
+//! small, honest version of "contenteditable that behaves".
+//!
+//! What stays in Rust: the draft, the counter, the visibility/warning/language controls and
+//! every request. The editor owns a document only while it has focus, and hands back plain
+//! text — the only thing the API accepts.
+
+use leptos::prelude::*;
+use nodus_instance::model::CustomEmoji;
+use wasm_bindgen::JsCast as _;
+use wasm_bindgen::closure::Closure;
+
+/// The browser handle to a mounted editor.
+#[derive(Debug, Clone)]
+struct Handle(js_sys::Object);
+
+thread_local! {
+    /// Scripts already injected, so two composers share one download.
+    static SCRIPTS: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Loads `url` once and resolves when the global it defines exists.
+fn load_script(url: &str, global: &str) -> js_sys::Promise {
+    let already = SCRIPTS.with(|seen| seen.borrow().contains(&url.to_owned()));
+    let window = web_sys::window().expect("a browser window");
+    let loaded =
+        js_sys::Reflect::get(&window, &global.into()).is_ok_and(|value| !value.is_undefined());
+
+    if already || loaded {
+        return js_sys::Promise::resolve(&wasm_bindgen::JsValue::TRUE);
+    }
+    SCRIPTS.with(|seen| seen.borrow_mut().push(url.to_owned()));
+
+    let document = window.document().expect("a document");
+    let script = document.create_element("script").expect("a script element");
+    script.set_attribute("src", url).ok();
+    script.set_attribute("defer", "defer").ok();
+    let head = document.head().expect("a head");
+    let _ = head.append_child(&script);
+
+    // Wait for the load event rather than resolving at once: the file is a bundle, and a
+    // composer that mounts before it parses would call a function that does not exist yet.
+    js_sys::Promise::new(&mut |resolve, reject| {
+        let resolve = resolve.clone();
+        let reject = reject.clone();
+        let on_load = Closure::once(move || {
+            let _ = resolve.call0(&wasm_bindgen::JsValue::UNDEFINED);
+        });
+        let on_error = Closure::once(move || {
+            let _ = reject.call1(
+                &wasm_bindgen::JsValue::UNDEFINED,
+                &wasm_bindgen::JsValue::from_str("the editor script failed to load"),
+            );
+        });
+        let script: web_sys::HtmlElement = script.clone().unchecked_into();
+        script.set_onload(Some(on_load.as_ref().unchecked_ref()));
+        script.set_onerror(Some(on_error.as_ref().unchecked_ref()));
+        on_load.forget();
+        on_error.forget();
+    })
+}
+
+fn global(path: &str) -> Option<js_sys::Object> {
+    let window = web_sys::window()?;
+    let mut value: wasm_bindgen::JsValue = window.into();
+    for part in path.split('.') {
+        value = js_sys::Reflect::get(&value, &part.into()).ok()?;
+    }
+    value.dyn_into::<js_sys::Object>().ok()
+}
+
+fn call_method(
+    object: &js_sys::Object,
+    method: &str,
+    arguments: &[wasm_bindgen::JsValue],
+) -> Option<wasm_bindgen::JsValue> {
+    let function: js_sys::Function = js_sys::Reflect::get(object, &method.into())
+        .ok()?
+        .dyn_into()
+        .ok()?;
+    let args = js_sys::Array::new();
+    for argument in arguments {
+        args.push(argument);
+    }
+    function.apply(object, &args).ok()
+}
+
+/// The body the writer types into.
+///
+/// `text` is the draft as Rust sees it; `set_text` receives it back on every change.
+/// `emoji` is the catalogue the editor renders and the picker offers — when it arrives
+/// after mounting (it is fetched), the editor is told, because a shortcode typed a moment
+/// ago should become a picture without a reload.
+#[component]
+pub fn RichEditor(
+    text: ReadSignal<String>,
+    set_text: WriteSignal<String>,
+    /// The instance's emoji, so a typed `:token:` draws before the post exists.
+    emoji: ReadSignal<Vec<CustomEmoji>>,
+    /// What to show while the body is empty.
+    #[prop(default = "Type your post…".to_owned(), into)]
+    placeholder: String,
+    /// Enter with the modifier held posts; the editor calls this on Enter alone.
+    on_submit: Callback<()>,
+) -> impl IntoView {
+    let element = NodeRef::<leptos::html::Div>::new();
+    let mounted = StoredValue::new(false);
+    // What the editor last told us, so an external `text` change can be told apart from the
+    // echo of the writer's own keystroke. Writing that echo back would reset the caret.
+    let from_editor = StoredValue::new(String::new());
+    let handle = StoredValue::new(None::<Handle>);
+
+    // Mount once, when the element exists.
+    Effect::new(move |_| {
+        if mounted.get_value() {
+            return;
+        }
+        let Some(node) = element.get() else {
+            return;
+        };
+        mounted.set_value(true);
+
+        let target: web_sys::Element = node.unchecked_into();
+        let initial = text.get_untracked();
+        let catalogue = emoji.get_untracked();
+        from_editor.set_value(initial.clone());
+
+        let on_text = Closure::<dyn FnMut(String)>::new(move |value: String| {
+            from_editor.set_value(value.clone());
+            // The editor is the source of truth while it has focus; the signal mirrors it
+            // for the counter, the post button and the draft.
+            set_text.set(value);
+        });
+        let on_submit = Closure::<dyn FnMut()>::new(move || on_submit.run(()));
+
+        let options = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&options, &"initial".into(), &initial.into());
+        let _ = js_sys::Reflect::set(&options, &"placeholder".into(), &placeholder.clone().into());
+        let _ = js_sys::Reflect::set(&options, &"onText".into(), on_text.as_ref().unchecked_ref());
+        let _ = js_sys::Reflect::set(
+            &options,
+            &"onSubmit".into(),
+            on_submit.as_ref().unchecked_ref(),
+        );
+        let _ = js_sys::Reflect::set(&options, &"emoji".into(), &catalogue_js(&catalogue));
+
+        let promise = load_script("/vendor/editor.js", "nodusEditor");
+        leptos::task::spawn_local(async move {
+            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+            let Some(editor) = global("nodusEditor") else {
+                web_sys::console::error_1(
+                    &"nodus: the editor bundle did not define window.nodusEditor".into(),
+                );
+                return;
+            };
+            let Some(mounted_handle) =
+                call_method(&editor, "mount", &[target.into(), options.into()])
+                    .and_then(|value| value.dyn_into::<js_sys::Object>().ok())
+            else {
+                web_sys::console::error_1(&"nodus: mounting the editor failed".into());
+                return;
+            };
+            handle.set_value(Some(Handle(mounted_handle)));
+            // The closures must outlive the call: ProseMirror keeps them for the document's
+            // lifetime, so they are leaked deliberately and released with the editor.
+            on_text.forget();
+            on_submit.forget();
+        });
+    });
+
+    // External changes (an edit loaded, a form reset) replace the document; the writer's
+    // own keystrokes arrive here too and are filtered by comparing with what we were told.
+    Effect::new(move |_| {
+        let wanted = text.get();
+        let Some(editor) = handle.get_value() else {
+            return;
+        };
+        if wanted == from_editor.get_value() {
+            return;
+        }
+        from_editor.set_value(wanted.clone());
+        let _ = call_method(&editor.0, "setText", &[wanted.into()]);
+    });
+
+    // A catalogue that arrives late still turns the shortcodes already typed into pictures.
+    Effect::new(move |_| {
+        let catalogue = emoji.get();
+        let Some(editor) = handle.get_value() else {
+            return;
+        };
+        let _ = call_method(&editor.0, "setEmoji", &[catalogue_js(&catalogue)]);
+    });
+
+    view! {
+        // The height is reserved and the typography matches the reader's body, so the
+        // composer does not change size when the editor takes over from the first paint.
+        <div
+            node_ref=element
+            class="min-h-24 w-full cursor-text text-sm leading-relaxed"
+            on:click=move |_| {
+                if let Some(editor) = handle.get_value() {
+                    let _ = call_method(&editor.0, "focus", &[]);
+                }
+            }
+        ></div>
+    }
+}
+
+/// The catalogue as the shape the bundle expects: `[{ shortcode, url }]`.
+fn catalogue_js(catalogue: &[CustomEmoji]) -> wasm_bindgen::JsValue {
+    let array = js_sys::Array::new();
+    for emoji in catalogue {
+        let entry = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&entry, &"shortcode".into(), &emoji.shortcode.clone().into());
+        let source = if emoji.url.is_empty() {
+            emoji.static_url.clone().unwrap_or_default()
+        } else {
+            emoji.url.clone()
+        };
+        let _ = js_sys::Reflect::set(&entry, &"url".into(), &source.into());
+        array.push(&entry);
+    }
+    array.into()
+}

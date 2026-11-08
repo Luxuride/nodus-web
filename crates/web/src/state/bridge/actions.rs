@@ -32,6 +32,35 @@ use super::instance_transport;
     clippy::future_not_send,
     reason = "the browser transport is single-threaded; the SDK is used from one task at a time"
 )]
+/// The languages this instance publishes in.
+///
+/// Cached for the document like the emoji catalogue: the list changes when an admin edits
+/// the server's languages, not between two posts, and a composer that refetched it on every
+/// open would spend a request per keystroke-sized decision.
+pub async fn languages() -> Vec<nodus_instance::model::Language> {
+    thread_local! {
+        static HELD: std::cell::RefCell<Option<Vec<nodus_instance::model::Language>>> =
+            const { std::cell::RefCell::new(None) };
+    }
+    if let Some(held) = HELD.with(|held| held.borrow().clone()) {
+        return held;
+    }
+    let fresh = match instance_transport() {
+        Some(transport) => call(transport.languages()).await,
+        None => Err("the client is not installed".to_owned()),
+    };
+    match fresh {
+        Ok(languages) => {
+            HELD.with(|held| *held.borrow_mut() = Some(languages.clone()));
+            languages
+        }
+        Err(message) => {
+            web_sys::console::warn_1(&format!("nodus: languages unavailable: {message}").into());
+            Vec::new()
+        }
+    }
+}
+
 pub async fn custom_emojis() -> Vec<nodus_instance::model::CustomEmoji> {
     thread_local! {
         static HELD: std::cell::RefCell<Option<Vec<nodus_instance::model::CustomEmoji>>> =
@@ -151,6 +180,8 @@ pub struct NewStatus {
     pub sensitive: bool,
     /// A poll to attach; `None` for a plain post.
     pub poll: Option<PollDraft>,
+    /// The language the post is written in; `None` lets the instance guess.
+    pub language: Option<String>,
 }
 
 impl NewStatus {
@@ -164,6 +195,7 @@ impl NewStatus {
             spoiler_text: String::new(),
             sensitive: false,
             poll: None,
+            language: None,
         }
     }
 
@@ -188,6 +220,7 @@ impl NewStatus {
             spoiler_text: self.spoiler_text.clone(),
             sensitive: self.sensitive,
             poll: self.poll.clone(),
+            language: self.language.clone(),
         }
     }
 }
@@ -403,6 +436,7 @@ pub async fn schedule(
         spoiler_text: String::new(),
         sensitive: false,
         poll: None,
+        language: None,
     };
     call(transport()?.schedule(&draft, at))
         .await

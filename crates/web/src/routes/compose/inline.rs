@@ -16,7 +16,7 @@ use crate::state::alive::Alive;
 use crate::state::bridge::{actions, timeline};
 
 mod bar;
-mod emoji;
+pub(crate) mod emoji;
 mod poll;
 mod schedule;
 
@@ -77,6 +77,10 @@ pub fn InlineComposer(
         focus_textarea();
     });
 
+    // The shortcode completion follows the caret, which the editor reports as plain text
+    // changes: a token is open exactly while the draft ends in one.
+    Effect::new(move |_| set_emoji_open.set(emoji::pending(&draft.text.get()).is_some()));
+
     view! {
         <nodus_view::ComposerCard>
                 <h2 class="text-xs font-semibold uppercase tracking-wide opacity-50">"New post"</h2>
@@ -92,19 +96,12 @@ pub fn InlineComposer(
                     catalogue=emoji_catalogue
                     insert=emoji_insert
                 />
-                <textarea
-                    id="nodus-composer-text"
-                    class="textarea textarea-ghost min-h-20 w-full resize-none p-1 text-[15px] focus:bg-transparent focus:outline-none"
+                <crate::ui::editor::RichEditor
+                    text=draft.text.read_only()
+                    set_text=draft.text.write_only()
+                    emoji=emoji_catalogue
                     placeholder="What's on your mind?"
-                    aria-label="Write a post"
-                    prop:value=draft.text
-                    on:input=move |event| {
-                        let text = event_target_value(&event);
-                        draft.text.set(text.clone());
-                        // Remembered so the completion knows which colon to replace; the
-                        // popup closes as soon as the token stops looking like one.
-                        set_emoji_open.set(emoji::pending(&text).is_some());
-                    }
+                    on_submit=Callback::new(move |()| submit.submit())
                 />
 
                 <Picker
@@ -129,6 +126,8 @@ pub fn InlineComposer(
                             .poll_open
                             .update(|open| *open = !*open);
                     })
+                    language=draft.language.read_only()
+                    set_language=draft.language.write_only()
                     on_submit=Callback::new(move |()| submit.submit())
                 />
 
@@ -172,6 +171,8 @@ struct Draft {
     expires_in: RwSignal<u32>,
     multiple: RwSignal<bool>,
     hide_totals: RwSignal<bool>,
+    /// Empty means "let the instance guess".
+    language: RwSignal<String>,
     alive: Alive,
     which: StoredValue<nodus_sdk::Timeline>,
     set_reload: WriteSignal<u32>,
@@ -195,6 +196,7 @@ impl Draft {
             expires_in: RwSignal::new(poll::DURATIONS[0].0),
             multiple: RwSignal::new(false),
             hide_totals: RwSignal::new(false),
+            language: RwSignal::new(String::new()),
             alive: Alive::new(),
             which,
             set_reload,
@@ -216,6 +218,7 @@ impl Draft {
             expires_in: self.expires_in,
             multiple: self.multiple,
             hide_totals: self.hide_totals,
+            language: self.language,
             alive: self.alive,
             which: self.which,
             set_reload: self.set_reload,
@@ -238,6 +241,7 @@ struct Signals {
     expires_in: RwSignal<u32>,
     multiple: RwSignal<bool>,
     hide_totals: RwSignal<bool>,
+    language: RwSignal<String>,
     alive: Alive,
     which: StoredValue<nodus_sdk::Timeline>,
     set_reload: WriteSignal<u32>,
@@ -266,6 +270,12 @@ impl Signals {
             self.multiple.get_untracked(),
             self.hide_totals.get_untracked(),
         );
+        status.language = {
+            let held = self.language.get_untracked();
+            // Empty means the picker is on "instance default", which is the absence of the
+            // field — sending `language=` would ask the instance to store a blank code.
+            (!held.is_empty()).then_some(held)
+        };
 
         let chosen = self.visibility.get_untracked();
         let custom = self.custom.get_untracked();

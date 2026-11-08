@@ -1,0 +1,22 @@
+{
+  "name": "nodus-composer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The ProseMirror editor and emoji picker the composer mounts. Built into vendored IIFE bundles so the Rust build needs no npm.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "emoji-picker-element": "^1.29.1",
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-history": "^1.5.0",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.4",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.41.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

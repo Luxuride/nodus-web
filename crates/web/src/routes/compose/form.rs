@@ -54,6 +54,8 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     let (text, set_text) = signal(start.text);
     let (visibility, set_visibility) = signal(start.visibility);
     let (spoiler, set_spoiler) = signal(start.spoiler);
+    // Empty means the instance guesses; an edit keeps whatever the status was written in.
+    let (language, set_language) = signal(String::new());
     let (warning_open, set_warning_open) = signal(start.warning_open);
     let (sensitive, set_sensitive) = signal(start.sensitive);
     // Stored rather than captured: the submit handler and the button label both read it,
@@ -68,24 +70,24 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
         start_from_preferences(set_visibility, set_sensitive);
     }
 
-    let submit = move |()| {
+    let submit = Callback::new(move |()| {
         let body = text.get_untracked();
         if body.trim().is_empty() {
             set_error.set(Some("A status needs a body.".to_owned()));
             return;
         }
-        let mut status = NewStatus::text(body, visibility.get_untracked());
-        status.media_ids = media
-            .get_untracked()
-            .into_iter()
-            .map(|attachment| attachment.id)
-            .collect();
-        status.spoiler_text = if warning_open.get_untracked() {
-            spoiler.get_untracked()
-        } else {
-            String::new()
-        };
-        status.sensitive = sensitive.get_untracked();
+        let status = wire_status(
+            body,
+            visibility.get_untracked(),
+            media.get_untracked(),
+            if warning_open.get_untracked() {
+                spoiler.get_untracked()
+            } else {
+                String::new()
+            },
+            sensitive.get_untracked(),
+            language.get_untracked(),
+        );
         let editing = editing.get_value();
         let alive = Alive::new();
         set_busy.set(true);
@@ -113,26 +115,28 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
             });
             alive.if_alive(|| set_busy.set(false));
         });
-    };
+    });
 
-    let label = move || {
-        if editing.get_value().is_some() {
-            "Edit this status"
-        } else {
-            "Say something"
-        }
+    // Fixed at mount: this form is a new post or an edit for its whole life.
+    let label = if editing.get_value().is_some() {
+        "Edit this status"
+    } else {
+        "Say something"
     };
 
     view! {
         <nodus_view::Screen>
-            <label class="form-control">
+            <div class="form-control">
                 <span class="label-text text-xs opacity-60">{label}</span>
-                <textarea
-                    class="textarea textarea-bordered min-h-32 w-full"
-                    prop:value=move || text.get()
-                    on:input=move |event| set_text.set(event_target_value(&event))
-                />
-            </label>
+                <div class="rounded-box border border-base-300 bg-base-100 p-3">
+                    <crate::ui::editor::RichEditor
+                        text=text
+                        set_text=set_text
+                        emoji=super::inline::emoji::catalogue()
+                        on_submit=submit
+                    />
+                </div>
+            </div>
 
             <ComposerOptions
                 visibility=visibility
@@ -143,6 +147,8 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
                 set_sensitive=set_sensitive
                 spoiler=spoiler
                 set_spoiler=set_spoiler
+                language=language
+                set_language=set_language
             />
 
             <Attachments media=media set_error=set_error/>
@@ -151,7 +157,7 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
                 text=text
                 busy=busy
                 editing=editing
-                on_submit=Callback::new(submit)
+                on_submit=submit
             />
 
             <Show when=move || error.get().is_some()>
@@ -159,4 +165,24 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
             </Show>
         </nodus_view::Screen>
     }
+}
+
+/// The post as the instance will receive it.
+///
+/// A function rather than an inline block so the component stays inside clippy's line
+/// budget: the composer's layout is long enough on its own, and this part is pure data.
+fn wire_status(
+    text: String,
+    visibility: nodus_instance::model::Visibility,
+    media: Vec<MediaAttachment>,
+    spoiler_text: String,
+    sensitive: bool,
+    language: String,
+) -> NewStatus {
+    let mut status = NewStatus::text(text, visibility);
+    status.media_ids = media.into_iter().map(|attachment| attachment.id).collect();
+    status.spoiler_text = spoiler_text;
+    status.sensitive = sensitive;
+    status.language = (!language.is_empty()).then_some(language);
+    status
 }

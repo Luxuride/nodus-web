@@ -64,24 +64,12 @@ pub fn LanguagePicker(
     leptos::task::spawn_local(async move {
         let fetched = actions::languages().await;
         alive.if_alive(|| {
-            let list = if fetched.is_empty() {
-                FALLBACK
-                    .iter()
-                    .map(|(code, name)| Language {
-                        code: (*code).to_owned(),
-                        name: (*name).to_owned(),
-                    })
-                    .collect()
-            } else {
-                fetched
-            };
-            // Preselect the first published language; a later choice overrides it.
-            if language.get_untracked().is_empty() {
-                if let Some(first) = list.first() {
-                    set_language.set(first.code.clone());
+            let ordered = ordered_with_default(fetched, &mut |default| {
+                if language.get_untracked().is_empty() {
+                    set_language.set(default);
                 }
-            }
-            set_options.set(list);
+            });
+            set_options.set(ordered);
         });
     });
 
@@ -152,14 +140,16 @@ pub fn LanguagePicker(
         <div class="relative" node_ref=host>
             <button
                 type="button"
-                class="select select-bordered select-sm w-fit gap-1 pr-2 text-left"
+                class="select select-bordered select-sm w-fit min-w-44 max-w-64 gap-1 pr-2 text-left"
                 aria-haspopup="listbox"
                 aria-expanded=move || open.get().to_string()
                 aria-label="Post language"
                 title="The language this post is written in"
                 on:click=move |_| set_open.update(|showing| *showing = !*showing)
             >
-                <span class="truncate">{move || name_of(&language.get())}</span>
+                // No truncation: the point of the wider control is that "Português (Brasil)"
+                // is readable without opening the list.
+                <span class="whitespace-nowrap">{move || name_of(&language.get())}</span>
                 <span class="text-[0.6rem] leading-none opacity-60">"▼"</span>
             </button>
 
@@ -169,4 +159,34 @@ pub fn LanguagePicker(
             </Show>
         </div>
     }
+}
+
+/// Orders the catalogue with the instance default first, and reports that default.
+///
+/// The instance's own first language is the default: it is selected and shown at the top, so
+/// the common case costs no choice and a writer never has to scroll to find it. Everything
+/// else follows alphabetically.
+fn ordered_with_default(fetched: Vec<Language>, select: &mut impl FnMut(String)) -> Vec<Language> {
+    let mut list = if fetched.is_empty() {
+        FALLBACK
+            .iter()
+            .map(|(code, name)| Language {
+                code: (*code).to_owned(),
+                name: (*name).to_owned(),
+            })
+            .collect::<Vec<_>>()
+    } else {
+        fetched
+    };
+    let default = list.first().map(|language| language.code.clone());
+    list.sort_by(|left, right| {
+        let rank = |language: &Language| u8::from(Some(&language.code) != default.as_ref());
+        rank(left)
+            .cmp(&rank(right))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    if let Some(default) = default {
+        select(default);
+    }
+    list
 }

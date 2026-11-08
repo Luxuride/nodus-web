@@ -38,10 +38,28 @@ use session::{COOKIE, Session, Sessions};
 /// point is to remove the first request, not to reimplement pagination.
 const PAGE: u16 = 20;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct App {
     sessions: Arc<Sessions>,
-    assets: Arc<Assets>,
+    assets: std::sync::RwLock<Assets>,
+    dist: PathBuf,
+}
+
+impl App {
+    /// The asset names this process should serve, rediscovered when a deploy replaced them.
+    fn bundle(&self) -> Assets {
+        if let Ok(assets) = self.assets.read()
+            && !assets.stale(&self.dist)
+        {
+            return assets.clone();
+        }
+        let fresh = Assets::discover(&self.dist);
+        tracing::info!(script = %fresh.script, wasm = %fresh.wasm, "assets changed on disk");
+        if let Ok(mut assets) = self.assets.write() {
+            *assets = fresh.clone();
+        }
+        fresh
+    }
 }
 
 #[tokio::main]
@@ -64,7 +82,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Arc::new(App {
         sessions: Arc::new(sessions),
-        assets: Arc::new(assets),
+        assets: std::sync::RwLock::new(assets),
+        dist: PathBuf::from(&asset_dir),
     });
 
     let router = Router::new()
@@ -183,7 +202,7 @@ async fn index(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     if session_of(&app, &headers).is_some() {
         home(State(app), headers).await
     } else {
-        Html(render::landing(&app.assets)).into_response()
+        Html(render::landing(&app.bundle())).into_response()
     }
 }
 
@@ -200,27 +219,27 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
         return StatusCode::NOT_FOUND.into_response();
     }
     let acct = session_of(&app, &headers).map(|session| session.acct);
-    Html(render::shell(&app.assets, acct.as_deref(), path)).into_response()
+    Html(render::shell(&app.bundle(), acct.as_deref(), path)).into_response()
 }
 
 /// The home timeline, painted. This is the whole point of the slice: the request the
 /// browser used to make after the wasm booted is made here, and its answer is the markup.
 async fn home(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     let Some(session) = session_of(&app, &headers) else {
-        return Html(render::landing(&app.assets)).into_response();
+        return Html(render::landing(&app.bundle())).into_response();
     };
     let client = match Client::new(&session.host, &session.token) {
         Ok(client) => client,
-        Err(message) => return Html(render::error(&app.assets, &message)).into_response(),
+        Err(message) => return Html(render::error(&app.bundle(), &message)).into_response(),
     };
     match client.home(PAGE).await {
         Ok((statuses, cursor)) => Html(render::home(
-            &app.assets,
+            &app.bundle(),
             &session.acct,
             &statuses,
             cursor.as_deref(),
         ))
         .into_response(),
-        Err(message) => Html(render::error(&app.assets, &message)).into_response(),
+        Err(message) => Html(render::error(&app.bundle(), &message)).into_response(),
     }
 }

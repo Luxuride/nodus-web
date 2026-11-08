@@ -31,7 +31,18 @@ pub struct Assets {
 impl Assets {
     /// Find the bundle in a `dist` directory. Falls back to trunk's stable names so a
     /// misconfigured path produces a page that still works rather than a 404 loop.
+    /// Whether the files this build discovered are still the ones on disk.
+    ///
+    /// `Caddy` serves `/srv/nodus` from the filesystem, so a static deploy replaces both the
+    /// script and the wasm while this process keeps serving. Without this check the page
+    /// keeps naming the previous bundle, the browser asks for a file that no longer exists,
+    /// and the wasm never boots — the document stays server-painted and looks like SSR
+    /// having replaced CSR.
     #[must_use]
+    pub fn stale(&self, dist: &std::path::Path) -> bool {
+        !dist.join(&self.wasm).is_file() || !dist.join(&self.script).is_file()
+    }
+
     pub fn discover(dist: &std::path::Path) -> Self {
         let mut script = None;
         let mut wasm = None;

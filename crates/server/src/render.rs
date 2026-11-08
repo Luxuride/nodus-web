@@ -650,32 +650,36 @@ pub fn account_row(account: &Account) -> String {
 /// One notification: what happened, to whom, and the status when the event carries one.
 #[must_use]
 pub fn notification_row(notification: &Notification) -> String {
-    let kind = match notification.kind {
-        nodus_instance::model::NotificationKind::Follow => "followed you",
-        nodus_instance::model::NotificationKind::FollowRequest => "asked to follow you",
-        nodus_instance::model::NotificationKind::Reblog => "boosted your post",
-        nodus_instance::model::NotificationKind::Favourite => "favourited your post",
-        nodus_instance::model::NotificationKind::Mention => "mentioned you",
-        nodus_instance::model::NotificationKind::Poll => "a poll you voted in ended",
-        nodus_instance::model::NotificationKind::Status => "posted",
-        nodus_instance::model::NotificationKind::AdminSignUp => "signed up",
-        nodus_instance::model::NotificationKind::AdminReport => "a report was filed",
-        nodus_instance::model::NotificationKind::Unknown => "sent you something",
-    };
-    let status = notification
-        .status
-        .as_ref()
-        .map(status_card)
-        .unwrap_or_default();
-    format!(
-        "<li class=\"flex flex-col gap-2\">\
-           <p class=\"text-sm\"><a class=\"font-medium hover:underline\" href=\"/accounts/{id}\">{name}</a> \
-             <span class=\"opacity-70\">{kind}</span></p>{status}\
-         </li>",
-        id = escape(&notification.account.id),
-        name = escape(&notification.account.acct),
-        kind = escape(kind)
-    )
+    use leptos::prelude::*;
+
+    let age = nodus_view::relative_age(&notification.created_at, now_millis());
+    let body = notification.status.as_ref().map(status_card).map(|html| {
+        let body = std::sync::Arc::new(move || {
+            leptos::html::ul()
+                .class("flex flex-col gap-2")
+                .inner_html(html.clone())
+                .into_any()
+        });
+        body as ChildrenFn
+    });
+    let notification = notification.clone();
+
+    Owner::new().with(|| {
+        nodus_view::NotificationCard(nodus_view::NotificationCardProps {
+            notification,
+            age,
+            body,
+            extra: None,
+        })
+        .to_html()
+    })
+}
+
+/// Milliseconds since the Unix epoch, by this host's clock.
+fn now_millis() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |elapsed| elapsed.as_secs_f64() * 1_000.0)
 }
 
 /// One conversation: everyone in it, and its last message.

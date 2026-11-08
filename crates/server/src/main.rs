@@ -199,7 +199,7 @@ async fn sign_in(State(app): State<Arc<App>>, Json(body): Json<Credentials>) -> 
                 token: body.token,
                 account_id: account.id.clone(),
                 acct: account.acct.clone(),
-                admin,
+                admin: Some(admin),
             });
             let mut response = Json(json!({
                 "acct": account.acct,
@@ -265,7 +265,21 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
     // The rail draws the moderation doors for a moderator, and it is drawn before any
     // wasm runs, so the answer has to come from the session that was established at
     // sign-in (`Session::admin`).
-    render::set_staff(session.admin);
+    let admin = match session.admin {
+        Some(admin) => admin,
+        None => {
+            let answer = match Client::new(&session.host, &session.token) {
+                Ok(client) => client.is_staff().await,
+                Err(message) => {
+                    tracing::warn!(%message, "could not ask whether this account moderates");
+                    false
+                }
+            };
+            app.sessions.set_admin(&session.host, &session.acct, answer);
+            answer
+        }
+    };
+    render::set_staff(admin);
     let assets = app.bundle();
     let painted = match Client::new(&session.host, &session.token) {
         Ok(client) => read_page(&client, &assets, &session.acct, path, uri.query()).await,

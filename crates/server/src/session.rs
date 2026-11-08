@@ -34,7 +34,7 @@ pub struct Session {
     /// the first paint whether to draw the moderation doors, and an instance call per page
     /// would be paid by every reader. A role granted later shows up on the next sign-in.
     #[serde(default)]
-    pub admin: bool,
+    pub admin: Option<bool>,
 }
 
 /// What the browser is told about its own session. Note the absence of the token.
@@ -109,6 +109,20 @@ impl Sessions {
 
     pub fn remove(&self, id: &str) {
         self.guard().remove(id);
+        self.persist();
+    }
+
+    /// Records what the moderation probe answered for one account.
+    ///
+    /// Sessions made before this field existed carry `None`, and the first request after an
+    /// upgrade asks the instance once and writes the answer down here, so the rail is
+    /// complete on the page the reader is actually looking at.
+    pub fn set_admin(&self, host: &str, acct: &str, admin: bool) {
+        for session in self.guard().values_mut() {
+            if session.host == host && session.acct == acct {
+                session.admin = Some(admin);
+            }
+        }
         self.persist();
     }
 

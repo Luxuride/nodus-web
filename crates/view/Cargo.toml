@@ -5,6 +5,7 @@ description = "The marks both the browser and the server draw: the frame, the ra
 edition = "2024"
 
 [dependencies]
+nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0", default-features = false }
 leptos = { version = "0.8", default-features = false }
 
 [lints]

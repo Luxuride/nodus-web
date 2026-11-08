@@ -110,7 +110,50 @@ pub struct Island<'a> {
     pub cursor: Option<&'a str>,
 }
 
-/// One status as markup: who, when, what.
+/// The author line above a status, drawn by the component the client draws with.
+///
+/// The addresses are the server's own routes and the age comes from the clock this
+/// process reads once per card; with no `on_navigate` the anchors stay plain links, which
+/// is what the server's reader gets anyway.
+fn status_header(status: &Status) -> String {
+    let age = nodus_view::relative_age(&status.created_at, now_millis());
+    let author_path = format!("/accounts/{}", status.account.id);
+    let thread_path = format!("/status/{}", status.id);
+    let status = status.clone();
+    Owner::new().with(|| {
+        nodus_view::status_header::StatusHeader(nodus_view::status_header::StatusHeaderProps {
+            status,
+            age,
+            author_path,
+            thread_path,
+            on_navigate: None,
+        })
+        .to_html()
+    })
+}
+
+/// The action row under a status, drawn by the component the client draws with.
+///
+/// The verbs have no callbacks here, so they render as the client's boxes without the
+/// press; the reply link keeps its `href`.
+fn status_footer(status: &Status) -> String {
+    let edited = status.edited_at.is_some();
+    let status = status.clone();
+    Owner::new().with(|| {
+        nodus_view::status_footer::StatusFooter(nodus_view::status_footer::StatusFooterProps {
+            status,
+            edited,
+            on_reply: None,
+            on_boost: None,
+            on_favourite: None,
+            on_bookmark: None,
+            before_verbs: None,
+            after_verbs: None,
+        })
+        .to_html()
+    })
+}
+
 /// The attachment grid: images inline, video and audio with a player, and a one-picture
 /// post given the full width so it is not forced into a half-empty pair.
 fn media_grid(status: &Status, blurred: bool) -> String {
@@ -131,6 +174,10 @@ fn media_grid(status: &Status, blurred: bool) -> String {
     })
 }
 
+/// One status as markup: who, when, what.
+///
+/// The author line and the action row come from `nodus-view`, the same components the
+/// client mounts, so the first paint and the one after the wasm boots cannot drift.
 pub fn status_card(status: &Status) -> String {
     // A boost renders the boosted post under the booster's name, exactly as the client
     // does: the wrapper carries nothing but the line that says who boosted it.
@@ -143,11 +190,6 @@ pub fn status_card(status: &Status) -> String {
             inner,
         ),
         None => (String::new(), status),
-    };
-    let name = if inner.account.display_name.is_empty() {
-        inner.account.acct.clone()
-    } else {
-        inner.account.display_name.clone()
     };
     let grid = if inner.media_attachments.is_empty() {
         String::new()
@@ -162,53 +204,23 @@ pub fn status_card(status: &Status) -> String {
     } else {
         media_grid(inner, false)
     };
-    let avatar = if inner.account.avatar.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "<img class=\"h-full w-full object-cover\" width=\"40\" height=\"40\" decoding=\"async\" loading=\"lazy\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
-            escape(&inner.account.avatar)
-        )
-    };
+    let header = status_header(inner);
+    let footer = status_footer(inner);
     format!(
         "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-           <div class=\"card-body gap-3 p-4\">{boosted}\
-             <header class=\"flex items-center gap-3\">\
-               <a class=\"avatar\" href=\"/accounts/{id}\">\
-                 <div class=\"w-10 rounded-full bg-base-300 overflow-hidden\">{avatar}</div>\
-               </a>\
-               <div class=\"min-w-0 flex-1\">\
-                 <a class=\"block truncate font-semibold leading-tight hover:underline\" href=\"/accounts/{id}\">{name}</a>\
-                 <a class=\"block truncate text-sm opacity-60 hover:underline\" href=\"/accounts/{id}\">{handle}</a>\
-               </div>\
-               <a class=\"text-xs whitespace-nowrap opacity-50 hover:underline\" href=\"/status/{sid}\">{when}</a>\
-             </header>\
-             <div class=\"whitespace-pre-line text-sm leading-relaxed\">{body}</div>{grid}\
-             <footer class=\"flex items-center justify-between gap-2 border-t border-base-200 pt-2\">\
-               <span class=\"text-xs opacity-60\">{replies} replies</span>\
-               <div class=\"flex items-center gap-1\">\
-                 <a class=\"btn btn-ghost btn-sm\" href=\"/status/{sid}\"><span>\u{21a9}</span><span class=\"ml-1\">Reply</span></a>\
-                 <span class=\"btn btn-ghost btn-sm\"><span>\u{21c4}</span><span class=\"ml-1 tabular-nums\">{reblogs}</span></span>\
-                 <span class=\"btn btn-ghost btn-sm\"><span>\u{2606}</span><span class=\"ml-1 tabular-nums\">{favourites}</span></span>\
-                 <span class=\"btn btn-ghost btn-sm\"><span>\u{1f516}</span></span>\
-               </div>\
-             </footer>\
+           <div class=\"card-body gap-3 p-4\">{boosted}{header}\
+             <div class=\"whitespace-pre-line text-sm leading-relaxed\">{body}</div>{grid}{footer}\
            </div>\
          </li>",
-        id = escape(&inner.account.id),
-        name = escape(&name),
-        handle = escape(&inner.account.acct),
-        sid = escape(&inner.id),
-        when = escape(&stamp(&inner.created_at)),
         body = with_emojis(body_html(&inner.content), &inner.emojis),
-        replies = inner.replies_count,
-        reblogs = inner.reblogs_count,
-        favourites = inner.favourites_count,
     )
 }
 
-/// The timestamp the server paints. The client replaces it with a relative time on mount;
-/// both are `text-xs` in the header, so the row keeps its height either way.
+/// The absolute timestamp the server paints, with the date and the minute.
+///
+/// Only the scheduled queue uses it: a post that has not gone out yet is read as a time
+/// and a day, where "in 3h" would be a moving target. Statuses take their age from
+/// [`nodus_view::relative_age`], the client's own wording.
 fn stamp(rfc3339: &str) -> String {
     rfc3339
         .get(..16)

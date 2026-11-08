@@ -10,6 +10,8 @@
 pub mod icons;
 pub mod media;
 pub mod media_grid;
+pub mod status_footer;
+pub mod status_header;
 
 use icons::Icon;
 use leptos::prelude::*;

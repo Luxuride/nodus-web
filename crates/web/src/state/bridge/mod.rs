@@ -36,11 +36,11 @@ pub mod admin;
 mod admin_token;
 mod feed;
 mod impressions;
+pub mod notices;
+pub mod pages;
 mod posts;
 mod runtime;
 pub mod session;
-pub mod notices;
-pub mod pages;
 pub mod timeline;
 
 // Re-exported so every call site keeps saying `bridge::<verb>`: the split into
@@ -396,9 +396,7 @@ pub async fn keep_admin_token(host: &str, token: &str) -> Result<(), String> {
         .reports(nodus_instance::model::ReportState::Open, 1)
         .await
         .map_err(|error| {
-            format!(
-                "That account cannot moderate on {host}, so the grant was not kept: {error}"
-            )
+            format!("That account cannot moderate on {host}, so the grant was not kept: {error}")
         })?;
     admin_token::store(host, token);
     Ok(())

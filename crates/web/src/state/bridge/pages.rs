@@ -66,7 +66,10 @@ pub async fn refresh(kind: PageKind) -> Result<bool, String> {
 /// `None` means "unknown": the page was never loaded, or the socket reconnected and
 /// marked it stale. A view that shows old data must say so, so this stays public even
 /// while the first caller is still being written.
-#[expect(dead_code, reason = "the offline banner and the people screens read it next")]
+#[expect(
+    dead_code,
+    reason = "the offline banner and the people screens read it next"
+)]
 #[must_use]
 pub fn fetched_at(kind: &PageKind) -> Option<i64> {
     read(kind).and_then(|entry| entry.fetched_at)

@@ -6,12 +6,15 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::MediaAttachment;
+use nodus_instance::model::{MediaAttachment, MediaKind};
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
+
+/// The id of the hidden file input, so the `+` button can open the picker.
+const ATTACH_INPUT: &str = "nodus-attach-input";
 
 /// Reads a picked file into bytes and its declared MIME type.
 async fn read(file: web_sys::File) -> Result<(Vec<u8>, String), String> {
@@ -74,30 +77,69 @@ pub fn Attachments(
         });
     };
 
+    // One add button, and the list of what was added. The native control is hidden
+    // because its own wording ("No file chosen") is a sentence about the browser's state
+    // rather than about the post, and it stays on screen after the upload has finished.
+    let open_picker = move |()| {
+        if let Some(input) = web_sys::window()
+            .and_then(|window| window.document())
+            .and_then(|document| document.get_element_by_id(ATTACH_INPUT))
+            .and_then(|element| element.dyn_into::<web_sys::HtmlInputElement>().ok())
+        {
+            input.click();
+        }
+    };
+
     view! {
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <input
-                class="file-input file-input-bordered file-input-sm w-full"
+                id=ATTACH_INPUT
+                class="hidden"
                 type="file"
                 accept="image/*,video/*,audio/*"
                 multiple
                 disabled=move || uploading.get()
                 on:change=pick
             />
+            <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
+                title="Add images, video or audio"
+                aria-label="Add media"
+                disabled=move || uploading.get()
+                on:click=move |_| open_picker(())
+            >
+                "+"
+            </button>
             <Show when=move || uploading.get()>
-                <p class="text-xs opacity-60">"Uploading…"</p>
+                <span class="loading loading-spinner loading-xs" aria-label="Uploading"></span>
             </Show>
             <ul class="flex flex-wrap gap-2">
                 <For each=move || media.get() key=|attachment| attachment.id.clone() let:attachment>
                     {
                         let id = attachment.id.clone();
+                        // Owned before the view: the fallback closure must be `'static`,
+                        // and `attachment` is dropped when this iteration ends.
+                        // A signal, not a `String`: the fallback closure must be `Fn`,
+                        // and a captured `String` would make it `FnOnce`.
+                        let (kind_label, _) = signal(format!("{:?}", attachment.kind));
+                        let is_image = attachment.kind == MediaKind::Image;
                         view! {
                             <li class="relative">
-                                <img
-                                    class="h-20 w-20 rounded-box object-cover"
-                                    src=attachment.preview_url.clone().unwrap_or_default()
-                                    alt=attachment.description.clone().unwrap_or_default()
-                                />
+                                <Show
+                                    when=move || is_image
+                                    fallback=move || view! {
+                                        <span class="badge badge-outline badge-sm">
+                                            {kind_label}
+                                        </span>
+                                    }
+                                >
+                                    <img
+                                        class="h-20 w-20 rounded-box object-cover"
+                                        src=attachment.preview_url.clone().unwrap_or_default()
+                                        alt=attachment.description.clone().unwrap_or_default()
+                                    />
+                                </Show>
                                 <button
                                     class="btn btn-circle btn-xs absolute -right-1 -top-1"
                                     title="Remove this attachment"

@@ -52,7 +52,8 @@ fn open_conversation(id: String, alive: Alive) {
             // The endpoint answers with nothing, so the flag is set on the copy the SDK
             // holds: the server accepted the read, and that is what the row now shows.
             alive.if_alive(|| {
-                if let Some((list, _)) = pages::items(&PageKind::Conversations, |items| match items {
+                if let Some((list, _)) = pages::items(&PageKind::Conversations, |items| match items
+                {
                     PageItems::Conversations(list) => Some(list),
                     _ => None,
                 }) {

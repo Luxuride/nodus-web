@@ -32,8 +32,8 @@ use crate::routes::search::Search;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
 use crate::routes::status::{PublicThread, Thread};
-use crate::ui::icons::Icon;
 use crate::state::bridge::{init, revision, with_sdk};
+use crate::ui::icons::Icon;
 
 use leptos::prelude::*;
 use nodus_sdk::Timeline;
@@ -330,12 +330,7 @@ fn Footer() -> impl IntoView {
 /// two closures; a route with an argument cannot be `Copy`, and leaking one to avoid the
 /// clones would be a worse trade.
 #[component]
-fn RailItem(
-    label: &'static str,
-    icon: Icon,
-    hint: &'static str,
-    route: Route,
-) -> impl IntoView {
+fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -> impl IntoView {
     let current = router::route();
     let marker = route.clone();
     let target = route.clone();

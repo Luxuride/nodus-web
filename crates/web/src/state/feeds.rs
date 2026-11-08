@@ -49,12 +49,8 @@ impl Feed {
     pub const fn description(self) -> &'static str {
         match self {
             Self::Home => "Posts from the accounts you follow.",
-            Self::Local => {
-                "Posts from accounts on your instance, whether you follow them or not."
-            }
-            Self::Federated => {
-                "Posts your instance has received from other instances."
-            }
+            Self::Local => "Posts from accounts on your instance, whether you follow them or not.",
+            Self::Federated => "Posts your instance has received from other instances.",
         }
     }
 }

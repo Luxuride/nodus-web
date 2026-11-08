@@ -12,12 +12,11 @@ use nodus_instance::BrowserInstance;
 use nodus_instance::InstanceApi;
 use nodus_instance::actions::{
     AccountActions, Browse, FilterActions, HighlightActions, InstanceMeta, MediaActions,
-    ScheduleActions,
-    Search, StatusActions,
+    ScheduleActions, Search, StatusActions,
 };
 use nodus_instance::model::{
-    Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId, MediaAttachment,
-    Page, PageParams, ProfileUpdate, Relationship, SearchResults, Status,
+    Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId,
+    MediaAttachment, Page, PageParams, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -314,7 +313,10 @@ pub async fn create_filter(draft: &FilterDraft) -> Result<Filter, String> {
 ///
 /// Unused until the card grows an editor; the SDK keeps it because a filter whose
 /// phrases cannot be corrected is a filter the reader must delete and retype.
-#[expect(dead_code, reason = "the settings card can add and delete, not yet edit")]
+#[expect(
+    dead_code,
+    reason = "the settings card can add and delete, not yet edit"
+)]
 pub async fn update_filter(id: &str, draft: &FilterDraft) -> Result<Filter, String> {
     call(transport()?.update_filter(id, draft)).await
 }
@@ -345,7 +347,11 @@ pub async fn mute_conversation(id: &str, muted: bool) -> Result<Conversation, St
 }
 
 /// Queues a draft for `at`, in RFC 3339.
-pub async fn schedule(text: &str, visibility: nodus_instance::model::Visibility, at: &str) -> Result<(), String> {
+pub async fn schedule(
+    text: &str,
+    visibility: nodus_instance::model::Visibility,
+    at: &str,
+) -> Result<(), String> {
     let draft = Draft {
         text: text.to_owned(),
         visibility,
@@ -355,7 +361,9 @@ pub async fn schedule(text: &str, visibility: nodus_instance::model::Visibility,
         spoiler_text: String::new(),
         sensitive: false,
     };
-    call(transport()?.schedule(&draft, at)).await.map(|_queued| ())
+    call(transport()?.schedule(&draft, at))
+        .await
+        .map(|_queued| ())
 }
 
 /// Cancels a queued post.

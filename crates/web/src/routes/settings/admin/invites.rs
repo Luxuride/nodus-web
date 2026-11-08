@@ -54,7 +54,9 @@ pub(super) fn Invites() -> impl IntoView {
             .parse::<u32>()
             .ok()
             .filter(|count| *count > 0);
-        let expires_in = LIFETIMES.get(days.get_untracked()).and_then(|(_, seconds)| *seconds);
+        let expires_in = LIFETIMES
+            .get(days.get_untracked())
+            .and_then(|(_, seconds)| *seconds);
         set_busy.set(true);
         set_error.set(None);
         spawn_local(async move {
@@ -121,4 +123,3 @@ pub(super) fn Invites() -> impl IntoView {
         </div>
     }
 }
-

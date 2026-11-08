@@ -12,7 +12,10 @@ use crate::state::bridge::actions;
 /// Owns its own draft: the card above only needs to know that one was created, and a
 /// half-typed phrase must not be re-rendered by an unrelated update to the list.
 #[component]
-pub fn NewFilterForm(on_created: Callback<()>, set_error: WriteSignal<Option<String>>) -> impl IntoView {
+pub fn NewFilterForm(
+    on_created: Callback<()>,
+    set_error: WriteSignal<Option<String>>,
+) -> impl IntoView {
     let alive = Alive::new();
     let (title, set_title) = signal(String::new());
     let (phrases, set_phrases) = signal(String::new());

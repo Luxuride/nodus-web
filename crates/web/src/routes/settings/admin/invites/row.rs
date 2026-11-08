@@ -48,9 +48,11 @@ pub(super) fn InviteRow(
 /// The link a person can actually open: the code is appended to this instance's host.
 fn invite_link(code: &str) -> String {
     with_sdk(|sdk| {
-        sdk.state().session.get().map_or_else(
-            String::new,
-            |session| format!("https://{}/invite/{code}", session.host),
-        )
+        sdk.state()
+            .session
+            .get()
+            .map_or_else(String::new, |session| {
+                format!("https://{}/invite/{code}", session.host)
+            })
     })
 }

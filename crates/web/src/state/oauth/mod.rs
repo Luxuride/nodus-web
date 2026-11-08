@@ -70,7 +70,11 @@ pub async fn begin_admin(host: &str) -> Result<(), String> {
 }
 
 /// The shared body of both flows.
-async fn begin_with(host: &str, scopes: &'static str, purpose: pending::Purpose) -> Result<(), String> {
+async fn begin_with(
+    host: &str,
+    scopes: &'static str,
+    purpose: pending::Purpose,
+) -> Result<(), String> {
     let host = normalise_host(host)?;
     let origin = origin()?;
     let redirect_uri = format!("{origin}{CALLBACK_PATH}");
@@ -92,7 +96,14 @@ async fn begin_with(host: &str, scopes: &'static str, purpose: pending::Purpose)
         purpose,
     })?;
 
-    let url = authorize_url(&host, &app.client_id, &redirect_uri, &challenge, &state, scopes)?;
+    let url = authorize_url(
+        &host,
+        &app.client_id,
+        &redirect_uri,
+        &challenge,
+        &state,
+        scopes,
+    )?;
     window()?
         .location()
         .assign(&url)

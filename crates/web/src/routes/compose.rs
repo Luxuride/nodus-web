@@ -14,8 +14,7 @@ use crate::state::bridge::actions;
 mod attachments;
 mod form;
 pub mod inline;
-pub(crate) 
-use form::ComposeForm;
+pub(crate) use form::ComposeForm;
 
 /// Writing a new status.
 #[component]

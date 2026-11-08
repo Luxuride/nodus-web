@@ -3,7 +3,8 @@
 use super::{admin_transport, instance_transport};
 use nodus_instance::actions::{AdminActions, RegistrationActions};
 use nodus_instance::model::{
-    AdminAccount, AdminMeasure, Invite, Announcement, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Relay, Report, ReportState,
+    AdminAccount, AdminMeasure, Announcement, DomainAllow, DomainBlock, DomainSeverity, Invite,
+    ModerationAction, Relay, Report, ReportState,
 };
 
 /// How many rows a moderation screen asks for.
@@ -41,7 +42,9 @@ pub async fn staff() -> Staff {
 
 /// Reports in the given state.
 pub async fn reports(state: ReportState) -> Result<Vec<Report>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .reports(state, PAGE)
         .await
@@ -50,7 +53,9 @@ pub async fn reports(state: ReportState) -> Result<Vec<Report>, String> {
 
 /// Marks a report as handled.
 pub async fn resolve_report(id: &str) -> Result<Report, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .resolve_report(id)
         .await
@@ -63,7 +68,9 @@ pub async fn resolve_report(id: &str) -> Result<Report, String> {
 /// closed by mistake can only be reopened, never re-created.
 #[expect(dead_code, reason = "the queue shows open reports only")]
 pub async fn reopen_report(id: &str) -> Result<Report, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .reopen_report(id)
         .await
@@ -72,7 +79,9 @@ pub async fn reopen_report(id: &str) -> Result<Report, String> {
 
 /// Accounts the instance knows about.
 pub async fn accounts(local: bool) -> Result<Vec<AdminAccount>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .admin_accounts(local, PAGE)
         .await
@@ -81,7 +90,9 @@ pub async fn accounts(local: bool) -> Result<Vec<AdminAccount>, String> {
 
 /// Applies a decision to one account.
 pub async fn moderate(id: &str, action: ModerationAction) -> Result<AdminAccount, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .moderate_account(id, action)
         .await
@@ -90,7 +101,9 @@ pub async fn moderate(id: &str, action: ModerationAction) -> Result<AdminAccount
 
 /// Domains the instance refuses.
 pub async fn domain_blocks() -> Result<Vec<DomainBlock>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .domain_blocks(PAGE)
         .await
@@ -102,7 +115,9 @@ pub async fn create_domain_block(
     domain: &str,
     severity: DomainSeverity,
 ) -> Result<DomainBlock, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .create_domain_block(domain, severity)
         .await
@@ -111,7 +126,9 @@ pub async fn create_domain_block(
 
 /// Stops refusing a domain.
 pub async fn delete_domain_block(id: &str) -> Result<(), String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .delete_domain_block(id)
         .await
@@ -120,7 +137,9 @@ pub async fn delete_domain_block(id: &str) -> Result<(), String> {
 
 /// Announcements, including ones this account has not seen yet.
 pub async fn announcements() -> Result<Vec<Announcement>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .admin_announcements()
         .await
@@ -128,8 +147,13 @@ pub async fn announcements() -> Result<Vec<Announcement>, String> {
 }
 
 /// Publishes an announcement. `ends_at` empty means "never ends".
-pub async fn create_announcement(content: &str, ends_at: Option<&str>) -> Result<Announcement, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+pub async fn create_announcement(
+    content: &str,
+    ends_at: Option<&str>,
+) -> Result<Announcement, String> {
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .create_announcement(content, None, ends_at)
         .await
@@ -138,7 +162,9 @@ pub async fn create_announcement(content: &str, ends_at: Option<&str>) -> Result
 
 /// Withdraws an announcement.
 pub async fn delete_announcement(id: &str) -> Result<(), String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .delete_announcement(id)
         .await
@@ -150,7 +176,9 @@ pub async fn delete_announcement(id: &str) -> Result<(), String> {
 /// The two dates are computed here rather than in the SDK: `js_sys::Date` is the only
 /// clock this crate has, and the API wants `YYYY-MM-DD` strings.
 pub async fn measures(keys: &[&str], days: f64) -> Result<Vec<AdminMeasure>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     let end = js_sys::Date::new_0();
     let start = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(
         end.get_time() - days * 86_400_000.0,
@@ -163,18 +191,25 @@ pub async fn measures(keys: &[&str], days: f64) -> Result<Vec<AdminMeasure>, Str
 
 /// The day part of an instant, which is what the measures endpoint accepts.
 fn day(date: &js_sys::Date) -> String {
-    String::from(date.to_iso_string()).chars().take(10).collect()
+    String::from(date.to_iso_string())
+        .chars()
+        .take(10)
+        .collect()
 }
 
 /// Relays this instance follows.
 pub async fn relays() -> Result<Vec<Relay>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport.relays().await.map_err(|error| error.to_string())
 }
 
 /// Asks a relay to forward public posts here.
 pub async fn add_relay(inbox_url: &str) -> Result<Relay, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .add_relay(inbox_url)
         .await
@@ -183,7 +218,9 @@ pub async fn add_relay(inbox_url: &str) -> Result<Relay, String> {
 
 /// Stops following a relay.
 pub async fn remove_relay(id: &str) -> Result<(), String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .remove_relay(id)
         .await
@@ -192,7 +229,9 @@ pub async fn remove_relay(id: &str) -> Result<(), String> {
 
 /// Domains allowed through a general block.
 pub async fn domain_allows() -> Result<Vec<DomainAllow>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .domain_allows(PAGE)
         .await
@@ -201,7 +240,9 @@ pub async fn domain_allows() -> Result<Vec<DomainAllow>, String> {
 
 /// Lets a domain through.
 pub async fn create_domain_allow(domain: &str) -> Result<DomainAllow, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .create_domain_allow(domain)
         .await
@@ -210,7 +251,9 @@ pub async fn create_domain_allow(domain: &str) -> Result<DomainAllow, String> {
 
 /// Withdraws an allow.
 pub async fn delete_domain_allow(id: &str) -> Result<(), String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .delete_domain_allow(id)
         .await
@@ -219,8 +262,13 @@ pub async fn delete_domain_allow(id: &str) -> Result<(), String> {
 
 /// The invites this account may hand out.
 pub async fn invites() -> Result<Vec<Invite>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
-    transport.invites(PAGE).await.map_err(|error| error.to_string())
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .invites(PAGE)
+        .await
+        .map_err(|error| error.to_string())
 }
 
 /// Creates an invite. `max_uses` of `None` is unlimited; `expires_in` is in seconds.
@@ -228,7 +276,9 @@ pub async fn create_invite(
     max_uses: Option<u32>,
     expires_in: Option<u64>,
 ) -> Result<Invite, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .create_invite(max_uses, expires_in, false)
         .await
@@ -237,7 +287,9 @@ pub async fn create_invite(
 
 /// Revokes an invite, so its link stops working.
 pub async fn revoke_invite(id: &str) -> Result<(), String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .revoke_invite(id)
         .await
@@ -246,7 +298,9 @@ pub async fn revoke_invite(id: &str) -> Result<(), String> {
 
 /// Accounts waiting for a moderator to decide.
 pub async fn pending_accounts() -> Result<Vec<AdminAccount>, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .pending_accounts(PAGE)
         .await
@@ -255,7 +309,9 @@ pub async fn pending_accounts() -> Result<Vec<AdminAccount>, String> {
 
 /// Lets an account in.
 pub async fn approve_account(id: &str) -> Result<AdminAccount, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .approve_account(id)
         .await
@@ -264,7 +320,9 @@ pub async fn approve_account(id: &str) -> Result<AdminAccount, String> {
 
 /// Refuses an account.
 pub async fn reject_account(id: &str) -> Result<AdminAccount, String> {
-    let transport = admin_transport().or_else(instance_transport).ok_or_else(|| "Not signed in.".to_owned())?;
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .reject_account(id)
         .await

@@ -80,7 +80,11 @@ fn ApprovalRow(
     let name = if account.domain.is_none() {
         format!("@{}", account.username)
     } else {
-        format!("@{}@{}", account.username, account.domain.clone().unwrap_or_default())
+        format!(
+            "@{}@{}",
+            account.username,
+            account.domain.clone().unwrap_or_default()
+        )
     };
     let email = account.email.unwrap_or_default();
     let approve = id_for(&id, true, decide);

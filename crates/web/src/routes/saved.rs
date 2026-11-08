@@ -6,11 +6,11 @@
 
 use leptos::prelude::*;
 
-use crate::ui::page::PageHeader;
-use leptos::task::spawn_local;
 use super::status::StatusCard;
 use crate::state::alive::Alive;
 use crate::state::bridge::{pages, revision};
+use crate::ui::page::PageHeader;
+use leptos::task::spawn_local;
 use nodus_sdk::page::{PageItems, PageKind};
 
 /// Which shelf is showing.

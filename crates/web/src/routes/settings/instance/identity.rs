@@ -22,26 +22,27 @@ pub fn Identity(info: ReadSignal<Option<InstanceInfo>>) -> impl IntoView {
             .map_or_else(String::new, |info| info.short_description)
     };
     let registrations = move || {
-        info.get()
-            .and_then(|info| info.registrations)
-            .map_or_else(
-                || "not stated".to_owned(),
-                |registrations| {
-                    if !registrations.enabled {
-                        "closed".to_owned()
-                    } else if registrations.approval_required {
-                        "open, with approval".to_owned()
-                    } else {
-                        "open".to_owned()
-                    }
-                },
-            )
+        info.get().and_then(|info| info.registrations).map_or_else(
+            || "not stated".to_owned(),
+            |registrations| {
+                if !registrations.enabled {
+                    "closed".to_owned()
+                } else if registrations.approval_required {
+                    "open, with approval".to_owned()
+                } else {
+                    "open".to_owned()
+                }
+            },
+        )
     };
     let active = move || {
         info.get()
             .and_then(|info| info.usage)
             .and_then(|usage| usage.users)
-            .map_or_else(|| "not stated".to_owned(), |users| users.active_month.to_string())
+            .map_or_else(
+                || "not stated".to_owned(),
+                |users| users.active_month.to_string(),
+            )
     };
     let contact = move || {
         info.get()

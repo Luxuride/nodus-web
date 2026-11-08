@@ -47,7 +47,10 @@ pub enum Route {
     /// The host is part of the address because an id is local to the instance that issued
     /// it: without the host a link is ambiguous, and a reader who is not signed in cannot
     /// be told where to look. Empty only for a legacy `/status/{id}` link.
-    Thread { host: String, id: String },
+    Thread {
+        host: String,
+        id: String,
+    },
     /// One account's profile and statuses.
     Account(String),
     /// Notifications for the signed-in account.
@@ -370,7 +373,9 @@ fn decode_query(value: &str) -> String {
     let mut rest = value;
     while let Some(index) = rest.find('%') {
         decoded.push_str(&rest[..index]);
-        let escape = rest.get(index + 1..index + 3).and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        let escape = rest
+            .get(index + 1..index + 3)
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
         if let Some(character) = escape.and_then(|byte| char::from_u32(u32::from(byte))) {
             decoded.push(character);
             rest = &rest[index + 3..];

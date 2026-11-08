@@ -13,7 +13,7 @@
 //! - **Unknown is not a default.** When the server has no session it paints the signed-out
 //!   page; it never paints one account's page and lets the client swap it.
 
-use nodus_instance::model::Status;
+use nodus_instance::model::{MediaKind, Status};
 
 /// The assets `trunk` produced. Discovered at startup, because the names carry content
 /// hashes: writing them down here would mean a stale page after every build.
@@ -73,6 +73,42 @@ pub fn escape(text: &str) -> String {
     out
 }
 
+/// Turns a status body into text that keeps the author's line breaks.
+///
+/// Mastodon answers with HTML fragments (`<p>…</p>`, `<br>`, links, `<span>` for
+/// mentions). Escaping that markup shows the tags themselves, and collapsing it loses
+/// every newline, so the tags are turned into the whitespace they stand for and the rest
+/// is stripped — the rendered page is *text*, and the client's own renderer takes over
+/// the moment wasm boots.
+fn body_text(html: &str) -> String {
+    let mut text = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(index) = rest.find('<') {
+        text.push_str(&rest[..index]);
+        let Some(end) = rest[index..].find('>') else {
+            rest = &rest[index..];
+            break;
+        };
+        let tag = &rest[index..=index + end];
+        let lower = tag.to_ascii_lowercase();
+        // Every tag that stands for a break becomes the whitespace it means; a paragraph
+        // opening *and* closing both cost a newline is acceptable, and collapsing them is
+        // what produced one long run-on paragraph before.
+        if lower.starts_with("<br") || lower.starts_with("<p") || lower.starts_with("</p") || lower.starts_with("</div") {
+            text.push('\n');
+        }
+        rest = &rest[index + end + 1..];
+    }
+    text.push_str(rest);
+    text.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .trim()
+        .to_owned()
+}
+
 /// The island: what the client should adopt rather than fetch.
 #[derive(Debug, serde::Serialize)]
 pub struct Island<'a> {
@@ -96,18 +132,34 @@ fn status_card(status: &Status) -> String {
     let inner: &Status = status.reblog.as_deref().unwrap_or(status);
     let handle = format!("@{}{}", escape(&inner.account.acct), "");
     let mut media = String::new();
-    for url in inner
-        .media_attachments
-        .iter()
-        .filter_map(|attachment| attachment.url.as_deref())
-    {
-        let _ = std::fmt::Write::write_fmt(
-            &mut media,
-            format_args!(
-                "<a class=\"mt-2 block text-xs underline\" href=\"{}\">attachment</a>",
-                escape(url)
+    for attachment in &inner.media_attachments {
+        let Some(url) = attachment.url.as_deref() else {
+            continue;
+        };
+        let href = escape(url);
+        let poster = attachment
+            .preview_url
+            .as_deref()
+            .map(|preview| format!(" poster=\"{}\"", escape(preview)))
+            .unwrap_or_default();
+        let alt = attachment
+            .description
+            .as_deref()
+            .map(|description| format!(" alt=\"{}\"", escape(description)))
+            .unwrap_or_default();
+        let element = match attachment.kind {
+            // A GIF in Mastodon is a muted video, so it plays in place and loops.
+            MediaKind::Video | MediaKind::Gifv => format!(
+                "<video class=\"mt-2 w-full rounded\" controls playsinline preload=\"metadata\" loop{poster} src=\"{href}\"></video>"
             ),
-        );
+            MediaKind::Audio => format!(
+                "<audio class=\"mt-2 w-full\" controls preload=\"metadata\" src=\"{href}\"></audio>"
+            ),
+            MediaKind::Image | MediaKind::Unknown => format!(
+                "<a class=\"mt-2 block\" href=\"{href}\"><img class=\"w-full rounded\" loading=\"lazy\"{alt} src=\"{href}\"></a>"
+            ),
+        };
+        let _ = std::fmt::Write::write_str(&mut media, &element);
     }
     format!(
         "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
@@ -118,28 +170,8 @@ fn status_card(status: &Status) -> String {
            </div></li>",
         name = escape(&inner.account.display_name),
         when = escape(&inner.created_at),
-        body = escape(&plain(&inner.content)),
+        body = escape(&body_text(&inner.content)),
     )
-}
-
-/// The body with its tags removed: an approximation of what the client will render, and
-/// honest about being an approximation — the island carries the HTML for the real thing.
-fn plain(html: &str) -> String {
-    let mut out = String::with_capacity(html.len());
-    let mut inside = false;
-    for character in html.chars() {
-        match character {
-            '<' => inside = true,
-            '>' => inside = false,
-            other if !inside => out.push(other),
-            _ => {}
-        }
-    }
-    out.replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
 }
 
 /// The signed-in home page, painted.
@@ -183,6 +215,33 @@ pub fn landing(assets: &Assets) -> String {
              already read does not load again.</p>\
            <p class=\"text-sm opacity-70\">Sign in to see your timelines.</p>\
          </section>",
+        None,
+    )
+}
+
+/// The shell for every route the client owns.
+///
+/// The home timeline cannot be painted for a screen the server does not implement (a
+/// thread, a profile, the settings pages), so those routes get the chrome: the wordmark,
+/// the navigation, and the note that says what is being opened. The client replaces the
+/// body the moment it boots, and its store answers the screen from cache when it can.
+/// Painting the chrome is still worth it — the reader sees the application, not a blank
+/// document, while two megabytes of wasm arrive.
+pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
+    let who = acct.map_or_else(
+        || "<p class=\"text-sm opacity-70\">Sign in to see your timelines.</p>".to_owned(),
+        |acct| format!("<p class=\"text-sm opacity-70\">Signed in as {}</p>", escape(acct)),
+    );
+    page(
+        assets,
+        "Nodus",
+        &format!(
+            "<section class=\"mx-auto flex w-full max-w-2xl flex-col gap-2\">\
+               <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>{who}\
+               <p class=\"text-xs opacity-50\">Opening {}</p>\
+             </section>",
+            escape(path)
+        ),
         None,
     )
 }

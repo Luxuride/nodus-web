@@ -39,6 +39,8 @@ use crate::ui::icons::Icon;
 use leptos::prelude::*;
 use nodus_sdk::Timeline;
 
+use wasm_bindgen::JsCast as _;
+
 fn main() {
     console_error_panic_hook::set_once();
     // Before the first mount, so app-lifetime signals have no owner to be disposed
@@ -55,12 +57,38 @@ fn main() {
     // is open; `index.html` also sets the attribute before wasm arrives, so the first
     // paint is already correct.
     crate::theme::follow_system();
-    leptos::mount::mount_to_body(App);
+    // The server painted the first page into `#app`; the client replaces it, using the data
+    // that page carried (`state::bridge::seed` read it a line earlier). Mounting *into* the
+    // node instead of appending to `<body>` is what makes the takeover a replacement rather
+    // than a second copy of the page underneath the first.
+    crate::state::bridge::seed::install();
+    mount_app();
     // Started after the mount so the first render never waits on a network tick.
     crate::state::bridge::start_background_tick();
     // Impressions are written when a card leaves the screen, so the last screen's
     // worth of them is flushed on page hide (D36).
     crate::state::bridge::install_impression_flush();
+}
+
+/// Mounts the app into the server-painted node, or into `<body>` when there is none.
+///
+/// A static deployment (no SSR host) has no `#app`, and `mount_to_body` is the right answer
+/// there; the SSR document always has one.
+fn mount_app() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Some(host) = document
+        .get_element_by_id("app")
+        .and_then(|node| node.dyn_into::<web_sys::HtmlElement>().ok())
+    else {
+        leptos::mount::mount_to_body(App);
+        return;
+    };
+    // Cleared only now, after the island has been read: the island lives inside this node.
+    host.set_inner_html("");
+    // `mount_to` hands back a handle that unmounts on drop; this view lives for the tab.
+    leptos::mount::mount_to(host, App).forget();
 }
 
 /// Application shell: the rail, and the screen the address bar asks for.

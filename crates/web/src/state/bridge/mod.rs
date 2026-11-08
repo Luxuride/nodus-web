@@ -155,11 +155,6 @@ pub fn init() {
         let _ = install(&Instance { base }, "");
     }
 
-    // The server-painted page, if this document has one, goes into the store before any
-    // component renders: the first client frame then shows the same statuses the HTML
-    // already shows instead of a spinner.
-    seed::install();
-
     // Reading, validating and re-installing the stored record is the session
     // module's job; `init` only asks for it once the unauthenticated SDK exists.
     session::restore_saved();

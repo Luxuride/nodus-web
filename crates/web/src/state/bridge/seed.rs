@@ -13,6 +13,8 @@ use nodus_sdk::Timeline;
 
 use super::with_sdk;
 
+static ADOPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// What the server writes into `#nodus-page`.
 #[derive(Debug, serde::Deserialize)]
 struct Island {
@@ -24,7 +26,13 @@ struct Island {
 }
 
 /// Read the island, if this document has one, and put its page in the store.
+///
+/// Called from `main` before the mount, because the island lives inside the node the mount
+/// replaces. Idempotent: the island can only be adopted once.
 pub fn install() {
+    if ADOPTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
     let Some(window) = web_sys::window() else {
         return;
     };

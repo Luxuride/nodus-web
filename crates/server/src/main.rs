@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
@@ -71,6 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/session", get(whoami).post(sign_in).delete(sign_out))
         .route("/", get(index))
         .route("/home", get(home))
+        .fallback(shell)
         .with_state(app);
 
     let address: SocketAddr = listen.parse()?;
@@ -183,6 +184,22 @@ async fn index(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     } else {
         Html(render::landing(&app.assets)).into_response()
     }
+}
+
+/// Every route the client owns: the chrome, then the client takes over.
+///
+/// Assets never reach here (`Caddy` answers them from disk), so anything with a file
+/// extension is a genuinely missing asset and must not become HTML.
+async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Response {
+    let path = uri.path();
+    if std::path::Path::new(path)
+        .extension()
+        .is_some_and(|_| !path.ends_with('/'))
+    {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let acct = session_of(&app, &headers).map(|session| session.acct);
+    Html(render::shell(&app.assets, acct.as_deref(), path)).into_response()
 }
 
 /// The home timeline, painted. This is the whole point of the slice: the request the

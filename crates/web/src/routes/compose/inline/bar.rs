@@ -39,6 +39,9 @@ pub(super) fn ComposerBar(
     // the button says which it will do.
     let scheduling = move || !at.get().trim().is_empty();
     let open = RwSignal::new(false);
+    // "Grey like send": a post button that cannot post must look like a button that
+    // cannot post, not like a primary action waiting to be pressed.
+    let postable = move || !busy.get() && !text.get().trim().is_empty();
     let describe_when = move |value: &str| {
         if value.trim().is_empty() {
             "now".to_owned()
@@ -77,8 +80,14 @@ pub(super) fn ComposerBar(
                 // panel, and the label above says what the pair will do.
                 <div class="relative join">
                     <button
-                        class="btn btn-primary btn-sm join-item gap-1"
-                        disabled=move || busy.get() || text.get().trim().is_empty()
+                        class=move || {
+                            if postable() {
+                                "btn btn-primary btn-sm join-item gap-1"
+                            } else {
+                                "btn btn-sm join-item gap-1 border-base-300 bg-base-300 text-base-content/50"
+                            }
+                        }
+                        disabled=move || !postable()
                         on:click=move |_| on_submit.run(())
                     >
                         {move || match (busy.get(), scheduling()) {
@@ -89,7 +98,13 @@ pub(super) fn ComposerBar(
                     </button>
                     <button
                         type="button"
-                        class="btn btn-primary btn-sm join-item border-l border-primary-content/25 px-2"
+                        class=move || {
+                            if postable() {
+                                "btn btn-primary btn-sm join-item border-l border-primary-content/25 px-2"
+                            } else {
+                                "btn btn-sm join-item border-l border-base-300 bg-base-300 px-2 text-base-content/50"
+                            }
+                        }
                         title=move || format!("Send {}, or pick a time", describe_when(&at.get()))
                         aria-label="Change when this posts"
                         aria-expanded=move || open.get().to_string()

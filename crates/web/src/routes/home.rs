@@ -113,16 +113,20 @@ pub fn Home(which: Timeline) -> impl IntoView {
         <div class="flex flex-col gap-3">
             <PageHeader title=title description=description/>
 
-            // The composer sits above the timelines: it is where a reader writes to the
-            // people they follow, and it must not follow them into Local or Federated,
-            // where it would suggest they are posting there.
-            <Show when=inline>
-                <InlineComposer which=which set_reload=set_reload/>
-            </Show>
+            // The composer and the way between timelines stay put while the timeline
+            // scrolls: writing is the reason to be here, and the switch must not
+            // require a trip back to the top. The block is opaque, because the posts
+            // passing underneath would otherwise read through it.
+            <div class="sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-base-200/95 px-1 pb-2 backdrop-blur">
+                // The composer sits above the timelines: it is where a reader writes to
+                // the people they follow, and it must not follow them into Local or
+                // Federated, where it would suggest they are posting there.
+                <Show when=inline>
+                    <InlineComposer which=which set_reload=set_reload/>
+                </Show>
 
-            // Under the composer, the way between timelines: Home is the arrival point,
-            // and nothing here is a mode the reader has to remember.
-            <PrimaryTabs/>
+                <PrimaryTabs/>
+            </div>
 
             <Banner/>
 

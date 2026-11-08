@@ -8,6 +8,8 @@
 //! into the first paint while the client turns the same tree into the live one.
 
 pub mod icons;
+pub mod chrome;
+pub mod lists;
 pub mod media;
 pub mod media_grid;
 pub mod status_footer;

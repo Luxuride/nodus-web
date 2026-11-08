@@ -9,6 +9,7 @@
 
 pub mod icons;
 pub mod media;
+pub mod media_grid;
 
 use icons::Icon;
 use leptos::prelude::*;

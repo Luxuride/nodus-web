@@ -6,7 +6,6 @@
 
 pub mod drafts;
 pub mod editor;
-pub mod attachment;
 pub mod icons;
 pub mod language;
 pub mod page;

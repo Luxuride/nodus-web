@@ -15,8 +15,11 @@
 
 use std::fmt::Write as _;
 
+use leptos::prelude::{Owner, Signal};
+use leptos::tachys::view::RenderHtml as _;
+
 use nodus_instance::model::{
-    Account, Context, Conversation, List, MediaKind, Notification, ScheduledStatus, Status,
+    Account, Context, Conversation, List, Notification, ScheduledStatus, Status,
 };
 
 use crate::html::body as body_html;
@@ -111,66 +114,21 @@ pub struct Island<'a> {
 /// The attachment grid: images inline, video and audio with a player, and a one-picture
 /// post given the full width so it is not forced into a half-empty pair.
 fn media_grid(status: &Status, blurred: bool) -> String {
-    // The same veil the client draws, inline rather than as a utility class: the gate must
-    // hold even before the stylesheet matching it arrives, and the scale is required because
-    // a blur samples outside the element and would otherwise eat its own edges.
-    let veil = nodus_view::media::veil(blurred);
-    let mut media = String::new();
-    for attachment in &status.media_attachments {
-        let href = attachment
-            .url
-            .as_deref()
-            .or(attachment.preview_url.as_deref())
-            .unwrap_or_default();
-        if href.is_empty() {
-            continue;
-        }
-        let preview = attachment
-            .preview_url
-            .as_deref()
-            .map(|preview| format!(" poster=\"{}\"", escape(preview)))
-            .unwrap_or_default();
-        let alt = attachment
-            .description
-            .as_deref()
-            .map(|description| format!(" alt=\"{}\"", escape(description)))
-            .unwrap_or_default();
-        let element = match attachment.kind {
-            // A GIF in Mastodon is a muted video, so it plays in place and loops.
-            MediaKind::Video | MediaKind::Gifv => format!(
-                "<li class=\"self-start overflow-hidden rounded-box\"><video class=\"max-h-[32rem] w-full rounded-box bg-base-300\" controls playsinline preload=\"metadata\" loop{preview} src=\"{href}\"></video></li>"
-            ),
-            MediaKind::Audio => format!(
-                "<li class=\"self-start overflow-hidden rounded-box\"><audio class=\"w-full\" controls preload=\"metadata\" src=\"{href}\"></audio></li>"
-            ),
-            MediaKind::Image | MediaKind::Unknown => {
-                // A tile with no published dimensions still reserves its box: the client
-                // falls back to 16:9, and a server paint that did not would push the rest of
-                // the card down when the file arrives.
-                let box_ = nodus_view::media::box_style(attachment);
-                let (size, _) = nodus_view::media::extent(attachment);
-                let dimensions = size.map_or_else(String::new, |(width, height)| {
-                    format!(" width=\"{width}\" height=\"{height}\"")
-                });
-                format!(
-                    "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" style=\"{veil}{box_}\" aria-hidden=\"{blurred}\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"{dimensions}{alt} src=\"{href}\"></li>"
-                )
-            }
-        };
-        media.push_str(&element);
+    if status.media_attachments.is_empty() {
+        return String::new();
     }
-    if media.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "<ul class=\"{} gap-2\">{media}</ul>",
-            if status.media_attachments.len() == 1 {
-                "mt-1 grid grid-cols-1 items-start"
-            } else {
-                "mt-1 grid grid-cols-2 items-start"
-            }
-        )
-    }
+    // The grid is a component, not a string: the client mounts the same one, so the tiles,
+    // the reserved boxes and the veil cannot drift apart between the two paints.
+    let items = status.media_attachments.clone();
+    Owner::new().with(|| {
+        nodus_view::media_grid::MediaGrid(nodus_view::media_grid::MediaGridProps {
+            items: Signal::derive(move || items.clone()),
+            hidden: blurred,
+            interactive: false,
+            on_open: None,
+        })
+        .to_html()
+    })
 }
 
 pub fn status_card(status: &Status) -> String {

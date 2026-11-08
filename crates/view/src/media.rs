@@ -61,6 +61,18 @@ pub fn is_player(kind: MediaKind) -> bool {
     matches!(kind, MediaKind::Video | MediaKind::Gifv | MediaKind::Audio)
 }
 
+/// The inline style for a tile whose size may be unknown, which is what a Leptos view has
+/// in hand before it has an attachment.
+#[must_use]
+pub fn style_for(width: Option<u32>, height: Option<u32>) -> String {
+    match (width, height) {
+        (Some(width), Some(height)) if width > 0 && height > 0 => {
+            format!("aspect-ratio: {width} / {height};")
+        }
+        _ => "aspect-ratio: 16 / 9;".to_owned(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,6 +106,6 @@ mod tests {
     #[test]
     fn a_veiled_tile_scales_so_the_blur_has_no_rim() {
         assert!(veil(true).contains("scale(1.08)"));
-        assert!(veil(false).is_empty());
+        assert_eq!(veil(false), "");
     }
 }

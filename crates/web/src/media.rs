@@ -15,14 +15,7 @@ thread_local! {
     static OPEN: RefCell<Option<RwSignal<Option<Gallery>>>> = const { RefCell::new(None) };
 }
 
-/// One image the reader asked to see larger.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Picture {
-    /// The full-size image.
-    pub url: String,
-    /// Its text alternative, which doubles as the caption.
-    pub alt: String,
-}
+pub use nodus_view::media_grid::Picture;
 
 /// Everything the viewer is looking at, and where in it they are.
 #[derive(Debug, Clone, PartialEq, Eq)]

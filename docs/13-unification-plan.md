@@ -65,3 +65,15 @@ not a degraded paint; it is the same card a signed-out reader sees.
 `server/src/render.rs` contains only: asset discovery, the document skeleton, the session
 reads and the island payload. No HTML strings. A grep for `format!("<` in the server crate
 returns nothing.
+
+## The rule for missing data (settled 2026-11-09)
+
+Where the client can render more than the server, **match the client** — a different card for
+the same status is the bug this document exists to remove. Where the data is not available at
+all, the server's stateless read returns `Err`, and that `Err` is handled as a *state*: the
+screen paints the same component with the fields it has and the branch that needs the missing
+read (a poll's tally, another account's relationship) renders its unavailable form inside the
+markup the component already owns. It never falls back to a different hand-built string.
+
+Push notifications are explicitly **last in scope**; nothing in this refactor should assume
+they exist.

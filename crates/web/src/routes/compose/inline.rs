@@ -17,6 +17,7 @@ use crate::state::bridge::{actions, timeline};
 
 mod bar;
 pub(crate) mod emoji;
+mod emoji_toggle;
 mod poll;
 mod schedule;
 

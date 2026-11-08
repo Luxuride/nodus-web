@@ -27,14 +27,16 @@ pub fn LanguagePicker(
     });
 
     view! {
+        // Narrow on purpose: a select sizes itself to its longest option, and the language
+        // list holds names like "Português (Brasil)" that would otherwise claim half the bar.
         <select
-            class="select select-bordered select-sm"
+            class="select select-bordered select-xs max-w-32"
             aria-label="Post language"
             title="The language this post is written in"
             on:change=move |event| set_language.set(event_target_value(&event))
             prop:value=move || language.get()
         >
-            <option value="">"Language: instance default"</option>
+            <option value="">"Instance default"</option>
             <For each=move || options.get() key=|language| language.code.clone() let:language>
                 <option value=language.code.clone()>{language.name.clone()}</option>
             </For>

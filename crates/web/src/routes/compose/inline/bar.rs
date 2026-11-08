@@ -90,24 +90,7 @@ pub(super) fn ComposerBar(
             // does this go out", the right edge answers "is it ready to".
             <crate::ui::language::LanguagePicker language=language set_language=set_language/>
             <div class="ml-auto flex items-center gap-2">
-                // The emoticon sits with the counter, not with the compose-your-post row: it
-                // edits the body, and the left group is about what kind of post this is.
-                <div class="relative">
-                    <button
-                        type="button"
-                        class="btn btn-ghost btn-sm px-2"
-                        class:bg-base-200=move || emoji_open.get()
-                        title="Insert an emoji"
-                        aria-expanded=move || emoji_open.get().to_string()
-                        disabled=move || busy.get()
-                        on:click=move |_| set_emoji_open.update(|open| *open = !*open)
-                    >
-                        <span class="text-base leading-none">"☺"</span>
-                    </button>
-                    // Absolutely positioned so opening the picker does not push the bar
-                    // taller and move the button the writer just pressed.
-                    <crate::ui::editor::EmojiPanel open=emoji_open/>
-                </div>
+                <super::emoji_toggle::EmojiToggle open=emoji_open set_open=set_emoji_open busy=busy/>
 
                 <span
                     class="text-xs tabular-nums"

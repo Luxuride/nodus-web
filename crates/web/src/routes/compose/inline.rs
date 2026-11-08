@@ -125,7 +125,7 @@ pub fn InlineComposer(
 
     view! {
         <section
-            class="card border-2 border-base-300 bg-base-100 shadow-sm focus-within:border-primary/50"
+            class="card border-2 border-base-300 bg-base-100 shadow-sm has-[textarea:focus]:border-primary/50"
             aria-label="New post"
         >
             <div class="card-body gap-2 p-3">

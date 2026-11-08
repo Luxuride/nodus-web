@@ -89,6 +89,7 @@ fn Quick(
 /// The custom row: a month grid and two fields for the clock time.
 #[component]
 fn CustomRow(draft: ReadSignal<String>, set_draft: WriteSignal<String>) -> impl IntoView {
+    let calendar_open = RwSignal::new(false);
     // The fields are text, so "9" is read as nine o'clock and anything past the end
     // of the clock is clamped here rather than sent to the instance as nonsense.
     let write = move |day_value: String, hour: String, minute: String| {
@@ -107,7 +108,22 @@ fn CustomRow(draft: ReadSignal<String>, set_draft: WriteSignal<String>) -> impl 
         <div class="divider my-1 text-xs opacity-60">"Or pick a time"</div>
 
         <div class="px-2">
-            <Calendar draft=draft set_draft=set_draft/>
+            // A date field that opens the grid: the value is what gets read back, and
+            // the grid is the help, not the only way in.
+            <button
+                type="button"
+                class="input input-bordered input-sm mb-2 flex w-full items-center justify-between text-left"
+                on:click=move |_| calendar_open.update(|shown| *shown = !*shown)
+                aria-expanded=move || calendar_open.get().to_string()
+                aria-label="Pick a day"
+            >
+                <span>{move || split(&draft.get()).0}</span>
+                <span class="text-[0.6rem] opacity-60">"▼"</span>
+            </button>
+
+            <Show when=move || calendar_open.get()>
+                <Calendar draft=draft set_draft=set_draft/>
+            </Show>
 
             <div class="flex items-center gap-2 text-xs">
                 <input
@@ -117,6 +133,7 @@ fn CustomRow(draft: ReadSignal<String>, set_draft: WriteSignal<String>) -> impl 
                     placeholder="HH"
                     aria-label="Hour"
                     prop:value=move || split(&draft.get()).1
+                    on:focus=move |event| select_all(&event)
                     on:change=move |event| {
                         let (day_value, _, minute) = split(&draft.get_untracked());
                         write(day_value, event_target_value(&event), minute);
@@ -130,6 +147,7 @@ fn CustomRow(draft: ReadSignal<String>, set_draft: WriteSignal<String>) -> impl 
                     placeholder="mm"
                     aria-label="Minute"
                     prop:value=move || split(&draft.get()).2
+                    on:focus=move |event| select_all(&event)
                     on:change=move |event| {
                         let (day_value, hour, _) = split(&draft.get_untracked());
                         write(day_value, hour, event_target_value(&event));
@@ -143,6 +161,17 @@ fn CustomRow(draft: ReadSignal<String>, set_draft: WriteSignal<String>) -> impl 
                 </span>
             </div>
         </div>
+    }
+}
+
+/// Selects the whole value, so the first keystroke replaces "09" instead of appending.
+fn select_all(event: &web_sys::FocusEvent) {
+    use wasm_bindgen::JsCast;
+    if let Some(input) = event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::HtmlInputElement>().ok())
+    {
+        input.select();
     }
 }
 

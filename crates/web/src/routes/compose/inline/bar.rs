@@ -78,15 +78,13 @@ pub(super) fn ComposerBar(
 
                 // Post and its caret are one control: the caret opens the schedule
                 // panel, and the label above says what the pair will do.
-                <div class="relative join">
+                <div class="relative">
+                    <div class="join">
                     <button
-                        class=move || {
-                            if postable() {
-                                "btn btn-primary btn-sm join-item gap-1"
-                            } else {
-                                "btn btn-sm join-item gap-1 border-base-300 bg-base-300 text-base-content/50"
-                            }
-                        }
+                        class="btn btn-sm join-item gap-1"
+                        class:btn-primary=move || postable()
+                        class:bg-base-300=move || !postable()
+                        class:opacity-50=move || !postable()
                         disabled=move || !postable()
                         on:click=move |_| on_submit.run(())
                     >
@@ -98,13 +96,11 @@ pub(super) fn ComposerBar(
                     </button>
                     <button
                         type="button"
-                        class=move || {
-                            if postable() {
-                                "btn btn-primary btn-sm join-item border-l border-primary-content/25 px-2"
-                            } else {
-                                "btn btn-sm join-item border-l border-base-300 bg-base-300 px-2 text-base-content/50"
-                            }
-                        }
+                        class="btn btn-sm join-item px-2"
+                        class:btn-primary=move || postable()
+                        class:bg-base-300=move || !postable()
+                        class:opacity-50=move || !postable()
+                        disabled=move || !postable()
                         title=move || format!("Send {}, or pick a time", describe_when(&at.get()))
                         aria-label="Change when this posts"
                         aria-expanded=move || open.get().to_string()
@@ -112,6 +108,9 @@ pub(super) fn ComposerBar(
                     >
                         <span class="text-[0.6rem] leading-none">"▼"</span>
                     </button>
+                    </div>
+                    // Outside the `join`: the panel is not part of the button group, and
+                    // the group's clipping would cut it off.
                     <Show when=move || open.get()>
                         <SchedulePanel at=at set_at=set_at open=open/>
                     </Show>

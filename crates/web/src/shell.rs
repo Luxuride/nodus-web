@@ -15,21 +15,19 @@ use crate::ui::icons::Icon;
 /// permanent button.
 #[component]
 pub fn MobileTop() -> impl IntoView {
-    let compose = Route::Compose.path();
     view! {
         <header class="sticky top-0 z-30 border-b border-base-300 bg-base-200/95 backdrop-blur xl:hidden">
             <div class="mx-auto flex max-w-2xl items-center gap-2 px-3 py-2">
-                <a class="font-semibold tracking-tight" href=Route::Home.path()>
+                <a
+                    class="font-semibold tracking-tight"
+                    href=Route::Home.path()
+                    on:click=move |event| router::link(event, Route::Home)
+                >
                     "nodus"
                 </a>
-                <a
-                    class="btn btn-primary btn-sm ml-auto gap-1"
-                    href=compose
-                    on:click=move |event| router::link(event, Route::Compose)
-                >
-                    <Icon icon=Icon::Pen class="size-4"/>
-                    <span>"Write"</span>
-                </a>
+                // No "Write" button: the composer already sits above the home timeline,
+                // one line below this bar, and a second door to it duplicated a target
+                // the reader is about to use anyway.
             </div>
         </header>
     }

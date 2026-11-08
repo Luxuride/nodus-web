@@ -164,6 +164,10 @@ pub async fn edit(id: &str, status: &NewStatus) -> Result<Status, String> {
 }
 
 /// Uploads one attachment and returns what the instance made of it.
+#[expect(
+    dead_code,
+    reason = "the composer uploads with progress; this stays for callers that do not"
+)]
 pub async fn upload_media(
     bytes: Vec<u8>,
     mime: String,
@@ -378,4 +382,85 @@ pub async fn instance_info() -> Result<nodus_instance::model::InstanceInfo, Stri
         .instance_info()
         .await
         .map_err(|error| error.to_string())
+}
+
+/// Uploads one file and reports how much of it has left the browser.
+///
+/// `upload_media` in the SDK goes through `fetch`, which reports nothing until the
+/// whole body is sent. This builds the same request (`media_upload_request`) and sends
+/// it with `XMLHttpRequest`, whose `upload` progress events are the only real signal a
+/// page can get.
+pub async fn upload_media_with_progress(
+    bytes: Vec<u8>,
+    mime: &str,
+    description: Option<&str>,
+    on_progress: impl Fn(u8) + 'static,
+) -> Result<MediaAttachment, String> {
+    use wasm_bindgen::JsCast as _;
+    use wasm_bindgen::prelude::Closure;
+
+    let transport = instance_transport().ok_or("This session has no instance to upload to.")?;
+    let request = transport
+        .media_upload_request(&bytes, mime, description)
+        .map_err(|error| error.to_string())?;
+    let unsupported = || "This browser refused the upload.".to_owned();
+    let xhr = web_sys::XmlHttpRequest::new().map_err(|_| unsupported())?;
+    xhr.open_with_async(request.method.as_str(), request.url.as_str(), true)
+        .map_err(|_| unsupported())?;
+    for (name, value) in &request.headers {
+        xhr.set_request_header(name, value)
+            .map_err(|_| unsupported())?;
+    }
+    xhr.set_response_type(web_sys::XmlHttpRequestResponseType::Text);
+    let upload = xhr.upload().map_err(|_| unsupported())?;
+    let ticker =
+        Closure::<dyn FnMut(web_sys::ProgressEvent)>::new(move |event: web_sys::ProgressEvent| {
+            if event.length_computable() && event.total() > 0.0 {
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    reason = "a share of the body is a whole percentage"
+                )]
+                let percent = ((event.loaded() / event.total()) * 100.0) as u8;
+                on_progress(percent);
+            }
+        });
+    upload.set_onprogress(Some(ticker.as_ref().unchecked_ref()));
+
+    let promise = js_sys::Promise::new(&mut |resolve, reject| {
+        let loaded = {
+            let resolve = resolve.clone();
+            let xhr = xhr.clone();
+            Closure::<dyn FnMut()>::new(move || {
+                resolve.call1(&wasm_bindgen::JsValue::NULL, &xhr).ok();
+            })
+        };
+        let failed = {
+            let reject = reject.clone();
+            Closure::<dyn FnMut()>::new(move || {
+                reject.call0(&wasm_bindgen::JsValue::NULL).ok();
+            })
+        };
+        xhr.set_onload(Some(loaded.as_ref().unchecked_ref()));
+        xhr.set_onerror(Some(failed.as_ref().unchecked_ref()));
+        loaded.forget();
+        failed.forget();
+    });
+    let sent = xhr
+        .send_with_opt_u8_array(request.body.as_deref())
+        .map_err(|_| unsupported());
+    sent?;
+    ticker.forget();
+    wasm_bindgen_futures::JsFuture::from(promise)
+        .await
+        .map_err(|_| unsupported())?;
+
+    let text = xhr
+        .response_text()
+        .map_err(|_| unsupported())?
+        .unwrap_or_default();
+    if xhr.status().map_err(|_| unsupported())? >= 400 {
+        return Err(format!("The instance refused the file: {text}"));
+    }
+    serde_json::from_str::<MediaAttachment>(&text).map_err(|error| error.to_string())
 }

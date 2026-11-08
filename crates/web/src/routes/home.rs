@@ -12,9 +12,9 @@ use leptos::prelude::*;
 
 mod tabs;
 
-pub use tabs::PrimaryTabs;
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
+pub use tabs::PrimaryTabs;
 
 use self::banner::Banner;
 use crate::routes::compose::inline::InlineComposer;
@@ -117,7 +117,7 @@ pub fn Home(which: Timeline) -> impl IntoView {
             // scrolls: writing is the reason to be here, and the switch must not
             // require a trip back to the top. The block is opaque, because the posts
             // passing underneath would otherwise read through it.
-            <div class="sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-base-200/95 px-1 pb-2 backdrop-blur">
+            <div class="sticky top-0 z-20 flex flex-col gap-2 bg-base-200/95 pb-2 backdrop-blur">
                 // The composer sits above the timelines: it is where a reader writes to
                 // the people they follow, and it must not follow them into Local or
                 // Federated, where it would suggest they are posting there.

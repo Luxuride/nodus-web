@@ -32,6 +32,10 @@
  * reflow; daisyUI's own `scrollbar-gutter: stable` only applies *while* the modal is
  * open, which is a frame too late. */
 html {
+  /* A route must never scroll sideways. `clip` (not `hidden`) is the one value that
+   * does not turn the element into a scroll container, so `position: sticky` inside
+   * the page keeps working. */
+  overflow-x: clip;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklch, var(--color-base-content) 35%, transparent)

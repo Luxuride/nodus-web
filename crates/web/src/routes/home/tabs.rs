@@ -17,10 +17,8 @@ pub fn PrimaryTabs() -> impl IntoView {
         if let Some(changed) = changed {
             changed.get();
         }
-        let mut items: Vec<(Route, &'static str)> = vec![
-            (Route::Home, "Home"),
-            (Route::Feed, "Feed"),
-        ];
+        let mut items: Vec<(Route, &'static str)> =
+            vec![(Route::Home, "Home"), (Route::Feed, "Feed")];
         if feeds::enabled(feeds::Feed::Local) {
             items.push((Route::Local, "Local"));
         }

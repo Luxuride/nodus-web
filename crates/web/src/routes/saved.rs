@@ -7,8 +7,8 @@
 use leptos::prelude::*;
 
 use super::status::StatusCard;
-use crate::state::alive::Alive;
 use crate::router::Route;
+use crate::state::alive::Alive;
 use crate::state::bridge::{pages, revision};
 use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
@@ -67,7 +67,8 @@ pub fn Saved(shelf: String) -> impl IntoView {
     let revision = revision();
     // The address decides the shelf: `/saved/bookmarks` opens Bookmarks.
     let (shelf, _set_shelf) = signal(Shelf::of(&shelf));
-    let (loading, set_loading) = signal(!pages::held(&PageKind::Favourites) && !pages::held(&PageKind::Bookmarks));
+    let (loading, set_loading) =
+        signal(!pages::held(&PageKind::Favourites) && !pages::held(&PageKind::Bookmarks));
     let (error, set_error) = signal(None::<String>);
 
     // The shelf is read from the SDK: two shelves live there side by side, so switching

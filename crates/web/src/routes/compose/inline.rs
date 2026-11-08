@@ -77,7 +77,9 @@ pub fn InlineComposer(
         let custom = custom.get_untracked();
         let at = custom_time(&custom);
         if !custom.is_empty() && at.is_none() {
-            set_error.set(Some("That is not a date and time this browser can read.".to_owned()));
+            set_error.set(Some(
+                "That is not a date and time this browser can read.".to_owned(),
+            ));
             return;
         }
 

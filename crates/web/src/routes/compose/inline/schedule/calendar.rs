@@ -15,6 +15,7 @@ pub(super) fn Calendar(
     /// `YYYY-MM-DDTHH:mm`.
     draft: ReadSignal<String>,
     set_draft: WriteSignal<String>,
+    close: Callback<()>,
 ) -> impl IntoView {
     let today = js_sys::Date::new_0();
     let (shown, set_shown) = signal((today.get_full_year(), today.get_month()));
@@ -26,7 +27,8 @@ pub(super) fn Calendar(
 
     let cells = move || {
         let (year, month) = shown.get();
-        let first = js_sys::Date::new_with_year_month_day(year, i32::try_from(month).unwrap_or(0), 1);
+        let first =
+            js_sys::Date::new_with_year_month_day(year, i32::try_from(month).unwrap_or(0), 1);
         let mut cells: Vec<Option<u32>> =
             vec![None; usize::try_from(first.get_day().min(6)).unwrap_or(0)];
         cells.extend((1..=last_day(year, i32::try_from(month).unwrap_or(0))).map(Some));
@@ -79,6 +81,8 @@ pub(super) fn Calendar(
                                     on:click=move |_| {
                                         let (hour, minute) = keep_time();
                                         set_draft.set(format!("{}T{hour}:{minute}", chosen()));
+                                        // A chosen day answers the question the grid asked.
+                                        close.run(());
                                     }
                                 >
                                     {day}

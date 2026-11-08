@@ -13,10 +13,10 @@ use crate::state::bridge::{revision, sign_out, with_sdk};
 
 mod accounts;
 mod admin;
+pub(crate) mod clock;
 mod feeds;
 pub(crate) mod filters;
 pub(crate) mod instance;
-pub(crate) mod clock;
 mod profile;
 pub(crate) mod sensitive;
 pub(crate) mod sync;
@@ -25,10 +25,10 @@ pub(crate) mod tags;
 
 use accounts::AccountsCard;
 use admin::AdministrationCard;
+use clock::ClockCard;
 use feeds::FeedsCard;
 use filters::FiltersCard;
 use instance::InstanceCard;
-use clock::ClockCard;
 use profile::ProfileCard;
 use sensitive::SensitiveCard;
 use tabs::{SettingsTabs, Tab};

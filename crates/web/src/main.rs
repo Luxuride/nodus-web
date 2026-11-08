@@ -9,9 +9,9 @@
 mod media;
 mod public;
 mod router;
-mod shell;
 mod routes;
 mod scroll;
+mod shell;
 mod state;
 mod theme;
 mod ui;
@@ -123,7 +123,7 @@ fn App() -> impl IntoView {
                     </ul>
                 </nav>
                 </Show>
-                <main class="min-w-0 flex-1 pb-24 xl:pb-0">
+                <main class="min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] xl:pb-0">
                     {move || {
                         // The callback comes first, before the signed-in gate: the
                         // instance redirects here while the app is still signed out, and

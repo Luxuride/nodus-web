@@ -46,7 +46,8 @@ pub(super) fn ComposerBar(
         if value.trim().is_empty() {
             "now".to_owned()
         } else {
-            value.replace('T', " ").replacen('-', "/", 2)
+            // The same shape the fields show, so the button and the inputs agree.
+            value.replace('T', " ")
         }
     };
     view! {
@@ -101,7 +102,7 @@ pub(super) fn ComposerBar(
                         class:bg-base-300=move || !postable()
                         class:opacity-50=move || !postable()
                         disabled=move || !postable()
-                        title=move || format!("Send {}, or pick a time", describe_when(&at.get()))
+                        title=move || if scheduling() { format!("Scheduled for {} — click to change", describe_when(&at.get())) } else { "Send now, or pick a time".to_owned() }
                         aria-label="Change when this posts"
                         aria-expanded=move || open.get().to_string()
                         on:click=move |_| open.update(|shown| *shown = !*shown)

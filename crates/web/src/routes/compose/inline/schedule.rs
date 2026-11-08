@@ -7,8 +7,8 @@ mod calendar;
 
 use leptos::prelude::*;
 
-use calendar::Calendar;
 use crate::state::clock_format;
+use calendar::Calendar;
 
 /// The panel, hung from the caret rather than from a control of its own: the answer
 /// it sets is read by the post button's label, so the two read as one control.
@@ -68,7 +68,11 @@ fn Quick(
     close: Callback<()>,
 ) -> impl IntoView {
     let clock = when.clone();
-    let hint = if clock.is_empty() { String::new() } else { describe(&clock) };
+    let hint = if clock.is_empty() {
+        String::new()
+    } else {
+        describe(&clock)
+    };
     view! {
         <li>
             <button
@@ -122,7 +126,11 @@ fn CustomRow(draft: ReadSignal<String>, set_draft: WriteSignal<String>) -> impl 
             </button>
 
             <Show when=move || calendar_open.get()>
-                <Calendar draft=draft set_draft=set_draft/>
+                <Calendar
+                    draft=draft
+                    set_draft=set_draft
+                    close=Callback::new(move |()| calendar_open.set(false))
+                />
             </Show>
 
             <div class="flex items-center gap-2 text-xs">
@@ -179,11 +187,7 @@ fn select_all(event: &web_sys::FocusEvent) {
 pub(super) fn split(at: &str) -> (String, String, String) {
     let (day_value, clock) = at.split_once('T').unwrap_or((at, "09:00"));
     let (hour, minute) = clock.split_once(':').unwrap_or(("09", "00"));
-    (
-        day_value.to_owned(),
-        hour.to_owned(),
-        minute.to_owned(),
-    )
+    (day_value.to_owned(), hour.to_owned(), minute.to_owned())
 }
 
 /// "Send now", "Today, 09:00", "Tomorrow, 09:00" or "Sun 9, 09:00".
@@ -209,7 +213,9 @@ fn describe(at: &str) -> String {
 fn day(offset: i64) -> (String, String) {
     // A day is 86 400 000 ms; two weeks of them stay far inside `f64`'s exact range.
     let shift = f64::from(i32::try_from(offset).unwrap_or(0)) * 86_400_000.0;
-    let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(js_sys::Date::now() + shift));
+    let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(
+        js_sys::Date::now() + shift,
+    ));
     let value = stamp(&date);
     let label = match offset {
         0 => "Today".to_owned(),

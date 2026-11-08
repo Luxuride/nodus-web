@@ -5,7 +5,7 @@
 //! framework and the state machine meet.
 
 pub mod alive;
-pub mod clock_format;
 pub mod bridge;
+pub mod clock_format;
 pub mod feeds;
 pub mod oauth;

@@ -43,6 +43,7 @@ pub fn Attachments(
     set_error: WriteSignal<Option<String>>,
 ) -> impl IntoView {
     let (uploading, set_uploading) = signal(false);
+    let (percent, set_percent) = signal(None::<u8>);
 
     let pick = move |event: leptos::ev::Event| {
         let Some(input) = event
@@ -75,7 +76,26 @@ pub fn Attachments(
                         } else {
                             mime
                         };
-                        match actions::upload_media(bytes, mime, Some(name)).await {
+                        // The bar has to move while the bytes leave the browser, so the
+                        // upload reports each chunk it has sent.
+                        alive.if_alive(|| set_percent.set(Some(0)));
+                        let progress = {
+                            let alive = alive;
+                            let set_percent = set_percent;
+                            move |percent: u8| {
+                                alive.if_alive(|| {
+                                    set_percent.set(Some(percent));
+                                });
+                            }
+                        };
+                        match actions::upload_media_with_progress(
+                            bytes,
+                            &mime,
+                            Some(&name),
+                            progress,
+                        )
+                        .await
+                        {
                             Ok(attachment) => {
                                 alive.if_alive(|| media.update(|list| list.push(attachment)));
                             }
@@ -85,7 +105,10 @@ pub fn Attachments(
                     Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                 }
             }
-            alive.if_alive(|| set_uploading.set(false));
+            alive.if_alive(|| {
+                set_uploading.set(false);
+                set_percent.set(None);
+            });
         });
     };
 
@@ -101,7 +124,19 @@ pub fn Attachments(
                 on:change=pick
             />
             <Show when=move || uploading.get()>
-                <span class="loading loading-spinner loading-xs" aria-label="Uploading"></span>
+                {
+                    move || match percent.get() {
+                        Some(value) => view! {
+                            <span class="flex items-center gap-1" title="How much of the file has been sent">
+                                <progress class="progress progress-primary w-16" value=value max="100"></progress>
+                                <span class="text-xs tabular-nums opacity-70">{format!("{value}%")}</span>
+                            </span>
+                        }.into_any(),
+                        None => view! {
+                            <span class="loading loading-spinner loading-xs" aria-label="Uploading"></span>
+                        }.into_any(),
+                    }
+                }
             </Show>
             <ul class="flex flex-wrap gap-2">
                 <For each=move || media.get() key=|attachment| attachment.id.clone() let:attachment>

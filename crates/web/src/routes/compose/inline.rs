@@ -170,6 +170,11 @@ pub fn InlineComposer(
     }
 }
 
+/// True for a body that is only the `:draft` token, which is a command rather than writing.
+fn is_command(text: &str) -> bool {
+    text.trim().eq_ignore_ascii_case(":draft")
+}
+
 /// The `:draft` popup's two halves: when it is open, and what choosing a row does.
 ///
 /// Registers the "keep unsent text" cleanup on the current owner, so it must run inside a
@@ -182,16 +187,39 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
         emoji::pending(&text.get()).is_some_and(|(_, code)| code.eq_ignore_ascii_case("draft"))
     });
 
-    // Leaving with unsent text keeps it: a reload, a route change, a closed tab.
+    // Leaving with unsent text keeps it: a reload, a route change, a closed tab. A reload
+    // tears the module down without running `on_cleanup`, so the document's own unload
+    // event is what saves the text there — that is the case a draft exists for.
     let kept_text = draft.text;
     let kept_visibility = draft.visibility;
     let kept_language = draft.language;
+    let epoch_at_mount = crate::state::epoch::get();
+    let live = StoredValue::new((String::new(), Visibility::Public, String::new()));
+    Effect::new(move |_| {
+        live.set_value((kept_text.get(), kept_visibility.get(), kept_language.get()));
+    });
+    let on_unload = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(move |_event: web_sys::Event| {
+        let (text, visibility, language) = live.get_value();
+        // The `:draft` token is a command, not writing: keeping it would fill the list with
+        // the very word that opens it.
+        if !is_command(&text) {
+            crate::ui::drafts::keep(&text, visibility, &language);
+        }
+    });
+    if let Some(window) = web_sys::window() {
+        let _ = window
+            .add_event_listener_with_callback("beforeunload", on_unload.as_ref().unchecked_ref());
+    }
+    on_unload.forget();
     on_cleanup(move || {
-        crate::ui::drafts::keep(
-            &kept_text.get_untracked(),
-            kept_visibility.get_untracked(),
-            &kept_language.get_untracked(),
-        );
+        // A rebuild of this view is not leaving: only a navigation keeps the text.
+        if crate::state::epoch::get() == epoch_at_mount {
+            return;
+        }
+        let text = kept_text.get_untracked();
+        if !is_command(&text) {
+            crate::ui::drafts::keep(&text, kept_visibility.get_untracked(), &kept_language.get_untracked());
+        }
     });
 
     // Resuming fills the body, takes the pickers with it, and drops the row so it cannot be

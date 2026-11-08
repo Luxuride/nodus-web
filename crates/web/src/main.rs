@@ -86,7 +86,9 @@ fn mount_app() {
         .get_element_by_id("app")
         .and_then(|node| node.dyn_into::<web_sys::HtmlElement>().ok())
     else {
+        // A static bundle: there is no server paint to stand aside for.
         leptos::mount::mount_to_body(App);
+        mark_hydrated();
         return;
     };
     // Mounted into a detached node, then swapped in whole.
@@ -104,10 +106,22 @@ fn mount_app() {
         if let Ok(node) = staging.dyn_into::<web_sys::Node>() {
             host.replace_children_with_node_1(&node);
         }
+        mark_hydrated();
         return;
     }
     host.set_inner_html("");
     leptos::mount::mount_to(host, App).forget();
+    mark_hydrated();
+}
+
+/// Says, in a way a test (or a curious reader) can see, that the client tree is live.
+///
+/// Until this runs, the rail and the page are the **server's** anchors: clicking one is a
+/// full document load. A test that clicks before this point is testing a static site.
+fn mark_hydrated() {
+    if let Some(window) = web_sys::window() {
+        let _ = js_sys::Reflect::set(&window, &"__nodus".into(), &wasm_bindgen::JsValue::TRUE);
+    }
 }
 
 /// Application shell: the rail, and the screen the address bar asks for.

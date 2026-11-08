@@ -1,22 +1,22 @@
 //! Builds the two vendored bundles the composer mounts.
 //!
-//! Run from `web/js`: `npm install && npm run build`. The output is committed, so the Rust
+//! Run from `web`: `npm install && npm run build`. The output is committed, so the Rust
 //! build and the deployment never need npm — the same reason `Cargo.lock` is committed.
 
 import { build } from "esbuild";
 import { mkdir, readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 
-const OUT = "../crates/web/public/vendor";
+const OUT = "crates/web/public/vendor";
 
 const targets = [
   {
-    entryPoints: ["editor.mjs"],
+    entryPoints: ["js/editor.mjs"],
     outfile: `${OUT}/editor.js`,
     format: "iife",
   },
   {
-    entryPoints: ["picker.mjs"],
+    entryPoints: ["js/picker.mjs"],
     outfile: `${OUT}/picker.js`,
     format: "iife",
   },

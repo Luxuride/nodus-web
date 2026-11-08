@@ -3,22 +3,9 @@ target = "crates/web/index.html"
 dist = "dist"
 release = true
 
-# The Tailwind CLI is installed by `.devcontainer/post-create.sh` (and by CI) rather
-# than fetched by Trunk: Trunk's `[tools]` table has no entry for it, and a hook that
-# silently finds nothing is worse than a missing binary that fails loudly.
-
-# Runs before every build, including `trunk serve`. Produces `style/tailwind.css`,
-# which `index.html` links and git ignores.
-[[hooks]]
-stage = "pre_build"
-command = "tailwindcss"
-command_arguments = [
-  "-i",
-  "crates/web/style/app.css",
-  "-o",
-  "crates/web/style/tailwind.css",
-  "--minify",
-]
+# `crates/web/style/tailwind.css` is committed, not compiled here: Tailwind and daisyUI
+# come from `web/package.json`, and neither Node nor a network is required to build the
+# crate. Regenerate it with `npm run css` after changing a class name or a theme.
 
 [serve]
 addresses = ["127.0.0.1"]

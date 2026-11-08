@@ -2,7 +2,7 @@
 
 import { expect, test } from '@playwright/test'
 
-import { HOST, signedIn, stubApi } from '../fixtures.mjs'
+import { HOST, signedIn, stubApi, hydrated } from '../fixtures.mjs'
 
 const MODERATION = ['Reports', 'Accounts', 'Registrations', 'Federation']
 const ADMINISTRATION = ['Overview', 'Relays', 'Announcements']
@@ -30,6 +30,7 @@ test('moderation and administration are separate areas, one section per address'
   )
 
   await page.goto('/moderation')
+  await hydrated(page)
   await expect(page.getByRole('heading', { name: 'Moderation', level: 1 })).toBeVisible()
 
   const tabs = page.getByRole('tablist').first().getByRole('tab')
@@ -48,6 +49,7 @@ test('moderation and administration are separate areas, one section per address'
 
   // Administration is the other half, with its own sections.
   await page.goto('/admin')
+  await hydrated(page)
   for (const section of ADMINISTRATION) {
     await expect(page.getByRole('tab', { name: section })).toBeVisible()
   }
@@ -55,8 +57,10 @@ test('moderation and administration are separate areas, one section per address'
   // A deep link lands on its section, and an unknown section lands on the default rather
   // than on an error: a stale bookmark should still be useful.
   await page.goto('/moderation/federation')
+  await hydrated(page)
   await expect(page.getByRole('tab', { name: 'Federation' })).toHaveClass(/tab-active/)
   await page.goto('/moderation/not-a-section')
+  await hydrated(page)
   await expect(page.getByRole('tab', { name: 'Reports' })).toHaveClass(/tab-active/)
 
   await expect(page).toHaveTitle(new RegExp(`${HOST}|Nodus`, 'i')).catch(() => {})

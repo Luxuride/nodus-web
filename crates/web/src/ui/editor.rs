@@ -118,6 +118,7 @@ pub fn RichEditor(
     // echo of the writer's own keystroke. Writing that echo back would reset the caret.
     let from_editor = StoredValue::new(String::new());
     let handle = StoredValue::new(None::<Handle>);
+    let hint = StoredValue::new(placeholder);
 
     // Mount once, when the element exists — and keep trying until it does.
     //
@@ -125,14 +126,30 @@ pub fn RichEditor(
     // empty on its first pass; reading it is not reactive, so the effect never ran again and
     // the editor never mounted (the buttons around it worked, which is exactly what "the
     // ProseMirror does not work" looked like). A bounded frame loop is the honest fix.
-    let boot = move || -> bool {
+    let boot = std::rc::Rc::new(move || -> bool {
         if mounted.get_value() {
             return true;
         }
         let Some(node) = element.get() else {
             return false;
         };
-        mounted.set_value(true);
+        // The app mounts into a detached tree and swaps it in (`mount_app`), so a component
+        // can exist, and be mountable, before it is in the document. Mounting into a
+        // detached node produces an editor nobody can see and no error that says so.
+        if !node.is_connected() {
+            return false;
+        }
+        // The bundle is fetched, so the first passes find it missing. `load_script` is
+        // idempotent and this loop is the wait: a promise whose load event already fired
+        // resolves nothing, which is how the editor used to mount into a page and then
+        // silently never appear.
+        if global("nodusEditor").is_none() {
+            let _ = load_script("/vendor/editor.js", "nodusEditor");
+            return false;
+        }
+        let Some(editor) = global("nodusEditor") else {
+            return false;
+        };
 
         let target: web_sys::Element = node.unchecked_into();
         let initial = text.get_untracked();
@@ -149,7 +166,7 @@ pub fn RichEditor(
 
         let options = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&options, &"initial".into(), &initial.into());
-        let _ = js_sys::Reflect::set(&options, &"placeholder".into(), &placeholder.clone().into());
+        let _ = js_sys::Reflect::set(&options, &"placeholder".into(), &hint.get_value().into());
         let _ = js_sys::Reflect::set(&options, &"onText".into(), on_text.as_ref().unchecked_ref());
         let _ = js_sys::Reflect::set(
             &options,
@@ -158,33 +175,23 @@ pub fn RichEditor(
         );
         let _ = js_sys::Reflect::set(&options, &"emoji".into(), &catalogue_js(&catalogue));
 
-        let promise = load_script("/vendor/editor.js", "nodusEditor");
-        leptos::task::spawn_local(async move {
-            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-            let Some(editor) = global("nodusEditor") else {
-                web_sys::console::error_1(
-                    &"nodus: the editor bundle did not define window.nodusEditor".into(),
-                );
-                return;
-            };
-            let Some(mounted_handle) =
-                call_method(&editor, "mount", &[target.into(), options.into()])
-                    .and_then(|value| value.dyn_into::<js_sys::Object>().ok())
-            else {
-                web_sys::console::error_1(&"nodus: mounting the editor failed".into());
-                return;
-            };
-            ACTIVE.with(|active| *active.borrow_mut() = Some(Handle(mounted_handle.clone())));
-            handle.set_value(Some(Handle(mounted_handle)));
-            // The closures must outlive the call: ProseMirror keeps them for the document's
-            // lifetime, so they are leaked deliberately and released with the editor.
-            on_text.forget();
-            on_submit.forget();
-        });
+        let Some(mounted_handle) = call_method(&editor, "mount", &[target.into(), options.into()])
+            .and_then(|value| value.dyn_into::<js_sys::Object>().ok())
+        else {
+            web_sys::console::error_1(&"nodus: mounting the editor failed".into());
+            return false;
+        };
+        ACTIVE.with(|active| *active.borrow_mut() = Some(Handle(mounted_handle.clone())));
+        handle.set_value(Some(Handle(mounted_handle)));
+        // ProseMirror keeps these for the document's lifetime, so they outlive this frame.
+        on_text.forget();
+        on_submit.forget();
+        mounted.set_value(true);
         true
-    };
+    });
 
-    retry_frames(boot, 120);
+    let mount_button = when_ready(std::rc::Rc::clone(&boot), handle);
+
 
     // External changes (an edit loaded, a form reset) replace the document; the writer's
     // own keystrokes arrive here too and are filtered by comparing with what we were told.
@@ -213,11 +220,15 @@ pub fn RichEditor(
         // The height is reserved and the typography matches the reader's body, so the
         // composer does not change size when the editor takes over from the first paint.
         <div
+            id="nodus-composer-body"
             node_ref=element
             class="min-h-24 w-full cursor-text text-sm leading-relaxed"
+            on:mousedown=mount_button
             on:click=move |_| {
                 if let Some(editor) = handle.get_value() {
                     let _ = call_method(&editor.0, "focus", &[]);
+                } else {
+                    let _ = boot();
                 }
             }
         ></div>
@@ -255,6 +266,65 @@ pub fn insert_active(text: &str) -> bool {
     })
 }
 
+/// Resolves on the next animation frame, so a wait costs no timer.
+async fn next_frame() {
+    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        let _ = window.request_animation_frame(&resolve);
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+}
+
+/// Mounts the editor as soon as both the bundle and the element are available.
+///
+/// Two triggers and no timer: the `Effect` runs before the element is necessarily in the
+/// document, and the timer chain this replaced never fired a second time in production or in
+/// the test browser. A press is proof the element is connected, and it is what a writer does
+/// before typing anyway.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the guard is shared with the press handler and the load task"
+)]
+fn when_ready(
+    boot: std::rc::Rc<impl Fn() -> bool + 'static>,
+    handle: StoredValue<Option<Handle>>,
+) -> impl Fn(web_sys::MouseEvent) + 'static {
+    let on_press = {
+        let boot = boot.clone();
+        move |_event: web_sys::MouseEvent| {
+            let _ = boot();
+        }
+    };
+
+    let load_and_mount = {
+        let boot = boot.clone();
+        move || {
+            if handle.get_value().is_some() {
+                return;
+            }
+            let promise = load_script("/vendor/editor.js", "nodusEditor");
+            let boot = std::rc::Rc::clone(&boot);
+            leptos::task::spawn_local(async move {
+                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                // The node can still be outside the document on the frame the bundle
+                // arrives (`mount_app` swaps a detached tree in), so this waits for it.
+                for _ in 0..120 {
+                    if boot() {
+                        return;
+                    }
+                    next_frame().await;
+                }
+                web_sys::console::warn_1(&"nodus: the editor element never appeared".into());
+            });
+        }
+    };
+    let on_render = load_and_mount.clone();
+    Effect::new(move |_| on_render());
+    on_press
+}
+
 /// The emoji picker `emoji-picker-element` provides, mounted on demand.
 ///
 /// Kept separate from the composer so opening it costs one fetch, not a bundle: the picker's
@@ -286,6 +356,7 @@ pub fn EmojiPanel(
             return;
         };
         mounted.set_value(true);
+
         let target: web_sys::Element = node.unchecked_into();
         let catalogue = crate::routes::compose::inline::emoji::catalogue().get_untracked();
 
@@ -320,45 +391,3 @@ pub fn EmojiPanel(
     }
 }
 
-/// Runs `boot` once a frame until it reports success, then stops.
-///
-/// `frame` is bounded: 120 frames is about two seconds, which is longer than any layout this
-/// app produces, and a component that is thrown away before then simply stops being polled.
-fn retry_frames(boot: impl Fn() -> bool + 'static, frames: u32) {
-    let boot = std::rc::Rc::new(boot);
-    let step = std::rc::Rc::new(std::cell::RefCell::new(None::<Closure<dyn FnMut()>>));
-    let schedule = {
-        let step = step.clone();
-        let boot = boot.clone();
-        move |left: u32| {
-            let next = Closure::<dyn FnMut()>::new({
-                let step = step.clone();
-                let boot = boot.clone();
-                move || {
-                    if boot() || left == 0 {
-                        if left == 0 {
-                            web_sys::console::error_1(
-                                &"nodus: the editor element never appeared".into(),
-                            );
-                        }
-                        step.borrow_mut().take();
-                        return;
-                    }
-                    if let Some(closure) = step.borrow().as_ref() {
-                        let _ = window().request_animation_frame(closure.as_ref().unchecked_ref());
-                    }
-                }
-            });
-            *step.borrow_mut() = Some(next);
-            let borrow = step.borrow();
-            if let Some(closure) = borrow.as_ref() {
-                let _ = window().request_animation_frame(closure.as_ref().unchecked_ref());
-            }
-        }
-    };
-    // The first attempt happens immediately: on a warm document the element is already there.
-    if boot() {
-        return;
-    }
-    schedule(frames);
-}

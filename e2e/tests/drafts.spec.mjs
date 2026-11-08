@@ -25,17 +25,17 @@ test('unsent text comes back through :draft, with its visibility', async ({ page
 
   // The document goes away; the draft is written on the way out.
   await page.reload()
-  await expect(page.locator('main .ProseMirror')).toHaveText('')
+  await expect(page.locator('main .ProseMirror')).not.toContainText('Half a thought')
 
   await write(page, ':draft')
 
-  const draft = page.getByRole('option').filter({ hasText: 'Half a thought about relays' })
+  const draft = page.locator('[data-drafts] [role="option"]').filter({ hasText: 'Half a thought about relays' })
   await expect(draft).toBeVisible()
   await draft.click()
 
   await expect(page.locator('main .ProseMirror')).toContainText('Half a thought about relays')
   // Resuming takes the draft out of the list: a draft that stays put can be sent twice.
-  await expect(page.getByRole('option')).toHaveCount(0)
+  await expect(page.locator('[data-drafts]')).toHaveCount(0)
 })
 
 test('posting clears the draft rather than offering it again', async ({ page }) => {
@@ -51,9 +51,9 @@ test('posting clears the draft rather than offering it again', async ({ page }) 
   await page.getByRole('button', { name: 'Post', exact: true }).click()
 
   // The composer empties and the confirmation names what actually went out.
-  await expect(page.locator('main .ProseMirror')).toHaveText('')
+  await expect(page.locator('main .ProseMirror')).not.toContainText('Sent once')
   await expect(page.getByRole('status')).toContainText('Post published as')
 
   await write(page, ':draft')
-  await expect(page.getByRole('option')).toHaveCount(0)
+  await expect(page.locator('[data-drafts]')).toHaveCount(0)
 })

@@ -66,32 +66,51 @@ export function sessionRecord({ host = HOST, token = TOKEN, id = ACCOUNT_ID, acc
  * request pass by matching the wrong route, which is the class of bug these tests
  * exist to catch.
  */
+/**
+ * Every stubbed response needs these.
+ *
+ * The client talks to the instance on its own origin (`https://stub.instance`), so the
+ * browser treats each call as cross-origin: without `access-control-allow-origin` the
+ * stubbed body is delivered and then thrown away by the CORS check, which looks exactly
+ * like a transport failure and used to sign the test session out.
+ */
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+}
+
 export async function stubApi(
   page,
   { statuses = [status()], status: single, notifications = [] } = {},
 ) {
   await page.route('**/api/v1/meta', (route) =>
-    route.fulfill({
-      json: { api: '1', contract: '0.1.0', min_contract: '0.1.0', features: [] },
+    route.fulfill({ headers: CORS, json: { api: '1', contract: '0.1.0', min_contract: '0.1.0', features: [] },
     }),
   )
   await page.route('**/api/v1/accounts/verify_credentials', (route) =>
-    route.fulfill({ json: account }),
+    route.fulfill({ headers: CORS, json: account }),
   )
-  await page.route('**/api/v1/timelines/home**', (route) => route.fulfill({ json: statuses }))
-  await page.route('**/api/v1/timelines/public**', (route) => route.fulfill({ json: statuses }))
+  await page.route('**/api/v1/timelines/home**', (route) => route.fulfill({ headers: CORS, json: statuses }))
+  await page.route('**/api/v1/timelines/public**', (route) => route.fulfill({ headers: CORS, json: statuses }))
   await page.route(/\/api\/v1\/statuses\/[^/]+\/context$/, (route) =>
-    route.fulfill({ json: { ancestors: [], descendants: [] } }),
+    route.fulfill({ headers: CORS, json: { ancestors: [], descendants: [] } }),
+  )
+  // Publishing: `POST /api/v1/statuses` has no id, so the id route above never sees it.
+  await page.route('**/api/v1/statuses', (route) =>
+    route.fulfill({ status: 200, headers: CORS, json: single ?? statuses[0] }),
+  )
+  await page.route('**/api/v1/scheduled_statuses**', (route) =>
+    route.fulfill({ status: 200, headers: CORS, json: [] }),
   )
   await page.route(/\/api\/v1\/statuses\/[^/]+$/, (route) =>
-    route.fulfill({ json: single ?? statuses[0] }),
+    route.fulfill({ headers: CORS, json: single ?? statuses[0] }),
   )
   await page.route('**/api/v1/notifications**', (route) =>
-    route.fulfill({ json: notifications }),
+    route.fulfill({ headers: CORS, json: notifications }),
   )
   await page.route('**/api/v1/me', (route) =>
-    route.fulfill({
-      json: {
+    route.fulfill({ headers: CORS, json: {
         acct: 'ada',
         instance_host: HOST,
         sync_enabled: false,
@@ -100,8 +119,15 @@ export async function stubApi(
       },
     }),
   )
-  await page.route('**/api/v1/blocks**', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/v1/mutes**', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/v1/blocks**', (route) => route.fulfill({ headers: CORS, json: [] }))
+  await page.route('**/api/v1/mutes**', (route) => route.fulfill({ headers: CORS, json: [] }))
+  // Registered last: Playwright consults handlers newest-first, so this sees the preflight
+  // before any method-specific handler and defers everything else.
+  await page.route('**/api/**', (route) =>
+    route.request().method() === 'OPTIONS'
+      ? route.fulfill({ status: 204, headers: CORS })
+      : route.fallback(),
+  )
 }
 
 /** Seed the stored session so the client boots signed in. */
@@ -121,6 +147,17 @@ export async function signedIn(page, { host = HOST, id = ACCOUNT_ID, acct = 'ada
 }
 
 /** One notification, shaped like the wire's. */
+/**
+ * Waits until the client tree is live.
+ *
+ * The server paints the rail and the page, so a link is clickable before any wasm runs;
+ * clicking then is a full document load. Waiting for `window.__nodus` is waiting for the
+ * client, which is what these tests are about.
+ */
+export async function hydrated(page) {
+  await page.waitForFunction(() => window.__nodus === true, undefined, { timeout: 15000 })
+}
+
 export function notification({ id = '5001', type = 'favourite' } = {}) {
   return {
     id,

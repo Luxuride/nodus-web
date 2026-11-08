@@ -33,6 +33,7 @@ pub(super) fn DraftsPanel(
             <div
                 class="max-h-64 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg"
                 role="listbox"
+                data-drafts=""
                 aria-label="Drafts"
             >
                 {move || drafts.get().into_iter().enumerate().map(|(index, draft)| {

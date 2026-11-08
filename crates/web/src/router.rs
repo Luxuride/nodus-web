@@ -331,6 +331,7 @@ pub fn navigate(to: Route) {
         window.scroll_to_with_x_and_y(0.0, 0.0);
     }
     current.set(to);
+    crate::state::epoch::bump();
 }
 
 /// Where this bundle is mounted: the root for a release build, a prefix for a diagnostic

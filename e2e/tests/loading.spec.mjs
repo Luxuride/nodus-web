@@ -6,7 +6,7 @@
 
 import { expect, test } from '@playwright/test'
 
-import { signedIn, stubApi } from '../fixtures.mjs'
+import { signedIn, stubApi, hydrated } from '../fixtures.mjs'
 
 test('a timeline is fetched once, and revisited from the store', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'the phone shell renders the same store from a different bar');
@@ -19,7 +19,8 @@ test('a timeline is fetched once, and revisited from the store', async ({ page }
 
   await stubApi(page)
   await signedIn(page)
-  await page.goto('/home')
+  await page.goto('/')
+  await hydrated(page)
   await expect(page.getByText('Hello from the fixture.')).toBeVisible()
 
   // Away and back: the same page, inside the minute it stays fresh.

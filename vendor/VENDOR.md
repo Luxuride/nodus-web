@@ -1,39 +1,26 @@
-# Vendored dependencies
+# Generated assets
 
-## `daisyui/` — daisyUI 5.1.10
+Nothing here is a copy of a package any more: the stylesheet and the composer bundles are
+built from `web/package.json` (npm), and only their **outputs** are committed so that
+`trunk build` works on a machine without Node or a network.
 
-Tailwind CSS component classes (`btn`, `card`, `modal`, `drawer`, `tabs`,
-`dropdown`, `tooltip`, `toast`, `skeleton`, `badge`, `avatar`, `menu`, `timeline`)
-plus its theme system. Class-only: no JavaScript ships to the browser, and we own
-all behaviour (focus traps, keyboard navigation, roving tabindex).
+## `crates/web/public/vendor/`
 
-**Why vendored.** daisyUI is normally an npm dependency, and this project has no
-Node in its build (the only Node consent is Playwright, dev-only). Its Tailwind v4
-entry point is `@plugin "./vendor/daisyui/index.js"`, which the Tailwind *standalone*
-CLI evaluates without npm. Vendoring the package keeps the build a single binary
-download and keeps the offline devcontainer working.
+| file | made by | why committed |
+| --- | --- | --- |
+| `editor.js` (206 KB / 64 KB gz) | `npm run build` → `js/build.mjs` (esbuild) | the composer's ProseMirror body; a Rust build cannot produce it |
+| `picker.js` (38 KB / 14 KB gz) | same | `emoji-picker-element`, mounted on demand |
+| `emoji-data.json` (430 KB) | `js/fetch-emoji.mjs`, from `emoji-picker-element-data` | self-hosted so the picker never contacts a CDN |
+| `../../style/tailwind.css` (283 KB / 41 KB gz) | `npm run css` → `js/css.mjs` (Tailwind CLI from `node_modules`) | every page's stylesheet; git-tracked, not ignored |
 
-**The whole package is here on purpose** (3 MB, ~1.5 MB of it component CSS). The
-plugin reads `imports.js` at build time to decide which components to emit, so
-pruning `components/` would compile and then silently ship a stylesheet missing
-whatever we pruned. The build output is what shrinks — one page using `btn`,
-`card`, `badge` and `skeleton` produces **22 KB raw / 4.9 KB gzipped** of CSS.
-
-**Do not edit anything in this directory.** It must stay byte-identical to the
-published tarball, so an update is a diff of versions rather than a merge of local
-patches. Our overrides live in `crates/web/style/theme.css`.
-
-**How to update**
+## Updating
 
 ```sh
-cd /tmp && rm -rf daisyui && mkdir daisyui && cd daisyui
-npm pack daisyui@5.1.10            # or: curl -L $(npm view daisyui dist.tarball)
-tar xzf daisyui-*.tgz
-rm -rf /workspaces/MastodonReccom/web/vendor/daisyui
-cp -a package /workspaces/MastodonReccom/web/vendor/daisyui
-rm -f /workspaces/MastodonReccom/web/vendor/daisyui/README.md
+cd web
+npm install          # pinned by package-lock.json
+npm run build        # bundles + stylesheet
 ```
 
-Then update the version in this file, in `crates/web/style/app.css` if the plugin
-path changed, and in the `[tools]` pin in `Trunk.toml` if the bundled Tailwind
-version has to move with it.
+Commit the regenerated files. `Tailwind.toml`'s hook that used to run a standalone
+`tailwindcss` binary is gone: the CLI now resolves `tailwindcss` and `daisyui` from
+`web/node_modules`, so the two versions move together in `package.json`.

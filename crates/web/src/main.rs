@@ -47,6 +47,7 @@ fn main() {
     // Same reason: the revision signal is written by socket frames and ticks, which
     // outlive every screen, so it must not belong to one.
     crate::state::bridge::install_reactive_root();
+    crate::state::clock_format::install();
     crate::state::feeds::install();
     // The expander's signal, created with no owner for the same reason.
     crate::media::install();

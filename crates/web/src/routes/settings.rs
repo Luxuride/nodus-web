@@ -16,7 +16,8 @@ mod admin;
 mod feeds;
 pub(crate) mod filters;
 pub(crate) mod instance;
-pub(crate) mod profile;
+pub(crate) mod clock;
+mod profile;
 pub(crate) mod sensitive;
 pub(crate) mod sync;
 mod tabs;
@@ -27,6 +28,7 @@ use admin::AdministrationCard;
 use feeds::FeedsCard;
 use filters::FiltersCard;
 use instance::InstanceCard;
+use clock::ClockCard;
 use profile::ProfileCard;
 use sensitive::SensitiveCard;
 use tabs::{SettingsTabs, Tab};
@@ -124,6 +126,7 @@ pub fn Settings(section: String) -> impl IntoView {
 
             <Show when=move || tab.get() == Tab::Profile>
                 <ProfileCard/>
+                <ClockCard/>
                 <SensitiveCard/>
             </Show>
 

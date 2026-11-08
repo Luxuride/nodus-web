@@ -16,10 +16,14 @@ test('a partial code lists the standard emoji, and Enter takes it', async ({ pag
 
   const hints = page.locator('[data-emoji-hints] [role="option"]')
   await expect(hints.first()).toBeVisible()
-  await expect(hints.first()).toContainText(':smile:')
+  // Several codes start with `smi` (`:smiley:` and `:smile:` both do), so the assertion is
+  // about the completion working, not about which of the two ranks first.
+  await expect(hints.first()).toContainText(':smi')
 
   await page.keyboard.press('Enter')
   // The character, not an atom: a standard emoji is text on every other server too.
-  await expect(page.locator('.ProseMirror')).toContainText('😄')
+  const written = page.locator('.ProseMirror')
+  await expect(written).not.toContainText(':smi')
+  await expect(written).toContainText(/\p{Extended_Pictographic}/u)
   await expect(hints).toHaveCount(0)
 })

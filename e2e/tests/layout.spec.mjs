@@ -55,10 +55,10 @@ test('a rail click is a client-side navigation, not a page load', async ({ page 
   await expect(page.locator('nav a.menu-active')).toContainText('Messages')
 })
 
-test('the composer sits above the home timeline, open', async ({ page }) => {
+test('the composer sits above the feed timeline, open', async ({ page }) => {
   await stubApi(page)
   await signedIn(page)
-  await page.goto('/')
+  await page.goto('/feed')
   await hydrated(page)
 
   // Above the timeline, inside `main`, and already a form: no button to reveal it.

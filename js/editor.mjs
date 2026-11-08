@@ -117,24 +117,24 @@ function mount(element, options = {}) {
     return { code, from: $from.pos - code.length - 1, to: $from.pos, options };
   };
 
-  /** Replaces the pending token with the emoji the instance knows. */
+  /** Replaces the pending token — the one typed, not the one chosen — with the emoji. */
   const accept = (code) => {
-    const token = `:${code}:`;
-    const url = index.get(token);
-    if (!url && standard.has(code)) {
-      // A standard emoji is inserted as its character: an image atom for it would be wrong
-      // on other software, and unreadable in plain text.
-      view.dispatch(view.state.tr.insertText(standard.get(code)).scrollIntoView());
-      view.focus();
-      return true;
-    }
-    const range = hint ?? trailing(view.state);
-    if (!url || !range) {
+    if (!code) {
       return false;
     }
-    const node = schema.node("customEmoji", { token, url });
-    const tr = view.state.tr.replaceWith(range.from, range.to, node).scrollIntoView();
-    view.dispatch(tr);
+    // The range comes from what is actually in the document: `:smi` may accept `:smiley:`,
+    // and replacing `code.length` characters from the caret would eat text before the token.
+    const range = trailing(view.state) ?? hint;
+    const url = index.get(`:${code}:`);
+    const char = standard.get(code);
+    if (!url && !char) {
+      return false;
+    }
+    const from = range ? range.from : view.state.selection.from;
+    const to = range ? range.to : view.state.selection.from;
+    const node = url ? schema.node("customEmoji", { token: `:${code}:`, url }) : schema.text(char);
+    view.dispatch(view.state.tr.replaceWith(from, to, node).scrollIntoView());
+    hint = null;
     view.focus();
     return true;
   };

@@ -32,8 +32,11 @@ pub(super) fn ComposerBar(
     busy: ReadSignal<bool>,
     /// Opens the media picker.
     on_add_media: Callback<()>,
-    /// Opens the emoji picker.
-    on_add_emoji: Callback<()>,
+    /// Whether the emoji picker is showing.
+    emoji_open: ReadSignal<bool>,
+    /// Toggles the emoji picker. It hangs off the emoticon button in the right-hand group,
+    /// because it belongs to the body rather than to the "make this a poll/media" row.
+    set_emoji_open: WriteSignal<bool>,
     /// Turns the post into a poll.
     on_add_poll: Callback<()>,
     /// The chosen language, empty for the instance's guess.
@@ -73,17 +76,6 @@ pub(super) fn ComposerBar(
             <button
                 type="button"
                 class="btn btn-outline btn-sm gap-1 border-dashed"
-                title="Insert an emoji"
-                disabled=move || busy.get()
-                on:click=move |_| on_add_emoji.run(())
-            >
-                <span class="text-base leading-none">"☺"</span>
-                <span>"Emoji"</span>
-            </button>
-
-            <button
-                type="button"
-                class="btn btn-outline btn-sm gap-1 border-dashed"
                 title="Ask a question instead"
                 disabled=move || busy.get()
                 on:click=move |_| on_add_poll.run(())
@@ -98,6 +90,25 @@ pub(super) fn ComposerBar(
             // does this go out", the right edge answers "is it ready to".
             <crate::ui::language::LanguagePicker language=language set_language=set_language/>
             <div class="ml-auto flex items-center gap-2">
+                // The emoticon sits with the counter, not with the compose-your-post row: it
+                // edits the body, and the left group is about what kind of post this is.
+                <div class="relative">
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-sm px-2"
+                        class:bg-base-200=move || emoji_open.get()
+                        title="Insert an emoji"
+                        aria-expanded=move || emoji_open.get().to_string()
+                        disabled=move || busy.get()
+                        on:click=move |_| set_emoji_open.update(|open| *open = !*open)
+                    >
+                        <span class="text-base leading-none">"☺"</span>
+                    </button>
+                    // Absolutely positioned so opening the picker does not push the bar
+                    // taller and move the button the writer just pressed.
+                    <crate::ui::editor::EmojiPanel open=emoji_open/>
+                </div>
+
                 <span
                     class="text-xs tabular-nums"
                     class=("opacity-50", move || count() <= LIMIT)

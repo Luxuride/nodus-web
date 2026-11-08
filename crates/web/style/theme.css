@@ -193,3 +193,11 @@ body {
   position: relative;
   outline: none;
 }
+
+/* The picker is a web component with its own sizing; inside our popover it fills the
+   width and takes a fixed height, which is what keeps the bar from moving. */
+.emoji-picker {
+  height: 320px;
+  width: 100%;
+  --num-columns: 8;
+}

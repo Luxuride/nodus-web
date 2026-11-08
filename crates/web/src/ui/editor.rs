@@ -261,16 +261,25 @@ pub fn insert_active(text: &str) -> bool {
 /// database is an order of magnitude larger than the editor itself.
 #[component]
 pub fn EmojiPanel(
-    /// Whether the panel is showing.
+    /// Whether the panel is showing; the button that opens it owns the toggle.
     open: ReadSignal<bool>,
-    /// Called when the picker hands back an emoji.
-    set_open: WriteSignal<bool>,
 ) -> impl IntoView {
     let host = NodeRef::<leptos::html::Div>::new();
     let mounted = StoredValue::new(false);
 
     Effect::new(move |_| {
-        if !open.get() || mounted.get_value() {
+        if !open.get() {
+            // Closing throws the element away: the picker keeps a sizable DOM and its
+            // database is cached by the browser, so rebuilding is cheaper than carrying it.
+            if mounted.get_value() {
+                if let Some(node) = host.get() {
+                    node.set_inner_html("");
+                }
+                mounted.set_value(false);
+            }
+            return;
+        }
+        if mounted.get_value() {
             return;
         }
         let Some(node) = host.get() else {
@@ -300,22 +309,12 @@ pub fn EmojiPanel(
             );
             on_pick.forget();
         });
-
-        // Closing throws the element away: it is cheap to rebuild and its database is
-        // cached by the browser, while a hidden picker keeps a large DOM alive.
-        on_cleanup(move || mounted.set_value(false));
     });
 
     view! {
         <Show when=move || open.get()>
-            <div class="rounded-box border border-base-300 bg-base-100 p-2 shadow-sm">
+            <div class="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-1rem)] rounded-box border border-base-300 bg-base-100 p-2 shadow-xl">
                 <div node_ref=host></div>
-                <button
-                    class="btn btn-ghost btn-xs mt-1 w-full"
-                    on:click=move |_| set_open.set(false)
-                >
-                    "Close"
-                </button>
             </div>
         </Show>
     }

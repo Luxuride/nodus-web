@@ -104,7 +104,6 @@ pub fn InlineComposer(
                     on_submit=Callback::new(move |()| submit.submit())
                 />
 
-                <crate::ui::editor::EmojiPanel open=picking set_open=set_picking/>
                 <ComposerBar
                     text=draft.text.read_only()
                     at=draft.custom.read_only()
@@ -115,7 +114,8 @@ pub fn InlineComposer(
                     on_add_media=Callback::new(move |()| attachments::request_pick())
                     // A toggle, not a latch: with a latch the control is a no-op the moment the
                     // editor is open, which is what made it read as broken.
-                    on_add_emoji=Callback::new(move |()| set_picking.set(true))
+                    emoji_open=picking
+                    set_emoji_open=set_picking
                     on_add_poll=Callback::new(move |()| {
                         draft
                             .poll_open

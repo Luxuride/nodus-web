@@ -62,11 +62,14 @@ function mount(element, options = {}) {
     try {
       const response = await fetch("/vendor/emoji-data.json");
       const data = await response.json();
+      // The data is emojibase's: the character is `emoji`, and every alias matters — `smile`
+      // is the second shortcode of the grinning-face-with-smiling-eyes entry.
       for (const entry of data) {
-        const char = entry.unicode;
-        const code = entry.shortcodes?.[0] ?? entry.label?.toLowerCase().replace(/[^a-z0-9_]+/g, "_");
-        if (char && code && !standard.has(code)) {
-          standard.set(code, char);
+        const char = entry.emoji;
+        for (const code of entry.shortcodes ?? []) {
+          if (char && code && !standard.has(code)) {
+            standard.set(code, char);
+          }
         }
       }
     } catch (error) {
@@ -231,14 +234,21 @@ function mount(element, options = {}) {
       return null;
     }
     const token = found[0];
+    const code = found[1];
     const url = index.get(token);
-    if (!url) {
-      return null;
-    }
     const from = $from.pos - token.length;
-    const node = schema.node("customEmoji", { token, url });
     void previous;
-    return state.tr.replaceWith(from, $from.pos, node).scrollIntoView();
+    if (url) {
+      const node = schema.node("customEmoji", { token, url });
+      return state.tr.replaceWith(from, $from.pos, node).scrollIntoView();
+    }
+    // A standard emoji becomes its character the moment the code is closed, so `:smile:`
+    // reads as 😄 while typing — the same promise the custom atom keeps.
+    const char = standard.get(code);
+    if (char) {
+      return state.tr.replaceWith(from, $from.pos, schema.text(char)).scrollIntoView();
+    }
+    return null;
   };
 
   const destroy = () => {

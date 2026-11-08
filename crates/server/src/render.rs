@@ -281,75 +281,80 @@ fn stamp(rfc3339: &str) -> String {
 }
 
 
-/// The rail, painted with the same classes the client uses.
-///
-/// The icons are squares of the icon's own size rather than glyphs: the client swaps in
-/// the real paths on mount, and matching the *box* is what keeps the column from moving.
-/// Copying twenty-seven SVGs into this server would be a second icon set to keep in sync
-/// for a difference nobody sees after the first paint.
-fn nav(active: &str) -> String {
-    let mut items = String::new();
-    // The order, the labels and the hover hints come from `nodus-view`'s `rail()`, which is
-    // the same function the client's rail calls: one list, two renders.
-    for group in nodus_view::rail() {
-        let _ = write!(
-            items,
-            "<li class=\"menu-title hidden xl:block\">{}</li>",
-            escape(group.title)
-        );
-        for destination in group.destinations {
-            let current = if destination.href == active {
-                " menu-active"
-            } else {
-                ""
-            };
-            let _ = write!(
-                items,
-                "<li>\
-                   <a class=\"flex w-full items-center gap-2 font-medium{current}\" href=\"{}\" title=\"{}\">\
-                     <span class=\"inline-block h-4 w-4 shrink-0 rounded-sm bg-base-300\"></span>\
-                     <span class=\"truncate\">{}</span>\
-                   </a>\
-                 </li>",
-                escape(destination.href),
-                escape(destination.hint),
-                escape(destination.label)
-            );
-        }
-    }
-    format!(
-        "<nav class=\"hidden shrink-0 xl:block xl:w-44\">\
-           <ul class=\"menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap\">{items}</ul>\
-         </nav>"
-    )
+// Whether this request's reader may moderate. Set once per request by `shell`; a
+// thread-local rather than a parameter because every page function would otherwise have to
+// thread a flag it does not use, and the server handles one request per thread.
+thread_local! {
+    static STAFF: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-/// The application's own frame: the same root element, column widths and gaps the client
-/// renders, so the swap is a replacement in place rather than a reflow.
-fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
-    // The rail is drawn from `nodus_view::rail()`, the same list the client renders, so the
-    // two paints cannot disagree about order, labels or destinations. Only the content
-    // inside `main` is server-specific.
-    if !signed_in {
-        return format!(
-            "<div class=\"min-h-screen bg-base-200 text-base-content\">\
-               <div class=\"mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4\">\
-                 <main class=\"min-w-0 flex-1\">{inner}</main>\
-               </div>\
-             </div>"
-        );
+/// Whether this request's reader may moderate.
+pub fn set_staff(staff: bool) {
+    STAFF.with(|state| state.set(staff));
+}
+
+/// The two doors a moderator has, drawn from the same list the client draws.
+fn staff_doors() -> leptos::prelude::AnyView {
+    use imperative::rail_rows;
+    rail_rows()
+}
+
+/// Markup for the extra rail rows, kept beside the frame so both come from one place.
+mod imperative {
+    use leptos::prelude::*;
+    use nodus_view::icons::Icon;
+
+    /// The moderation and administration rows.
+    #[must_use]
+    pub fn rail_rows() -> AnyView {
+        let row = |label: &'static str, href: &'static str, hint: &'static str| {
+            view! {
+                <li>
+                    <a
+                        class="flex w-full items-center gap-2 font-medium"
+                        href=href
+                        title=hint
+                    >
+                        <Icon icon=Icon::Shield/>
+                        <span class="truncate">{label}</span>
+                    </a>
+                </li>
+            }
+        };
+        view! {
+            {row("Moderation", "/moderation", "The queue, the accounts and what the server allows")}
+            {row("Administration", "/admin", "What this instance publishes and allows")}
+        }
+        .into_any()
     }
-    format!(
-        "<div class=\"min-h-screen bg-base-200 text-base-content\">\
-           <header class=\"sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-base-300 bg-base-100 px-3 py-2 xl:hidden\">\
-             <a class=\"font-semibold tracking-tight\" href=\"/home\">Nodus</a>\
-           </header>\
-           <div class=\"mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row\">{}\n\
-             <main class=\"min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] xl:pb-0\">{inner}</main>\
-           </div>\
-         </div>",
-        nav(path)
-    )
+}
+
+fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
+    use leptos::prelude::{IntoAny, Owner, Signal};
+    use leptos::tachys::html::element::InnerHtmlAttribute as _;
+    use leptos::tachys::view::RenderHtml as _;
+
+    // The frame, the rail and the icons come from `nodus-view`, the same components the
+    // browser mounts. That is the whole point: two templates drift, one tree cannot.
+    let path = path.to_owned();
+    let inner = inner.to_owned();
+    Owner::new().with(|| {
+        let body = inner.clone();
+        nodus_view::Frame(nodus_view::FrameProps {
+            signed_in: Signal::derive(move || signed_in),
+            path: Signal::derive({
+                let path = path.clone();
+                move || path.clone()
+            }),
+            inner: std::sync::Arc::new(move || {
+                leptos::html::div().inner_html(body.clone()).into_any()
+            }),
+            extra: STAFF
+                .with(std::cell::Cell::get)
+                .then(|| std::sync::Arc::new(staff_doors) as nodus_view::ExtraDoors),
+        })
+        .to_html()
+    })
 }
 
 /// The composer and the timeline tabs, at the size the client gives them.

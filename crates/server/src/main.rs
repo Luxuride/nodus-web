@@ -193,11 +193,13 @@ async fn sign_in(State(app): State<Arc<App>>, Json(body): Json<Credentials>) -> 
     };
     match client.whoami().await {
         Ok(account) => {
+            let admin = client.is_staff().await;
             let id = app.sessions.insert(Session {
                 host: body.host,
                 token: body.token,
                 account_id: account.id.clone(),
                 acct: account.acct.clone(),
+                admin,
             });
             let mut response = Json(json!({
                 "acct": account.acct,
@@ -260,6 +262,10 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
     let Some(session) = session_of(&app, &headers) else {
         return Html(render::shell(&app.bundle(), None, path)).into_response();
     };
+    // The rail draws the moderation doors for a moderator, and it is drawn before any
+    // wasm runs, so the answer has to come from the session that was established at
+    // sign-in (`Session::admin`).
+    render::set_staff(session.admin);
     let assets = app.bundle();
     let painted = match Client::new(&session.host, &session.token) {
         Ok(client) => {

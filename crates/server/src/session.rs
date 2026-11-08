@@ -28,6 +28,13 @@ pub struct Session {
     pub token: String,
     pub account_id: String,
     pub acct: String,
+    /// Whether this account answered the moderation queue when it signed in.
+    ///
+    /// Probed once, at sign-in, rather than on every render: the rail has to know before
+    /// the first paint whether to draw the moderation doors, and an instance call per page
+    /// would be paid by every reader. A role granted later shows up on the next sign-in.
+    #[serde(default)]
+    pub admin: bool,
 }
 
 /// What the browser is told about its own session. Note the absence of the token.

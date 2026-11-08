@@ -9,7 +9,8 @@ publish = false
 repository = "https://github.com/nodus-social/nodus-web"
 
 [dependencies]
-nodus-view = { path = "../view" }
+leptos = { version = "0.8", features = ["ssr"] }
+nodus-view = { path = "../view", version = "0.1.0" }
 axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 serde = { workspace = true }

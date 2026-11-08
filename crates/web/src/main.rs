@@ -35,9 +35,10 @@ use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
 use crate::routes::status::{PublicThread, Thread};
 use crate::state::bridge::{init, revision, with_sdk};
-use crate::ui::icons::Icon;
 
 use leptos::prelude::*;
+#[cfg(feature = "admin")]
+use crate::ui::icons::Icon;
 #[cfg(feature = "admin")]
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
@@ -133,56 +134,11 @@ fn App() -> impl IntoView {
     let sheet = RwSignal::new(false);
 
     view! {
-        <div class="min-h-screen bg-base-200 text-base-content">
-            <Show when=move || signed_in.get()>
-                <shell::MobileTop/>
-            </Show>
-            // No top bar: the rail already carries the name and the navigation, and a
-            // bar above it only cost vertical space on every screen.
-            // Two columns above `sm`: the rail is navigation, not decoration, so on a
-            // narrow screen it becomes the header's only job (a single visible tab).
-            // Desktop: rail, composer, content. Narrower: composer above the rail,
-            // rail above the content — writing is still one press away, and nothing
-            // pushes the timeline off-screen.
-            <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row">
-                <Show when=move || signed_in.get()>
-                <nav class="hidden shrink-0 xl:block xl:w-44">
-                    <ul class="menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap">
-                        {nodus_view::rail()
-                            .into_iter()
-                            .map(|group| {
-                                view! {
-                                    <li class="menu-title hidden xl:block">{group.title}</li>
-                                    {group
-                                        .destinations
-                                        .iter()
-                                        .map(|destination| {
-                                            let href = destination.href;
-                                            let active = move || router::route().get().path() == href;
-                                            view! {
-                                                <li>
-                                                    <a
-                                                        class="flex w-full items-center gap-2 font-medium"
-                                                        class:menu-active=active
-                                                        href=href
-                                                        title=destination.hint
-                                                    >
-                                                        <Icon icon=icon_of(destination.label)/>
-                                                        <span class="truncate">{destination.label}</span>
-                                                    </a>
-                                                </li>
-                                            }
-                                        })
-                                        .collect_view()}
-                                }
-                            })
-                            .collect_view()}
-                        {staff_rail_items()}
-                    </ul>
-                </nav>
-                </Show>
-                <main class="min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] xl:pb-0">
-                    {move || {
+        <nodus_view::Frame
+            signed_in=Signal::derive(move || signed_in.get())
+            path=Signal::derive(move || router::route().get().path())
+            extra=extra_doors()
+            inner=std::sync::Arc::new(move || {
                         // The callback comes first, before the signed-in gate: the
                         // instance redirects here while the app is still signed out, and
                         // this screen is what turns the code into a session.
@@ -341,17 +297,30 @@ fn App() -> impl IntoView {
                                 view! { <SignIn note="Sign in to read this."/> }.into_any()
                             }
                         }
-                    }}
-                </main>
-            </div>
-            <Show when=move || signed_in.get()>
-                <shell::MobileBar open=sheet/>
-                <shell::MobileSheet open=sheet/>
-            </Show>
-            <crate::media::ImageModal/>
-            <Footer/>
-        </div>
+            })/>
+        <Show when=move || signed_in.get()>
+            <shell::MobileBar open=sheet/>
+            <shell::MobileSheet open=sheet/>
+        </Show>
+        <crate::media::ImageModal/>
+        <Footer/>
     }
+}
+
+/// The doors only a moderator build draws, as the shared frame wants them.
+#[cfg(feature = "admin")]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the lean build returns nothing, and one call site serves both"
+)]
+fn extra_doors() -> Option<nodus_view::ExtraDoors> {
+    Some(std::sync::Arc::new(|| crate::staff_rail_items().into_any()))
+}
+
+/// The lean build has no moderation screens, so the rail has no extra doors.
+#[cfg(not(feature = "admin"))]
+fn extra_doors() -> Option<nodus_view::ExtraDoors> {
+    None
 }
 
 /// The foot of every screen: what this is, and the two links a client owes its server.
@@ -433,8 +402,6 @@ fn staff_rail_items() -> impl IntoView {
     view! { <StaffRail/> }
 }
 
-#[cfg(not(feature = "admin"))]
-fn staff_rail_items() -> impl IntoView {}
 
 /// The probe behind the moderation doors.
 #[cfg(feature = "admin")]
@@ -467,22 +434,3 @@ fn StaffRail() -> impl IntoView {
     }
 }
 
-/// The icon for a rail destination, chosen by the label `nodus_view::rail()` publishes.
-///
-/// The list of destinations and their order is not this function's business: it is the same
-/// list the server draws, so a new screen appears in both paints or in neither.
-fn icon_of(label: &str) -> Icon {
-    match label {
-        "Home" => Icon::Home,
-        "Messages" => Icon::Mail,
-        "Notifications" => Icon::Bell,
-        "Search" => Icon::Search,
-        "People" => Icon::Users,
-        "Saved" => Icon::Bookmark,
-        "Scheduled" => Icon::Clock,
-        "Lists" => Icon::List,
-        "Admin" => Icon::Shield,
-        "Moderation" => Icon::Alert,
-        _ => Icon::Settings,
-    }
-}

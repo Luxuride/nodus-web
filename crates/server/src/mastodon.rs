@@ -4,7 +4,7 @@
 //! (`Link: rel="next"`) and the payload shapes are the ones the browser app already uses.
 //! A second hand-written HTTP layer would be a second place to be wrong about Mastodon.
 
-use nodus_instance::actions::{Browse, ScheduleActions, Search as SearchApi};
+use nodus_instance::actions::{Browse, RegistrationActions, ScheduleActions, Search as SearchApi};
 use nodus_instance::model::{
     Account, Context, Conversation, List, Notification, PageParams, ScheduledStatus,
     SearchResults, Status,
@@ -30,6 +30,14 @@ impl Client {
     }
 
     /// Prove the token and learn which account it belongs to.
+    /// Whether this token may moderate. One request, at sign-in.
+    ///
+    /// The pending queue is the cheapest endpoint that is staff-only: a moderator gets a
+    /// list, anyone else a `403` with a JSON body (Mastodon does not answer `404` here).
+    pub async fn is_staff(&self) -> bool {
+        self.instance.pending_accounts(1).await.is_ok()
+    }
+
     pub async fn whoami(&self) -> Result<Account, String> {
         self.instance
             .verify_credentials()

@@ -61,6 +61,41 @@ pub async fn languages() -> Vec<nodus_instance::model::Language> {
     }
 }
 
+/// The signed-in account's own posting language, when it set one.
+///
+/// This is the only truthful "default language" Mastodon exposes: an instance publishes the
+/// languages it supports, not the one a writer posts in. `None` means "ask the instance",
+/// which in practice means English or the instance's first published language.
+pub async fn my_language() -> Option<String> {
+    /// Three states, not two: "not asked yet" is different from "asked, and the account
+    /// did not choose one" — collapsing them would re-ask on every composer.
+    enum Held {
+        Unknown,
+        Answer(Option<String>),
+    }
+
+    thread_local! {
+        static HELD: std::cell::RefCell<Held> = const { std::cell::RefCell::new(Held::Unknown) };
+    }
+
+    let cached = HELD.with(|held| match &*held.borrow() {
+        Held::Unknown => None,
+        Held::Answer(answer) => Some(answer.clone()),
+    });
+    if let Some(answer) = cached {
+        return answer;
+    }
+    let fresh = match instance_transport() {
+        Some(transport) => call(transport.credential_account())
+            .await
+            .ok()
+            .and_then(|account| account.source.language),
+        None => None,
+    };
+    HELD.with(|held| *held.borrow_mut() = Held::Answer(fresh.clone()));
+    fresh
+}
+
 pub async fn custom_emojis() -> Vec<nodus_instance::model::CustomEmoji> {
     thread_local! {
         static HELD: std::cell::RefCell<Option<Vec<nodus_instance::model::CustomEmoji>>> =

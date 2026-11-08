@@ -62,9 +62,12 @@ pub fn LanguagePicker(
     let alive = crate::state::alive::Alive::new();
 
     leptos::task::spawn_local(async move {
+        // Two reads: the catalogue is what the list shows, the account's own choice is what
+        // it should start on. Both are cached for the document, so the second open is free.
         let fetched = actions::languages().await;
+        let preferred = actions::my_language().await;
         alive.if_alive(|| {
-            let ordered = ordered_with_default(fetched, &mut |default| {
+            let ordered = ordered_with_default(fetched, preferred.as_deref(), &mut |default| {
                 if language.get_untracked().is_empty() {
                     set_language.set(default);
                 }
@@ -153,7 +156,9 @@ pub fn LanguagePicker(
                 // No truncation: the point of the wider control is that "Português (Brasil)"
                 // is readable without opening the list.
                 <span class="whitespace-nowrap">{move || name_of(&language.get())}</span>
-                <span class="text-[0.6rem] leading-none opacity-60">"▼"</span>
+                // Same colour as the text: the visibility select's native caret is not faded, and a
+                // washed-out arrow next to a solid one reads as a disabled control.
+                <span class="text-[0.6rem] leading-none">"▼"</span>
             </button>
 
             <Show when=move || open.get()>
@@ -169,7 +174,11 @@ pub fn LanguagePicker(
 /// The instance's own first language is the default: it is selected and shown at the top, so
 /// the common case costs no choice and a writer never has to scroll to find it. Everything
 /// else follows alphabetically.
-fn ordered_with_default(fetched: Vec<Language>, select: &mut impl FnMut(String)) -> Vec<Language> {
+fn ordered_with_default(
+    fetched: Vec<Language>,
+    preferred: Option<&str>,
+    select: &mut impl FnMut(String),
+) -> Vec<Language> {
     let mut list = if fetched.is_empty() {
         FALLBACK
             .iter()
@@ -181,7 +190,14 @@ fn ordered_with_default(fetched: Vec<Language>, select: &mut impl FnMut(String))
     } else {
         fetched
     };
-    let default = list.first().map(|language| language.code.clone());
+    // The account's own language wins; otherwise English, which is what Mastodon falls back
+    // to when nothing names a default; otherwise whatever the instance published first.
+    let codes: Vec<String> = list.iter().map(|language| language.code.clone()).collect();
+    let default = preferred
+        .filter(|code| codes.iter().any(|known| known == code))
+        .map(str::to_owned)
+        .or_else(|| codes.iter().find(|code| code.as_str() == "en").cloned())
+        .or_else(|| codes.first().cloned());
     list.sort_by(|left, right| {
         let rank = |language: &Language| u8::from(Some(&language.code) != default.as_ref());
         rank(left)

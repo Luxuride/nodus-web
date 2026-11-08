@@ -263,3 +263,15 @@ so the dev origin contains no CORS surprises.
     ask for a load with `ensure*` (TTL-aware, cheap when fresh), use `refresh` only after
     this client changed something the store still believes, and render from `revision()`
     so socket frames and ticks repaint without a reload.
+
+12. **Staleness is data, and offline is a state — not an error dialog.** Every stored page
+    carries `fetched_at`; a page younger than `TTL_MS` (60 s in `state/bridge/pages.rs` and
+    `timeline.rs`) answers from state, older than that is refetched **while the old copy
+    keeps rendering**, so a slow network never empties a screen the reader is on. Three
+    rules follow, and each has a test in the SDK: a failed request keeps the items and only
+    drops the timestamp; an older page is appended **only** when the requested cursor is the
+    one the held page ended on (after an offline spell the instance's ordering moved, and
+    appending across the gap would splice two ranges with a hole); a reconnect marks the
+    event-shaped pages (notifications, conversations) stale, because events arrived that
+    this client never saw. Writes are never queued: an action attempted offline fails
+    visibly, because a favourite the server never received must not look applied.

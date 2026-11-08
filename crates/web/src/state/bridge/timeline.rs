@@ -103,6 +103,15 @@ async fn ensure_with(
             sdk.ensure_timeline(TimelineRequest::Account(&id), cursor, limit, ttl_ms)
                 .await
         }
+        (Timeline::List(id), _) => {
+            // Lists have their own loader: reading one needs the `Browse` port, which the
+            // SDK keeps out of the bound every caller of `ensure_timeline` would pay.
+            return sdk
+                .load_list_page(&id, cursor, limit)
+                .await
+                .map(|page| page.fetched_at.is_some())
+                .map_err(|error| error.to_string());
+        }
         (Timeline::Local, _) => {
             sdk.ensure_timeline(TimelineRequest::Local, cursor, limit, ttl_ms)
                 .await

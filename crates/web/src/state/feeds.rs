@@ -16,19 +16,31 @@ use leptos::prelude::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Feed {
     Home,
+    Recommended,
     Local,
     Federated,
 }
 
 impl Feed {
-    /// Every feed, in rail order.
-    pub const ALL: [Self; 3] = [Self::Home, Self::Local, Self::Federated];
+    /// Every feed, in the order the navigation offers them.
+    pub const ALL: [Self; 4] = [Self::Home, Self::Recommended, Self::Local, Self::Federated];
+
+    /// Whether the reader may hide this one.
+    ///
+    /// Home is the timeline every client has, and the place a reader lands after a
+    /// sign-in; hiding it would leave the app with no obvious front door. The rest are
+    /// doors that can be closed.
+    #[must_use]
+    pub const fn optional(self) -> bool {
+        !matches!(self, Self::Home)
+    }
 
     /// The storage key and the query value.
     #[must_use]
     pub const fn key(self) -> &'static str {
         match self {
             Self::Home => "home",
+            Self::Recommended => "feed",
             Self::Local => "local",
             Self::Federated => "federated",
         }
@@ -39,6 +51,7 @@ impl Feed {
     pub const fn label(self) -> &'static str {
         match self {
             Self::Home => "Home",
+            Self::Recommended => "Feed",
             Self::Local => "Local",
             Self::Federated => "Federated",
         }
@@ -48,7 +61,10 @@ impl Feed {
     #[must_use]
     pub const fn description(self) -> &'static str {
         match self {
-            Self::Home => "Posts from the accounts you follow.",
+            Self::Home => "Posts from the accounts you follow. Always in the navigation.",
+            Self::Recommended => {
+                "Accounts and posts this client thinks you will like, with the reason for each."
+            }
             Self::Local => "Posts from accounts on your instance, whether you follow them or not.",
             Self::Federated => "Posts your instance has received from other instances.",
         }
@@ -89,6 +105,9 @@ pub fn revision() -> Option<RwSignal<u64>> {
 /// Whether `feed` is enabled; unknown feeds answer their default, which is on.
 #[must_use]
 pub fn enabled(feed: Feed) -> bool {
+    if !feed.optional() {
+        return true;
+    }
     with_prefs(|prefs| {
         prefs
             .iter()
@@ -99,6 +118,10 @@ pub fn enabled(feed: Feed) -> bool {
 
 /// Sets whether `feed` appears in the rail.
 pub fn set(feed: Feed, on: bool) {
+    if !feed.optional() {
+        // Home is not a preference; asking to hide it is a no-op rather than an error.
+        return;
+    }
     with_prefs(|prefs| {
         prefs.retain(|(known, _)| *known != feed);
         prefs.push((feed, on));

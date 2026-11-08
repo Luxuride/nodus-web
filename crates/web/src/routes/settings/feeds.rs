@@ -31,12 +31,16 @@ pub fn FeedsCard() -> impl IntoView {
                                 changed.get();
                                 prefs::enabled(feed)
                             };
+                            // Home has no switch: it is the front door, and a toggle that
+                            // cannot be turned off reads as a bug.
+                            let fixed = !feed.optional();
                             view! {
                                 <label class="flex cursor-pointer items-start gap-3 rounded-box p-2 hover:bg-base-200">
                                     <input
                                         type="checkbox"
                                         class="toggle toggle-sm mt-0.5"
                                         prop:checked=on
+                                        prop:disabled=fixed
                                         on:change=move |event| {
                                             prefs::set(feed, event_target_checked(&event));
                                         }
@@ -52,7 +56,9 @@ pub fn FeedsCard() -> impl IntoView {
                 </div>
 
                 <p class="mt-2 text-xs opacity-60">
-                    "The recommendation Feed is not listed here: it is the screen this client exists for."
+                    "Home stays: it is where a sign-in lands, and the timeline every client
+                     has. The Feed is this client's own recommendation screen, and it can be
+                     closed like the others."
                 </p>
             </div>
         </section>

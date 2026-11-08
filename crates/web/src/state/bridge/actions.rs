@@ -16,7 +16,7 @@ use nodus_instance::actions::{
 };
 use nodus_instance::model::{
     Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId,
-    MediaAttachment, Page, PageParams, ProfileUpdate, Relationship, SearchResults, Status,
+    MediaAttachment, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
 pub use nodus_instance::model::Visibility;
@@ -282,15 +282,6 @@ pub async fn set_list_member(list_id: &str, account_id: &str, member: bool) -> R
     } else {
         call(transport.remove_from_list(list_id, &accounts)).await
     }
-}
-
-/// One page of a list timeline.
-pub async fn list_timeline(list_id: &str, after: Option<&str>) -> Result<Page<Status>, String> {
-    let params = match after {
-        Some(cursor) => PageParams::after(cursor, PAGE),
-        None => PageParams::first(PAGE),
-    };
-    call(transport()?.list_timeline(list_id, params)).await
 }
 
 /// Saves the signed-in account's profile.

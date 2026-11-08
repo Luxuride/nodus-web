@@ -69,6 +69,7 @@ test('the composer sits above the home timeline, open', async ({ page }) => {
 })
 
 test('a feed can be hidden from the rail in settings', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'the rail is hidden on a phone');
   await stubApi(page)
   await signedIn(page)
   await page.goto('/home')
@@ -104,3 +105,20 @@ test('the account menu lists the signed-in identity', async ({ page }) => {
   await expect(card).toContainText('on screen')
   await expect(card).not.toContainText(ACCOUNT_ID)
 })
+
+test('home stays in the navigation, and the feed can be closed', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'the rail is hidden on a phone');
+  await stubApi(page, {});
+  await page.goto('/settings/feeds');
+  // Home is the front door: its switch exists so the rule is visible, not so it can be
+  // turned off.
+  const home = page.locator('label', { hasText: 'Home' }).locator('input[type="checkbox"]').first();
+  await expect(home).toBeDisabled();
+  await expect(home).toBeChecked();
+
+  const feed = page.locator('label', { hasText: 'Feed' }).locator('input[type="checkbox"]').first();
+  await feed.uncheck();
+  await page.goto('/local');
+  await expect(page.getByRole('tablist').getByRole('link', { name: 'Feed' })).toHaveCount(0);
+  await expect(page.getByRole('tablist').getByRole('link', { name: 'Home' })).toHaveCount(1);
+});

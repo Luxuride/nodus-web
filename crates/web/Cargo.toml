@@ -50,6 +50,7 @@ web-sys = { version = "0.3", features = [
     # Following the system's light/dark preference.
     "MediaQueryList",
     "MediaQueryListEvent",
+    "PointerEvent",
     "ProgressEvent",
     "XmlHttpRequest",
     "XmlHttpRequestResponseType",

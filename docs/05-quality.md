@@ -11,20 +11,23 @@ Measured on a mid-tier Android over throttled 4G, cold cache, brotli:
 
 | Metric | Budget | Checked by |
 | --- | --- | --- |
-| WASM + JS transferred, initial route | ≤ 900 KB compressed | CI size gate |
+| WASM + JS transferred, initial route | ≤ 900 KB compressed | `gzip -9` on `dist/`, recorded per release |
 | First contentful paint (app shell) | ≤ 1.0 s | Lighthouse budget, manual per milestone |
 | Home timeline interactive, cached page 1 | ≤ 1.5 s | manual, milestone |
 | Home timeline interactive, network | ≤ 2.5 s | manual, milestone |
 | Dropped frames scrolling 300 items | < 5% on 60 Hz | manual trace, milestone |
 | Memory after 30 min of scrolling | < 150 MB | manual, milestone |
 
-Current baseline (five screens: sign-in, OAuth callback, the Feed tab's two lists,
-settings, plus the background tick and dwell tracking): **575 KB wasm / 238 KB
-gzipped**, plus 45 KB JS (8 KB gzipped) and 216 KB CSS (33 KB gzipped) — about 279 KB
-compressed, leaving ~621 KB of headroom. The jump from the 101 KB shell was
-the real transports (`BrowserInstance`, `BrowserDiscovery`), `serde_json`, and
-`web_sys` bindings; the CSS is daisyUI's used-component set, which is where the
-216 KB goes and why themes are capped at two.
+Current baseline (the whole client: timelines, threads, profiles, composer with
+upload and scheduling, notifications, messages, saved, lists, directory, search and the
+eight settings sections): **2.19 MB wasm / 776 KB gzipped**, plus 50 KB JS (10 KB
+gzipped) and 219 KB CSS (36 KB gzipped) — **822 KB transferred**, inside the 900 KB
+budget with ~78 KB to spare. The budget was measured when the client had five screens;
+it held, and the number is written here so the next feature has to argue with it. What moved it: the instance surface (thirty-odd
+endpoints and their models), `serde_json`, the `web_sys` bindings, and the admin screens.
+The CSS is daisyUI's used-component set, which is where the 217 KB goes and why themes
+are capped at two. Shrinking it further means feature-gating the admin and settings
+screens, not micro-optimising the renderer.
 
 Traps that move the number in ways nothing explains, recorded because each cost an hour:
 

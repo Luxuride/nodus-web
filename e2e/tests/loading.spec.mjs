@@ -9,6 +9,7 @@ import { expect, test } from '@playwright/test'
 import { signedIn, stubApi } from '../fixtures.mjs'
 
 test('a timeline is fetched once, and revisited from the store', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'the phone shell renders the same store from a different bar');
   const asked = []
   page.on('request', (request) => {
     if (request.url().includes('/api/v1/timelines/')) {

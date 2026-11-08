@@ -144,6 +144,8 @@ pub fn ImageModal() -> impl IntoView {
     let url = move || picture().map(|picture| picture.url).unwrap_or_default();
     let alt = move || picture().map(|picture| picture.alt).unwrap_or_default();
     let many = move || gallery().is_some_and(|gallery| gallery.len() > 1);
+    let press = RwSignal::new(None::<(f64, f64)>);
+    let swiped = RwSignal::new(false);
     let position = move || {
         gallery()
             .map(|gallery| format!("{} / {}", gallery.index + 1, gallery.len()))
@@ -159,17 +161,7 @@ pub fn ImageModal() -> impl IntoView {
                 role="presentation"
                 on:click=move |_| close()
             >
-                <div
-                    class="pointer-events-none absolute inset-0 flex items-center justify-center p-4"
-                    role="presentation"
-                >
-                    <img
-                        class="pointer-events-auto max-h-[92vh] max-w-[96vw] rounded-box object-contain"
-                        src=url
-                        alt=alt
-                        referrerpolicy="no-referrer"
-                    />
-                </div>
+                <Frame url=Signal::derive(url) alt=Signal::derive(alt) press=press swiped=swiped/>
 
                 <Show when=many>
                     // Arrow keys work too; these exist because a phone has no arrows.
@@ -207,5 +199,73 @@ pub fn ImageModal() -> impl IntoView {
                 </Show>
             </div>
         </Show>
+    }
+}
+
+/// The image itself, and the gesture that moves through the gallery.
+///
+/// A separate component because the drag state is three closures and the viewer already
+/// had more lines than the lint allows.
+#[component]
+fn Frame(
+    url: Signal<String>,
+    alt: Signal<String>,
+    press: RwSignal<Option<(f64, f64)>>,
+    swiped: RwSignal<bool>,
+) -> impl IntoView {
+    let start = move |event: &web_sys::PointerEvent| {
+        press.set(Some((
+            f64::from(event.client_x()),
+            f64::from(event.client_y()),
+        )));
+        swiped.set(false);
+    };
+    let end = move |event: &web_sys::PointerEvent| {
+        let Some((from_x, from_y)) = press.get_untracked() else {
+            return;
+        };
+        press.set(None);
+        let dx = f64::from(event.client_x()) - from_x;
+        let dy = f64::from(event.client_y()) - from_y;
+        // Horizontal, deliberate, and not a vertical scroll that wandered.
+        if dx.abs() < 60.0 || dx.abs() <= dy.abs() {
+            return;
+        }
+        swiped.set(true);
+        if dx < 0.0 {
+            next();
+        } else {
+            previous();
+        }
+    };
+
+    view! {
+        <div
+            class="pointer-events-none absolute inset-0 flex items-center justify-center p-4"
+            role="presentation"
+        >
+            <img
+                class="pointer-events-auto max-h-[92vh] max-w-[96vw] touch-pan-y rounded-box object-contain"
+                src=move || url.get()
+                alt=move || alt.get()
+                referrerpolicy="no-referrer"
+                on:pointerdown=move |event| {
+                    event.stop_propagation();
+                    start(&event);
+                }
+                on:pointerup=move |event| {
+                    event.stop_propagation();
+                    end(&event);
+                }
+                on:pointercancel=move |_| press.set(None)
+                on:click=move |event| {
+                    // A swipe that ends on the image must not read as "close".
+                    if swiped.get_untracked() {
+                        swiped.set(false);
+                        event.stop_propagation();
+                    }
+                }
+            />
+        </div>
     }
 }

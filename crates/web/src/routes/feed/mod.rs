@@ -9,7 +9,7 @@ use leptos::prelude::*;
 
 use self::people::People;
 use self::posts::Posts;
-use crate::routes::home::PrimaryTabs;
+use crate::routes::home::TimelineHeader;
 use crate::state::bridge::revision;
 
 mod actions;
@@ -37,10 +37,10 @@ pub fn Feed() -> impl IntoView {
     let tab = RwSignal::new(Tab::Posts);
 
     view! {
-        <section class="mx-auto w-full max-w-2xl px-4 py-6">
-            // The same way between timelines as on Home, so the Feed is a sibling
-            // destination and not a detour out of the primary flow.
-            <PrimaryTabs/>
+        <section class="mx-auto flex w-full max-w-2xl flex-col gap-3">
+            // The same header as Home — composer and the way between timelines — so the
+            // Feed is a sibling destination and not a detour out of the primary flow.
+            <TimelineHeader/>
 
             <div class="mb-5 flex items-baseline justify-between gap-4">
                 <h1 class="text-xl font-semibold tracking-tight">"Feed"</h1>

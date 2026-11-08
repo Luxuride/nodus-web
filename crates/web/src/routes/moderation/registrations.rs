@@ -1,25 +1,20 @@
 //! Who may join, and who is waiting to be let in.
 //!
-//! Two halves that belong together: the queue the instance is holding, and the page where
-//! an invitation is generated (Mastodon serves invites only to its own web UI, so the
-//! second half is a pointer, not a form).
+//! The queue the instance is holding, and the honest statement that invitations cannot be
+//! minted from a client: Mastodon serves them only to its own web UI, so there is no form
+//! here and no button that would send the reader elsewhere.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::AdminAccount;
 
 use crate::state::alive::Alive;
-use crate::state::bridge::{self, admin};
+use crate::state::bridge::admin;
 
 /// The approval queue, plus the way to the invitation page.
 #[component]
 pub fn Registrations() -> impl IntoView {
     let queue = view! { <Queue/> };
-    let page = move || {
-        bridge::with_sdk(|sdk| sdk.state().session.get())
-            .map(|session| format!("https://{}/admin/invites", session.host))
-    };
-
     view! {
         <div class="flex flex-col gap-4">
             <div class="card border border-base-300 bg-base-100 shadow-sm">
@@ -30,16 +25,10 @@ pub fn Registrations() -> impl IntoView {
                         only the instance's own administration page can. Sign-ups that arrive
                         without an invitation appear in the queue below."
                     </p>
-                    {move || page().map(|url| view! {
-                        <a
-                            class="btn btn-outline btn-sm w-fit"
-                            href=url
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            "Open invitations on this instance"
-                        </a>
-                    })}
+                    <p class="text-xs opacity-60">
+                        "Generating one is a task for the instance's own administration pages:
+                         Nodus can approve and reject arrivals, not invite them."
+                    </p>
                 </div>
             </div>
             {queue}

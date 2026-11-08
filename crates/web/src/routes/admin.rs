@@ -16,29 +16,29 @@ use crate::ui::icons::Icon;
 use crate::ui::page::PageHeader;
 
 use self::announcements::Announcements;
+use self::domains::Domains;
 use self::overview::Overview;
-use self::relays::Relays;
 
 mod announcements;
+mod domains;
 mod overview;
-mod relays;
 
 /// One section of the administration area.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     Overview,
-    Relays,
+    Domains,
     Announcements,
 }
 
 impl Section {
-    pub const ALL: [Self; 3] = [Self::Overview, Self::Relays, Self::Announcements];
+    pub const ALL: [Self; 3] = [Self::Overview, Self::Domains, Self::Announcements];
 
     #[must_use]
     pub const fn slug(self) -> &'static str {
         match self {
             Self::Overview => "overview",
-            Self::Relays => "relays",
+            Self::Domains => "domains",
             Self::Announcements => "announcements",
         }
     }
@@ -55,7 +55,7 @@ impl Section {
     pub const fn label(self) -> &'static str {
         match self {
             Self::Overview => "Overview",
-            Self::Relays => "Relays",
+            Self::Domains => "Allowed domains",
             Self::Announcements => "Announcements",
         }
     }
@@ -64,7 +64,7 @@ impl Section {
     pub const fn hint(self) -> &'static str {
         match self {
             Self::Overview => "What this instance counted this week",
-            Self::Relays => "Where this instance pulls posts from, and which domains it allows",
+            Self::Domains => "Domains allowed through a general block",
             Self::Announcements => "What the instance is telling everyone",
         }
     }
@@ -73,7 +73,7 @@ impl Section {
     pub const fn icon(self) -> Icon {
         match self {
             Self::Overview => Icon::Globe,
-            Self::Relays => Icon::Link,
+            Self::Domains => Icon::Link,
             Self::Announcements => Icon::Bell,
         }
     }
@@ -110,7 +110,7 @@ pub fn Admin(section: String) -> impl IntoView {
                 <Strip current=section.get_value()/>
                 {move || match section.get_value() {
                     Section::Overview => view! { <Overview/> }.into_any(),
-                    Section::Relays => view! { <Relays/> }.into_any(),
+                    Section::Domains => view! { <Domains/> }.into_any(),
                     Section::Announcements => view! { <Announcements/> }.into_any(),
                 }}
             </Show>

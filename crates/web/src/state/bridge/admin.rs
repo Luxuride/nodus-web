@@ -3,8 +3,8 @@
 use super::{admin_transport, instance_transport};
 use nodus_instance::actions::{AdminActions, RegistrationActions};
 use nodus_instance::model::{
-    AdminAccount, AdminMeasure, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Relay,
-    Report, ReportState,
+    AdminAccount, AdminMeasure, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Report,
+    ReportState,
 };
 
 /// How many rows a moderation screen asks for.
@@ -159,36 +159,6 @@ fn day(date: &js_sys::Date) -> String {
         .chars()
         .take(10)
         .collect()
-}
-
-/// Relays this instance follows.
-pub async fn relays() -> Result<Vec<Relay>, String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport.relays().await.map_err(|error| error.to_string())
-}
-
-/// Asks a relay to forward public posts here.
-pub async fn add_relay(inbox_url: &str) -> Result<Relay, String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .add_relay(inbox_url)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// Stops following a relay.
-pub async fn remove_relay(id: &str) -> Result<(), String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .remove_relay(id)
-        .await
-        .map_err(|error| error.to_string())
 }
 
 /// Domains allowed through a general block.

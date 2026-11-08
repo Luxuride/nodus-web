@@ -15,10 +15,11 @@ mod tabs;
 
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
+mod header;
+pub use header::TimelineHeader;
 pub use tabs::PrimaryTabs;
 
 use self::banner::Banner;
-use crate::routes::compose::inline::InlineComposer;
 use crate::routes::filtering::Filtered;
 use crate::state::alive::Alive;
 use crate::state::bridge::{revision, timeline};
@@ -65,7 +66,7 @@ pub fn Home(which: Timeline) -> impl IntoView {
     let (error, set_error) = signal(None::<String>);
     // Posting from the composer asks this timeline for a fresh first page, and the
     // effect below must not fight it by loading from the cache in the same breath.
-    let (reload, set_reload) = signal(0_u32);
+    let (reload, _set_reload) = signal(0_u32);
     let alive = Alive::new();
 
     let (title, description, empty_note) = copy(&which.get_value());
@@ -108,26 +109,17 @@ pub fn Home(which: Timeline) -> impl IntoView {
         });
     };
 
-    let inline = move || which.get_value() == Timeline::Home;
-
     view! {
-        <div class="flex flex-col gap-3">
+        // One width for every primary timeline: switching between Home, Feed, Local and
+        // Federated must not move the column. The extra padding Feed used to carry is
+        // dropped for the same reason.
+        <section class="mx-auto flex w-full max-w-2xl flex-col gap-3">
             <PageHeader title=title description=description/>
 
-            // The composer and the way between timelines stay put while the timeline
-            // scrolls: writing is the reason to be here, and the switch must not
-            // require a trip back to the top. The block is opaque, because the posts
-            // passing underneath would otherwise read through it.
-            <div class="sticky top-0 z-20 flex flex-col gap-2 bg-base-200/95 pb-2 backdrop-blur">
-                // The composer sits above the timelines: it is where a reader writes to
-                // the people they follow, and it must not follow them into Local or
-                // Federated, where it would suggest they are posting there.
-                <Show when=inline>
-                    <InlineComposer which=which set_reload=set_reload/>
-                </Show>
-
-                <PrimaryTabs/>
-            </div>
+            // Above the posts, not pinned over them: a sticky composer pushed the first
+            // status out of view on a phone and cost more than it saved. It scrolls with
+            // the timeline like everything else.
+            <TimelineHeader/>
 
             <Banner/>
 
@@ -177,6 +169,6 @@ pub fn Home(which: Timeline) -> impl IntoView {
                     {move || if loading.get() { "Loading…" } else { "Load more" }}
                 </button>
             </Show>
-        </div>
+        </section>
     }
 }

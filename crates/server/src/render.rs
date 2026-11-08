@@ -390,6 +390,16 @@ fn timeline_header(path: &str) -> String {
 }
 
 /// The screen heading, drawn by the crate the client draws with.
+/// Why this timeline exists, in the words the client uses for the same screen.
+fn timeline_description(which: &str) -> &'static str {
+    match which {
+        "local" => "Posts from accounts on this instance.",
+        "federated" => "Posts this instance has received from elsewhere.",
+        "feed" => "People this instance suggests, and what they are posting.",
+        _ => "Posts from the accounts you follow, newest first.",
+    }
+}
+
 fn page_header(title: &str, description: &str) -> String {
     use leptos::prelude::*;
 
@@ -440,9 +450,10 @@ pub fn feed(
             true,
             path,
             &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">{header}\
+                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">{heading}{header}\
                    <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
                  </div>",
+                heading = page_header(title, timeline_description(which)),
                 header = timeline_header(path)
             ),
         ),

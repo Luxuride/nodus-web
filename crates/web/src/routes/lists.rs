@@ -83,7 +83,7 @@ pub fn Lists() -> impl IntoView {
     };
 
     view! {
-        <section class="flex flex-col gap-4">
+        <nodus_view::Screen>
             <PageHeader title="Lists" description="Hand-picked accounts, each with a timeline of its own."/>
             <NewListForm
                 title=title
@@ -121,7 +121,7 @@ pub fn Lists() -> impl IntoView {
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }
 

@@ -73,7 +73,7 @@ pub fn Settings(section: String) -> impl IntoView {
     };
 
     view! {
-        <section class="mx-auto w-full max-w-2xl px-4 py-6">
+        <nodus_view::Screen>
             <h1 class="mb-5 text-xl font-semibold tracking-tight">"Settings"</h1>
 
             <SettingsTabs tab=tab/>
@@ -105,6 +105,6 @@ pub fn Settings(section: String) -> impl IntoView {
             </Show>
 
 
-        </section>
+        </nodus_view::Screen>
     }
 }

@@ -67,7 +67,7 @@ pub fn Thread(id: String) -> impl IntoView {
     let parent = id.clone();
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <Show when=move || !ancestors.get().is_empty()>
                 <ul class="flex flex-col gap-3">
                     <For each=move || ancestors.get() key=|status| status.id.clone() let:status>
@@ -97,6 +97,6 @@ pub fn Thread(id: String) -> impl IntoView {
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }

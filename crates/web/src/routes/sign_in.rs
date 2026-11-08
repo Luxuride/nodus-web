@@ -59,7 +59,7 @@ pub fn SignIn(#[prop(optional)] note: Option<&'static str>) -> impl IntoView {
     };
 
     view! {
-        <section class="mx-auto w-full max-w-md px-4 py-10">
+        <nodus_view::Screen width=nodus_view::Width::Narrow>
             <div class="card border border-base-300 bg-base-100 shadow-sm">
                 <div class="card-body gap-4">
                     <h1 class="card-title">"Sign in"</h1>
@@ -107,7 +107,7 @@ pub fn SignIn(#[prop(optional)] note: Option<&'static str>) -> impl IntoView {
                     />
                 </div>
             </div>
-        </section>
+        </nodus_view::Screen>
     }
 }
 

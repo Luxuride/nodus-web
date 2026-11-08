@@ -124,7 +124,7 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     };
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <label class="form-control">
                 <span class="label-text text-xs opacity-60">{label}</span>
                 <textarea
@@ -157,6 +157,6 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }

@@ -37,7 +37,7 @@ pub fn Feed() -> impl IntoView {
     let tab = RwSignal::new(Tab::Posts);
 
     view! {
-        <section class="mx-auto flex w-full max-w-2xl flex-col gap-3">
+        <nodus_view::Screen>
             // The same header as Home — composer and the way between timelines — so the
             // Feed is a sibling destination and not a detour out of the primary flow.
             <TimelineHeader/>
@@ -76,6 +76,6 @@ pub fn Feed() -> impl IntoView {
             <div class:hidden=move || tab.get() != Tab::Posts>
                 <Posts/>
             </div>
-        </section>
+        </nodus_view::Screen>
     }
 }

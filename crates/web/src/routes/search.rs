@@ -67,7 +67,7 @@ pub fn Search() -> impl IntoView {
     }
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <PageHeader title="Search" description="Accounts, posts and hashtags, including ones this instance does not host."/>
             <form
                 class="flex items-center gap-2"
@@ -102,6 +102,6 @@ pub fn Search() -> impl IntoView {
                 tags=tags
                 searched=searched
             />
-        </section>
+        </nodus_view::Screen>
     }
 }

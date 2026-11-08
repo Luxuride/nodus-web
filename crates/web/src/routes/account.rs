@@ -151,7 +151,7 @@ pub fn AccountView(id: String) -> impl IntoView {
     });
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <ProfileCard
                 account=account
                 relationship=relationship
@@ -192,7 +192,7 @@ pub fn AccountView(id: String) -> impl IntoView {
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }
 

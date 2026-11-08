@@ -265,9 +265,10 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
     // The rail draws the moderation doors for a moderator, and it is drawn before any
     // wasm runs, so the answer has to come from the session that was established at
     // sign-in (`Session::admin`).
-    let admin = match session.admin {
-        Some(admin) => admin,
-        None => {
+    let admin = if let Some(admin) = session.admin {
+        admin
+    } else {
+        {
             let answer = match Client::new(&session.host, &session.token) {
                 Ok(client) => client.is_staff().await,
                 Err(message) => {

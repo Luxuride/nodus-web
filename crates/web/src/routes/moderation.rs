@@ -118,7 +118,7 @@ pub fn Moderation(section: String) -> impl IntoView {
     });
 
     view! {
-        <section class="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+        <nodus_view::Screen width=nodus_view::Width::Wide>
             <PageHeader
                 title="Moderation"
                 description="Decisions about people: reports, accounts, registrations and blocked domains."
@@ -135,7 +135,7 @@ pub fn Moderation(section: String) -> impl IntoView {
                     Section::Federation => view! { <Federation/> }.into_any(),
                 }}
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }
 

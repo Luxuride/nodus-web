@@ -111,7 +111,7 @@ pub fn Conversations() -> impl IntoView {
     let on_open = Callback::new(move |id: String| open_conversation(id, alive));
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <PageHeader title="Messages" description="Direct conversations with other accounts. Opening one marks it read."/>
 
             // Only before the first answer: a held page renders immediately, and an
@@ -150,6 +150,6 @@ pub fn Conversations() -> impl IntoView {
                     "Load more"
                 </button>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }

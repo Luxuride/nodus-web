@@ -107,7 +107,7 @@ pub fn Saved(shelf: String) -> impl IntoView {
     };
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <PageHeader title="Saved" description="Your favourites and bookmarks, newest first."/>
             <div role="tablist" class="tabs tabs-box w-fit">
                 <For
@@ -153,6 +153,6 @@ pub fn Saved(shelf: String) -> impl IntoView {
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }

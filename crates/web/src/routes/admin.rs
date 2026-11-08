@@ -106,7 +106,7 @@ pub fn Admin(section: String) -> impl IntoView {
     });
 
     view! {
-        <section class="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+        <nodus_view::Screen width=nodus_view::Width::Wide>
             <PageHeader
                 title="Administration"
                 description="This instance: what it counted, who it talks to, what it says."
@@ -122,7 +122,7 @@ pub fn Admin(section: String) -> impl IntoView {
                     Section::Announcements => view! { <Announcements/> }.into_any(),
                 }}
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }
 

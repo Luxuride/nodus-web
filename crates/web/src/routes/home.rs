@@ -113,7 +113,7 @@ pub fn Home(which: Timeline) -> impl IntoView {
         // One width for every primary timeline: switching between Home, Feed, Local and
         // Federated must not move the column. The extra padding Feed used to carry is
         // dropped for the same reason.
-        <section class="mx-auto flex w-full max-w-2xl flex-col gap-3">
+        <nodus_view::Screen>
             <PageHeader title=title description=description/>
 
             // Above the posts, not pinned over them: a sticky composer pushed the first
@@ -169,6 +169,6 @@ pub fn Home(which: Timeline) -> impl IntoView {
                     {move || if loading.get() { "Loading…" } else { "Load more" }}
                 </button>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }

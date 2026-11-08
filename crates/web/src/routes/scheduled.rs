@@ -63,7 +63,7 @@ pub fn Scheduled() -> impl IntoView {
     });
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <PageHeader
                 title="Scheduled"
                 description="Posts waiting to be published. Write one from the box above the home timeline."
@@ -86,6 +86,6 @@ pub fn Scheduled() -> impl IntoView {
             <Show when=move || !loading.get() && items().is_empty()>
                 <p class="text-sm opacity-60">"Nothing is waiting."</p>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }

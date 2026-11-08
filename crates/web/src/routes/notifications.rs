@@ -77,7 +77,7 @@ pub fn Notifications() -> impl IntoView {
     };
 
     view! {
-        <section class="flex flex-col gap-3">
+        <nodus_view::Screen>
             <PageHeader title="Notifications" description="Mentions, boosts, favourites and follow requests for this account."/>
             <PendingRequests set_error=set_error/>
 
@@ -104,6 +104,6 @@ pub fn Notifications() -> impl IntoView {
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </section>
+        </nodus_view::Screen>
     }
 }

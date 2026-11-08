@@ -185,3 +185,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* The placeholder decoration in the composer is positioned absolutely, so the editable
+   surface has to be its containing block. Without this it escapes to the nearest
+   positioned ancestor and appears to float over the page. */
+.ProseMirror {
+  position: relative;
+  outline: none;
+}

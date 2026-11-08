@@ -119,13 +119,18 @@ pub fn RichEditor(
     let from_editor = StoredValue::new(String::new());
     let handle = StoredValue::new(None::<Handle>);
 
-    // Mount once, when the element exists.
-    Effect::new(move |_| {
+    // Mount once, when the element exists — and keep trying until it does.
+    //
+    // An `Effect` runs before the view is in the document, so `NodeRef::get` can still be
+    // empty on its first pass; reading it is not reactive, so the effect never ran again and
+    // the editor never mounted (the buttons around it worked, which is exactly what "the
+    // ProseMirror does not work" looked like). A bounded frame loop is the honest fix.
+    let boot = move || -> bool {
         if mounted.get_value() {
-            return;
+            return true;
         }
         let Some(node) = element.get() else {
-            return;
+            return false;
         };
         mounted.set_value(true);
 
@@ -176,7 +181,10 @@ pub fn RichEditor(
             on_text.forget();
             on_submit.forget();
         });
-    });
+        true
+    };
+
+    retry_frames(boot, 120);
 
     // External changes (an edit loaded, a form reset) replace the document; the writer's
     // own keystrokes arrive here too and are filtered by comparing with what we were told.
@@ -311,4 +319,47 @@ pub fn EmojiPanel(
             </div>
         </Show>
     }
+}
+
+/// Runs `boot` once a frame until it reports success, then stops.
+///
+/// `frame` is bounded: 120 frames is about two seconds, which is longer than any layout this
+/// app produces, and a component that is thrown away before then simply stops being polled.
+fn retry_frames(boot: impl Fn() -> bool + 'static, frames: u32) {
+    let boot = std::rc::Rc::new(boot);
+    let step = std::rc::Rc::new(std::cell::RefCell::new(None::<Closure<dyn FnMut()>>));
+    let schedule = {
+        let step = step.clone();
+        let boot = boot.clone();
+        move |left: u32| {
+            let next = Closure::<dyn FnMut()>::new({
+                let step = step.clone();
+                let boot = boot.clone();
+                move || {
+                    if boot() || left == 0 {
+                        if left == 0 {
+                            web_sys::console::error_1(
+                                &"nodus: the editor element never appeared".into(),
+                            );
+                        }
+                        step.borrow_mut().take();
+                        return;
+                    }
+                    if let Some(closure) = step.borrow().as_ref() {
+                        let _ = window().request_animation_frame(closure.as_ref().unchecked_ref());
+                    }
+                }
+            });
+            *step.borrow_mut() = Some(next);
+            let borrow = step.borrow();
+            if let Some(closure) = borrow.as_ref() {
+                let _ = window().request_animation_frame(closure.as_ref().unchecked_ref());
+            }
+        }
+    };
+    // The first attempt happens immediately: on a warm document the element is already there.
+    if boot() {
+        return;
+    }
+    schedule(frames);
 }

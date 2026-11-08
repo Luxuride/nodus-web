@@ -36,6 +36,7 @@ html {
    * does not turn the element into a scroll container, so `position: sticky` inside
    * the page keeps working. */
   overflow-x: clip;
+  max-width: 100%;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklch, var(--color-base-content) 35%, transparent)
@@ -67,6 +68,12 @@ html::-webkit-scrollbar-thumb:hover {
 body {
   background-color: var(--color-base-200);
   color: var(--color-base-content);
+  /* The scroll container is the page, and it is vertical. `pan-y` refuses the
+   * horizontal drag that produced the side scroll on a phone, while
+   * `pinch-zoom` keeps zooming available. */
+  touch-action: pan-y pinch-zoom;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 :root,

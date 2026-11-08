@@ -48,7 +48,7 @@ pub fn NotificationRow(
                 <div class="flex items-center gap-2">
                     <a class="avatar" href=profile.clone()>
                         <div class="w-8 rounded-full bg-base-300">
-                            <img src=who.avatar.clone() alt="" referrerpolicy="no-referrer"/>
+                            <img width="40" height="40" decoding="async" src=who.avatar.clone() alt="" referrerpolicy="no-referrer"/>
                         </div>
                     </a>
                     <p class="min-w-0 flex-1 truncate text-sm">

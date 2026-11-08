@@ -62,6 +62,39 @@ impl App {
     }
 }
 
+/// A public timeline, painted with the same body the home page uses.
+async fn public_feed(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    local: bool,
+) -> Response {
+    let Some(session) = session_of(&app, &headers) else {
+        return Html(render::landing(&app.bundle())).into_response();
+    };
+    let client = match Client::new(&session.host, &session.token) {
+        Ok(client) => client,
+        Err(message) => return Html(render::error(&app.bundle(), &message)).into_response(),
+    };
+    let (which, title, path) = if local {
+        ("local", "Local", "/local")
+    } else {
+        ("federated", "Federated", "/federated")
+    };
+    match client.feed(local, PAGE).await {
+        Ok((statuses, cursor)) => Html(render::feed(
+            &app.bundle(),
+            &session.acct,
+            which,
+            title,
+            path,
+            &statuses,
+            cursor.as_deref(),
+        ))
+        .into_response(),
+        Err(message) => Html(render::error(&app.bundle(), &message)).into_response(),
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
@@ -91,6 +124,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/session", get(whoami).post(sign_in).delete(sign_out))
         .route("/", get(index))
         .route("/home", get(home))
+        .route("/local", get(|state, headers| public_feed(state, headers, true)))
+        .route("/federated", get(|state, headers| {
+            public_feed(state, headers, false)
+        }))
         .fallback(shell)
         .with_state(app);
 
@@ -208,8 +245,10 @@ async fn index(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
 
 /// Every route the client owns: the chrome, then the client takes over.
 ///
-/// Assets never reach here (`Caddy` answers them from disk), so anything with a file
-/// extension is a genuinely missing asset and must not become HTML.
+/// Where the reader holds a session, the page is painted with the data the client would
+/// fetch anyway; every other path keeps the skeleton, which is also the fallback when a
+/// read fails. `Caddy` answers assets from disk, so anything with a file extension reaching
+/// here is genuinely missing.
 async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Response {
     let path = uri.path();
     if std::path::Path::new(path)
@@ -218,8 +257,264 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
     {
         return StatusCode::NOT_FOUND.into_response();
     }
-    let acct = session_of(&app, &headers).map(|session| session.acct);
-    Html(render::shell(&app.bundle(), acct.as_deref(), path)).into_response()
+    let Some(session) = session_of(&app, &headers) else {
+        return Html(render::shell(&app.bundle(), None, path)).into_response();
+    };
+    let assets = app.bundle();
+    let painted = match Client::new(&session.host, &session.token) {
+        Ok(client) => {
+            read_page(&client, &assets, &session.acct, path, uri.query()).await
+        }
+        Err(message) => {
+            tracing::warn!(%message, "session could not be used; painting the skeleton");
+            None
+        }
+    };
+    match painted {
+        Some(html) => Html(html).into_response(),
+        None => Html(render::shell(&assets, Some(&session.acct), path)).into_response(),
+    }
+}
+
+/// The page for `path`, or `None` when this route has no server read.
+///
+/// A failed read is `None` as well: the skeleton is a worse page than the data, but a better
+/// one than an error page for a screen the client can still fill in itself.
+async fn read_page(
+    client: &Client,
+    assets: &render::Assets,
+    acct: &str,
+    path: &str,
+    query: Option<&str>,
+) -> Option<String> {
+    let page = match path {
+        "/notifications" => client.notifications(PAGE).await.map(|items| {
+            render::list_page(
+                assets,
+                acct,
+                path,
+                "Notifications",
+                "Notifications",
+                "Follows, boosts, favourites, mentions and poll results, newest first.",
+                &render::rows(
+                    &items.iter().map(render::notification_row).collect::<Vec<_>>(),
+                    "Nothing has happened yet.",
+                ),
+                Some(serde_json::json!({ "kind": "notifications", "items": items, "cursor": null }).to_string()),
+            )
+        }).ok(),
+        "/messages" => client.conversations(PAGE).await.map(|items| {
+            render::list_page(
+                assets,
+                acct,
+                path,
+                "Messages",
+                "Messages",
+                "Private conversations. A message is only ever visible to the people in it.",
+                &render::rows(
+                    &items.iter().map(render::conversation_row).collect::<Vec<_>>(),
+                    "There are no conversations yet.",
+                ),
+                Some(serde_json::json!({ "kind": "conversations", "items": items, "cursor": null }).to_string()),
+            )
+        }).ok(),
+        "/saved/favourites" | "/saved/bookmarks" => {
+            read_saved(client, assets, acct, path, path.ends_with("bookmarks")).await
+        }
+        "/lists" => client.lists().await.map(|items| {
+            render::list_page(
+                assets,
+                acct,
+                path,
+                "Lists",
+                "Lists",
+                "Curated groups of accounts, with their own timeline.",
+                &render::rows(
+                    &items.iter().map(render::list_row).collect::<Vec<_>>(),
+                    "There are no lists yet.",
+                ),
+                Some(serde_json::json!({ "kind": "lists", "items": items, "cursor": null }).to_string()),
+            )
+        }).ok(),
+        "/scheduled" => client.scheduled().await.map(|items| {
+            render::list_page(
+                assets,
+                acct,
+                path,
+                "Scheduled",
+                "Scheduled",
+                "Posts waiting to be published. Write one from the box above the home timeline.",
+                &render::rows(
+                    &items.iter().map(render::scheduled_row).collect::<Vec<_>>(),
+                    "Nothing is scheduled.",
+                ),
+                Some(serde_json::json!({ "kind": "scheduled", "items": items, "cursor": null }).to_string()),
+            )
+        }).ok(),
+        "/directory" => client.directory(true).await.map(|items| {
+            render::list_page(
+                assets,
+                acct,
+                path,
+                "People",
+                "People",
+                "Accounts this instance suggests, ordered by how recently they were active.",
+                &render::rows(
+                    &items.iter().map(render::account_row).collect::<Vec<_>>(),
+                    "This instance suggests nobody yet.",
+                ),
+                Some(serde_json::json!({ "kind": "directory", "items": items, "cursor": null }).to_string()),
+            )
+        }).ok(),
+        "/search" => read_search(client, assets, acct, path, query).await,
+        _ if path.starts_with("/search") => None,
+        _ => None,
+    };
+    if page.is_some() {
+        return page;
+    }
+    read_entity(client, assets, acct, path).await
+}
+
+/// Before the routes with a name in them: one account, or one thread.
+async fn read_entity(
+    client: &Client,
+    assets: &render::Assets,
+    acct: &str,
+    path: &str,
+) -> Option<String> {
+    if let Some(id) = path.strip_prefix("/accounts/") {
+        if !id.is_empty() && !id.contains('/') {
+            let account = client.account(id).await.ok()?;
+            let (statuses, cursor) = client.account_statuses(id, PAGE).await.ok()?;
+            return Some(render::profile_page(
+                assets,
+                acct,
+                &account,
+                &statuses,
+                cursor.as_deref(),
+            ));
+        }
+        return None;
+    }
+    let id = path.strip_prefix("/status/")?;
+    if id.is_empty() || id.contains('/') {
+        return None;
+    }
+    let status = client.status(id).await.ok()?;
+    let context = client.context(id).await.ok()?;
+    Some(render::thread_page(assets, acct, &status, &context))
+}
+
+/// Favourites or bookmarks: one screen, two shelves, the same shape.
+async fn read_saved(
+    client: &Client,
+    assets: &render::Assets,
+    acct: &str,
+    path: &str,
+    bookmarks: bool,
+) -> Option<String> {
+    let (statuses, cursor) = client.saved(bookmarks, PAGE).await.ok()?;
+    let (title, description) = if bookmarks {
+        (
+            "Bookmarks",
+            "Posts you kept to come back to. Only you can see this list.",
+        )
+    } else {
+        (
+            "Favourites",
+            "Posts you starred. Only you can see this list.",
+        )
+    };
+    Some(render::list_page(
+        assets,
+        acct,
+        path,
+        title,
+        title,
+        description,
+        &render::rows(
+            &statuses.iter().map(render::status_card).collect::<Vec<_>>(),
+            "Nothing saved yet.",
+        ),
+        Some(
+            serde_json::json!({
+                "kind": if bookmarks { "bookmarks" } else { "favourites" },
+                "items": statuses,
+                "cursor": cursor,
+            })
+            .to_string(),
+        ),
+    ))
+}
+
+/// The search page, the one route whose argument comes from the query string.
+async fn read_search(
+    client: &Client,
+    assets: &render::Assets,
+    acct: &str,
+    path: &str,
+    query: Option<&str>,
+) -> Option<String> {
+    let query = query
+        .and_then(|query| {
+            query.split('&').find_map(|pair| {
+                let (name, value) = pair.split_once('=')?;
+                (name == "q").then(|| percent_decode(value))
+            })
+        })
+        .unwrap_or_default();
+    if query.trim().is_empty() {
+        return None;
+    }
+    let results = client.search(&query).await.ok()?;
+    let mut rows = results
+        .accounts
+        .iter()
+        .map(render::account_row)
+        .collect::<Vec<_>>();
+    rows.extend(results.statuses.iter().map(render::status_card));
+    Some(render::list_page(
+        assets,
+        acct,
+        path,
+        "Search",
+        "Search",
+        &format!("Results for \"{query}\""),
+        &render::rows(&rows, "Nothing matched."),
+        None,
+    ))
+}
+
+/// Percent-decoding for the one query parameter this host reads. `+` is a space because a
+/// search box is what sends it.
+fn percent_decode(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'+' => {
+                decoded.push(b' ');
+                index += 1;
+            }
+            b'%' if index + 2 < bytes.len() => {
+                let hex = std::str::from_utf8(&bytes[index + 1..index + 3]).ok();
+                if let Some(byte) = hex.and_then(|hex| u8::from_str_radix(hex, 16).ok()) {
+                    decoded.push(byte);
+                    index += 3;
+                } else {
+                    decoded.push(bytes[index]);
+                    index += 1;
+                }
+            }
+            byte => {
+                decoded.push(byte);
+                index += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&decoded).into_owned()
 }
 
 /// The home timeline, painted. This is the whole point of the slice: the request the

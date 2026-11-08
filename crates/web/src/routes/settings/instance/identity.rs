@@ -54,7 +54,7 @@ pub fn Identity(info: ReadSignal<Option<InstanceInfo>>) -> impl IntoView {
     view! {
         <div class="flex items-start gap-3">
             <Show when=move || info.get().is_some_and(|info| info.thumbnail.is_some())>
-                <img class="h-16 w-16 rounded-box object-cover" alt="" src=thumbnail/>
+                <img class="h-16 w-16 rounded-box object-cover" width="64" height="64" decoding="async" alt="" src=thumbnail/>
             </Show>
             <div class="min-w-0">
                 <p class="truncate font-medium">{title}</p>

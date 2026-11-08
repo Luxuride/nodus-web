@@ -85,6 +85,10 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                     >
                         <div class="w-10 rounded-full bg-base-300">
                             <img
+                                width="40"
+                                height="40"
+                                decoding="async"
+                                class="h-10 w-10 rounded-full object-cover"
                                 src=move || shown.get().account.avatar.clone()
                                 alt=""
                                 loading="lazy"

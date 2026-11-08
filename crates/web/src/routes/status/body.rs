@@ -196,6 +196,7 @@ fn MediaTile(
             <Show when=move || is_image && !interactive>
                 <img
                     class="h-auto w-full rounded-box bg-base-300 object-cover"
+                    class:aspect-video=move || width.get().is_none()
                     style=veil
                     src=move || preview.get()
                     alt=move || description.get()

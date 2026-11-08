@@ -15,7 +15,9 @@
 
 use std::fmt::Write as _;
 
-use nodus_instance::model::{MediaKind, Status};
+use nodus_instance::model::{
+    Account, Context, Conversation, List, MediaKind, Notification, ScheduledStatus, Status,
+};
 
 use crate::html::body as body_html;
 
@@ -101,7 +103,7 @@ pub fn escape(text: &str) -> String {
 /// The island: what the client should adopt rather than fetch.
 #[derive(Debug, serde::Serialize)]
 pub struct Island<'a> {
-    pub which: &'static str,
+    pub which: &'a str,
     pub statuses: &'a [Status],
     pub cursor: Option<&'a str>,
 }
@@ -146,9 +148,17 @@ fn media_grid(status: &Status, blurred: bool) -> String {
             MediaKind::Audio => format!(
                 "<li class=\"self-start overflow-hidden rounded-box\"><audio class=\"w-full\" controls preload=\"metadata\" src=\"{href}\"></audio></li>"
             ),
-            MediaKind::Image | MediaKind::Unknown => format!(
-                "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" style=\"{veil}\" aria-hidden=\"{blurred}\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"{alt} src=\"{href}\"></li>"
-            ),
+            MediaKind::Image | MediaKind::Unknown => {
+                // A tile with no published dimensions still reserves its box: the client
+                // falls back to 16:9, and a server paint that did not would push the rest of
+                // the card down when the file arrives.
+                let box_ = square(attachment);
+                format!(
+                    "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" style=\"{veil}{dimensions}\" aria-hidden=\"{blurred}\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\" width=\"{}\" height=\"{}\"{alt} src=\"{href}\"></li>",
+                    box_.0, box_.1,
+                    dimensions = box_.2
+                )
+            }
         };
         media.push_str(&element);
     }
@@ -166,6 +176,15 @@ fn media_grid(status: &Status, blurred: bool) -> String {
     }
 }
 
+/// The box a media tile reserves: published dimensions when the instance has them, 16:9 when
+/// it does not. Returned as `(width, height, extra style)` so the markup states both.
+fn square(attachment: &nodus_instance::model::MediaAttachment) -> (u32, u32, String) {
+    match (attachment.meta_width, attachment.meta_height) {
+        (Some(width), Some(height)) if width > 0 && height > 0 => (width, height, String::new()),
+        _ => (1600, 900, "aspect-ratio: 16 / 9;".to_owned()),
+    }
+}
+
 /// "Show 1 attachment" or "Show 3 attachments", as the client says it.
 fn attachments_label(status: &Status) -> String {
     let count = status.media_attachments.len();
@@ -176,7 +195,7 @@ fn attachments_label(status: &Status) -> String {
     }
 }
 
-fn status_card(status: &Status) -> String {
+pub fn status_card(status: &Status) -> String {
     // A boost renders the boosted post under the booster's name, exactly as the client
     // does: the wrapper carries nothing but the line that says who boosted it.
     let (boosted, inner) = match status.reblog.as_deref() {
@@ -211,7 +230,7 @@ fn status_card(status: &Status) -> String {
         String::new()
     } else {
         format!(
-            "<img class=\"h-full w-full object-cover\" loading=\"lazy\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
+            "<img class=\"h-full w-full object-cover\" width=\"40\" height=\"40\" decoding=\"async\" loading=\"lazy\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
             escape(&inner.account.avatar)
         )
     };
@@ -359,13 +378,31 @@ fn timeline_header() -> String {
 
 /// The signed-in home page, painted.
 pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&str>) -> String {
+    feed(assets, acct, "home", "Home", "/home", statuses, cursor)
+}
+
+/// A timeline page, painted: the same header, the same cards, the same island.
+///
+/// `which` is the client's own name for the timeline, so the island it adopts is the page
+/// the reader is looking at rather than the home one.
+pub fn feed(
+    assets: &Assets,
+    acct: &str,
+    which: &str,
+    title: &str,
+    path: &str,
+    statuses: &[Status],
+    cursor: Option<&str>,
+) -> String {
     let cards = statuses.iter().map(status_card).collect::<String>();
     let island = serde_json::to_string(&Island {
-        which: "home",
+        which,
         statuses,
         cursor,
     })
-    .unwrap_or_else(|_| "{\"which\":\"home\",\"statuses\":[],\"cursor\":null}".to_owned());
+    .unwrap_or_else(|_| {
+        format!("{{\"which\":\"{which}\",\"statuses\":[],\"cursor\":null}}")
+    });
     let more = cursor
         .map(|cursor| {
             format!(
@@ -376,10 +413,10 @@ pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&st
         .unwrap_or_default();
     page(
         assets,
-        &format!("Home · {acct}"),
+        &format!("{title} · {acct}"),
         &chrome(
             true,
-            "/home",
+            path,
             &format!(
                 "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">{header}\
                    <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
@@ -388,6 +425,300 @@ pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&st
             ),
         ),
         Some(&island),
+    )
+}
+
+
+
+/// A profile: who they are, then what they posted.
+#[must_use]
+pub fn profile_page(
+    assets: &Assets,
+    acct: &str,
+    account: &Account,
+    statuses: &[Status],
+    cursor: Option<&str>,
+) -> String {
+    let name = if account.display_name.trim().is_empty() {
+        account.acct.clone()
+    } else {
+        account.display_name.clone()
+    };
+    let avatar = if account.avatar.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<img class=\"h-16 w-16 rounded-full object-cover\" width=\"64\" height=\"64\" \
+               decoding=\"async\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
+            escape(&account.avatar)
+        )
+    };
+    let header = format!(
+        "<header class=\"card border border-base-300 bg-base-100 shadow-sm\">\
+           <div class=\"card-body gap-3 p-4\">\
+             <div class=\"flex items-center gap-3\">{avatar}\
+               <div class=\"min-w-0\">\
+                 <h1 class=\"text-lg font-semibold\">{name}</h1>\
+                 <p class=\"truncate text-sm opacity-60\">@{acct}</p>\
+               </div>\
+             </div>\
+             <p class=\"text-sm opacity-70\">{counts}</p>\
+             <div class=\"text-sm\">{note}</div>\
+           </div>\
+         </header>",
+        name = escape(&name),
+        acct = escape(&account.acct),
+        counts = escape(&format!(
+            "{} posts · {} followers · {} following",
+            account.statuses_count, account.followers_count, account.following_count
+        )),
+        note = body_html(&account.note)
+    );
+    let cards = statuses.iter().map(status_card).collect::<String>();
+    page(
+        assets,
+        &format!("{} · {acct}", account.acct),
+        &chrome(
+            true,
+            &format!("/accounts/{}", account.id),
+            &format!(
+                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">{header}\
+                   <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
+                 </div>",
+                more = more_button(cursor)
+            ),
+        ),
+        None,
+    )
+}
+
+/// A thread: what came before, the status itself, then the replies.
+#[must_use]
+pub fn thread_page(assets: &Assets, acct: &str, status: &Status, context: &Context) -> String {
+    let ancestors = context.ancestors.iter().map(status_card).collect::<String>();
+    let replies = context.descendants.iter().map(status_card).collect::<String>();
+    let replies = if replies.is_empty() {
+        "<p class=\"text-sm opacity-60\">No replies yet.</p>".to_owned()
+    } else {
+        format!(
+            "<h2 class=\"text-sm font-semibold\">Replies</h2>\
+             <ul class=\"flex flex-col gap-2\">{replies}</ul>"
+        )
+    };
+    page(
+        assets,
+        &format!("Thread · {acct}"),
+        &chrome(
+            true,
+            &format!("/status/{}", status.id),
+            &format!(
+                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
+                   <ul class=\"flex flex-col gap-2\">{ancestors}</ul>\
+                   <ul class=\"flex flex-col gap-2\">{focused}</ul>{replies}\
+                 </div>",
+                focused = status_card(status)
+            ),
+        ),
+        None,
+    )
+}
+
+/// The "Load more" button the client also draws, or nothing on the last page.
+fn more_button(cursor: Option<&str>) -> String {
+    cursor
+        .map(|cursor| {
+            format!(
+                "<button class=\"btn btn-ghost btn-sm w-full\" data-cursor=\"{}\">Load more</button>",
+                escape(cursor)
+            )
+        })
+        .unwrap_or_default()
+}
+
+/// A page whose body is a list of things that are not statuses.
+///
+/// The chrome, the heading and the description come from the client's own words, so a reader
+/// who lands here and a reader who navigates here see the same page.
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "the island JSON is built once, for one page"
+)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a page is a title, a description, a body and its island; a struct would only name them twice"
+)]
+pub fn list_page(
+    assets: &Assets,
+    acct: &str,
+    path: &str,
+    title: &str,
+    heading: &str,
+    description: &str,
+    inner: &str,
+    island: Option<String>,
+) -> String {
+    page(
+        assets,
+        &format!("{title} · {acct}"),
+        &chrome(
+            true,
+            path,
+            &format!(
+                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
+                   <header class=\"flex flex-col gap-1\">\
+                     <h1 class=\"text-lg font-semibold\">{heading}</h1>\
+                     <p class=\"text-sm opacity-70\">{description}</p>\
+                   </header>{inner}\
+                 </div>",
+                heading = escape(heading),
+                description = escape(description)
+            ),
+        ),
+        island.as_deref(),
+    )
+}
+
+/// A list of rows, or the sentence that says the list is empty.
+pub fn rows(items: &[String], empty: &str) -> String {
+    if items.is_empty() {
+        return format!(
+            "<p class=\"text-sm opacity-60\">{}</p>",
+            escape(empty)
+        );
+    }
+    format!(
+        "<ul class=\"flex flex-col gap-2\">{}</ul>",
+        items.concat()
+    )
+}
+
+/// One account as a row: who they are, and the one line of self-description they wrote.
+#[must_use]
+pub fn account_row(account: &Account) -> String {
+    let name = if account.display_name.trim().is_empty() {
+        account.acct.clone()
+    } else {
+        account.display_name.clone()
+    };
+    let avatar = if account.avatar.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<img class=\"h-10 w-10 rounded-full object-cover\" width=\"40\" height=\"40\" \
+               decoding=\"async\" loading=\"lazy\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
+            escape(&account.avatar)
+        )
+    };
+    let note = body_html(&account.note);
+    let note = if note.trim().is_empty() {
+        String::new()
+    } else {
+        format!("<p class=\"line-clamp-2 text-sm opacity-70\">{note}</p>")
+    };
+    format!(
+        "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
+           <div class=\"card-body flex-row items-start gap-3 p-3\">\
+             <a class=\"avatar\" href=\"/accounts/{id}\">{avatar}</a>\
+             <div class=\"min-w-0 flex-1\">\
+               <a class=\"font-medium hover:underline\" href=\"/accounts/{id}\">{name}</a>\
+               <p class=\"truncate text-xs opacity-60\">@{acct}</p>{note}\
+             </div>\
+           </div>\
+         </li>",
+        id = escape(&account.id),
+        acct = escape(&account.acct),
+        name = escape(&name)
+    )
+}
+
+/// One notification: what happened, to whom, and the status when the event carries one.
+#[must_use]
+pub fn notification_row(notification: &Notification) -> String {
+    let kind = match notification.kind {
+        nodus_instance::model::NotificationKind::Follow => "followed you",
+        nodus_instance::model::NotificationKind::FollowRequest => "asked to follow you",
+        nodus_instance::model::NotificationKind::Reblog => "boosted your post",
+        nodus_instance::model::NotificationKind::Favourite => "favourited your post",
+        nodus_instance::model::NotificationKind::Mention => "mentioned you",
+        nodus_instance::model::NotificationKind::Poll => "a poll you voted in ended",
+        nodus_instance::model::NotificationKind::Status => "posted",
+        nodus_instance::model::NotificationKind::AdminSignUp => "signed up",
+        nodus_instance::model::NotificationKind::AdminReport => "a report was filed",
+        nodus_instance::model::NotificationKind::Unknown => "sent you something",
+    };
+    let status = notification
+        .status
+        .as_ref()
+        .map(status_card)
+        .unwrap_or_default();
+    format!(
+        "<li class=\"flex flex-col gap-2\">\
+           <p class=\"text-sm\"><a class=\"font-medium hover:underline\" href=\"/accounts/{id}\">{name}</a> \
+             <span class=\"opacity-70\">{kind}</span></p>{status}\
+         </li>",
+        id = escape(&notification.account.id),
+        name = escape(&notification.account.acct),
+        kind = escape(kind)
+    )
+}
+
+/// One conversation: everyone in it, and its last message.
+#[must_use]
+pub fn conversation_row(conversation: &Conversation) -> String {
+    let who = conversation
+        .accounts
+        .first()
+        .map_or_else(|| "a conversation".to_owned(), |account| account.acct.clone());
+    let rest = conversation.accounts.len().saturating_sub(1);
+    let name = if rest == 0 {
+        who
+    } else {
+        format!("{who} and {rest} more")
+    };
+    let last = conversation
+        .last_status
+        .as_ref()
+        .map(status_card)
+        .unwrap_or_default();
+    let unread = if conversation.unread {
+        "<span class=\"badge badge-primary badge-xs\">unread</span>"
+    } else {
+        ""
+    };
+    format!(
+        "<li class=\"flex flex-col gap-2\"><p class=\"text-sm font-medium\">{}\n{unread}</p>{last}</li>",
+        escape(&name)
+    )
+}
+
+/// One list: its title, and how many people it holds when the instance says.
+#[must_use]
+pub fn list_row(list: &List) -> String {
+    format!(
+        "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
+           <div class=\"card-body flex-row items-center justify-between gap-3 p-3\">\
+             <a class=\"font-medium hover:underline\" href=\"/lists/{}\">{}</a>\
+             <span class=\"text-xs opacity-60\">{}</span>\
+           </div>\
+         </li>",
+        escape(&list.id),
+        escape(&list.title),
+        escape(&list.replies_policy)
+    )
+}
+
+/// One scheduled post: when it goes out, and what it will say.
+#[must_use]
+pub fn scheduled_row(scheduled: &ScheduledStatus) -> String {
+    format!(
+        "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
+           <div class=\"card-body gap-1 p-3\">\
+             <p class=\"text-xs opacity-60\">{}</p>\
+             <p class=\"whitespace-pre-line text-sm\">{}</p>\
+           </div>\
+         </li>",
+        escape(&stamp(&scheduled.scheduled_at)),
+        escape(&scheduled.summary())
     )
 }
 

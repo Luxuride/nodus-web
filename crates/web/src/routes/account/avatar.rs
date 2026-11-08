@@ -25,7 +25,7 @@ pub(super) fn Avatar(src: ReadSignal<String>) -> impl IntoView {
             }
         >
             <div class="w-16 rounded-full bg-base-300">
-                <img src=src alt="" referrerpolicy="no-referrer"/>
+                <img width="64" height="64" decoding="async" src=src alt="" referrerpolicy="no-referrer"/>
             </div>
         </button>
     }

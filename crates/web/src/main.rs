@@ -88,9 +88,24 @@ fn mount_app() {
         leptos::mount::mount_to_body(App);
         return;
     };
-    // Cleared only now, after the island has been read: the island lives inside this node.
+    // Mounted into a detached node, then swapped in whole.
+    //
+    // Clearing `#app` and mounting into it paints one frame of nothing, and the reader sees
+    // the server's page blink out and come back — which reads as the interface resetting
+    // itself. Rendering beside the document and replacing the children in one step keeps the
+    // server paint on screen until the client tree is ready to stand in its place.
+    let staging = document
+        .create_element("div")
+        .ok()
+        .and_then(|node| node.dyn_into::<web_sys::HtmlElement>().ok());
+    if let Some(staging) = staging {
+        leptos::mount::mount_to(staging.clone(), App).forget();
+        if let Ok(node) = staging.dyn_into::<web_sys::Node>() {
+            host.replace_children_with_node_1(&node);
+        }
+        return;
+    }
     host.set_inner_html("");
-    // `mount_to` hands back a handle that unmounts on drop; this view lives for the tab.
     leptos::mount::mount_to(host, App).forget();
 }
 

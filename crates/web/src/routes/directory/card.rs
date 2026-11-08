@@ -29,7 +29,7 @@ pub fn PersonCard(account: Account) -> impl IntoView {
                 on:click=move |event| router::link(event, route.clone())
             >
                 <div class="flex items-center gap-3">
-                    <img class="size-10 rounded-full" src=avatar alt="" />
+                    <img class="size-10 rounded-full" width="40" height="40" decoding="async" loading="lazy" src=avatar alt="" />
                     <div class="min-w-0">
                         <p class="truncate text-sm font-medium">{name}</p>
                         <p class="truncate text-xs opacity-60">{handle}</p>

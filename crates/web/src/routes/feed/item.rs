@@ -140,7 +140,7 @@ fn Identity(
             <div class="flex min-w-0 items-center gap-3">
                 <div class="avatar">
                     <div class="w-10 rounded-full bg-base-300">
-                        <img src=avatar_url alt="" referrerpolicy="no-referrer" />
+                        <img width="40" height="40" decoding="async" src=avatar_url alt="" referrerpolicy="no-referrer" />
                     </div>
                 </div>
                 <div class="min-w-0">

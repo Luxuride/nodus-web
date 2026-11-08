@@ -9,8 +9,6 @@ use nodus_instance::model::{MediaAttachment, MediaKind, Status};
 use super::chips::StatusChips;
 use super::poll::PollView;
 use super::sensitive;
-use crate::routes::feed::posts::plain_text;
-use crate::ui::emoji_text::EmojiText;
 
 /// Content, media and poll of one status.
 #[component]
@@ -37,14 +35,11 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
                     <summary class="cursor-pointer text-xs opacity-60">"Show content"</summary>
                     <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">
                         <span>
-                            {move || {
-                                let status = shown.get();
-                                view! {
-                                    <EmojiText
-                                        text=plain_text(&status.content)
-                                        emojis=status.emojis.clone()
-                                    />
-                                }
+                            {move || view! {
+                                <div
+                                    class="break-words [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
+                                    inner_html=shown.get().content
+                                />
                             }}
                         </span>
                     </p>
@@ -54,14 +49,11 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
         <Show when=move || shown.get().spoiler_text.trim().is_empty()>
             <p class="whitespace-pre-line text-sm leading-relaxed">
                 <span>
-                            {move || {
-                                let status = shown.get();
-                                view! {
-                                    <EmojiText
-                                        text=plain_text(&status.content)
-                                        emojis=status.emojis.clone()
-                                    />
-                                }
+                            {move || view! {
+                                <div
+                                    class="break-words [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
+                                    inner_html=shown.get().content
+                                />
                             }}
                         </span>
             </p>

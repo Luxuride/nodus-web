@@ -16,12 +16,14 @@ use crate::state::alive::Alive;
 use crate::state::bridge::{actions, timeline};
 
 mod bar;
+mod drafts_panel;
 pub(crate) mod emoji;
 mod emoji_toggle;
 mod poll;
 mod schedule;
 
 use bar::Notice;
+use drafts_panel::DraftsPanel;
 use emoji::Suggestions;
 use poll::PollEditor;
 use schedule::SchedulePanel;
@@ -82,6 +84,10 @@ pub fn InlineComposer(
     // changes: a token is open exactly while the draft ends in one.
     Effect::new(move |_| set_emoji_open.set(emoji::pending(&draft.text.get()).is_some()));
 
+    // `:draft` and the kept-text lifecycle, in one place: this component was already at the
+    // line limit, and the resume path is a feature of its own.
+    let (draft_token, resume) = draft_controls(&draft);
+
     view! {
         <nodus_view::ComposerCard>
                 <h2 class="text-xs font-semibold uppercase tracking-wide opacity-50">"New post"</h2>
@@ -97,6 +103,7 @@ pub fn InlineComposer(
                     catalogue=emoji_catalogue
                     insert=emoji_insert
                 />
+                <DraftsPanel open=draft_token insert=resume/>
                 <crate::ui::editor::RichEditor
                     text=draft.text.read_only()
                     set_text=draft.text.write_only()
@@ -144,8 +151,67 @@ pub fn InlineComposer(
                 {move || draft.notice.get().map(|line| view! {
                     <p class="text-xs text-success">{line}</p>
                 })}
+
+                {move || draft.done.get().map(|(visibility, language)| {
+                    let name = if language.is_empty() {
+                        "instance default".to_owned()
+                    } else {
+                        crate::ui::language::name_of(&language)
+                    };
+                    view! {
+                        <p class="flex flex-wrap items-center gap-1 text-xs text-success" role="status">
+                            "Post published as"
+                            <span class="inline-flex items-center rounded-lg border border-base-300 bg-base-100 px-1.5 py-0.5 text-base-content">{visibility.as_str()}</span>
+                            <span class="inline-flex items-center rounded-lg border border-base-300 bg-base-100 px-1.5 py-0.5 text-base-content">{name}</span>
+                        </p>
+                    }
+                })}
         </nodus_view::ComposerCard>
     }
+}
+
+/// The `:draft` popup's two halves: when it is open, and what choosing a row does.
+///
+/// Registers the "keep unsent text" cleanup on the current owner, so it must run inside a
+/// component body — which is where it is called from.
+fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
+    // A token is open exactly while the draft ends in one, which is how an emoji code is
+    // detected too.
+    let text = draft.text;
+    let open = Signal::derive(move || {
+        emoji::pending(&text.get()).is_some_and(|(_, code)| code.eq_ignore_ascii_case("draft"))
+    });
+
+    // Leaving with unsent text keeps it: a reload, a route change, a closed tab.
+    let kept_text = draft.text;
+    let kept_visibility = draft.visibility;
+    let kept_language = draft.language;
+    on_cleanup(move || {
+        crate::ui::drafts::keep(
+            &kept_text.get_untracked(),
+            kept_visibility.get_untracked(),
+            &kept_language.get_untracked(),
+        );
+    });
+
+    // Resuming fills the body, takes the pickers with it, and drops the row so it cannot be
+    // sent twice.
+    let resume_text = draft.text;
+    let resume_visibility = draft.visibility;
+    let resume_language = draft.language;
+    let resume_done = draft.done;
+    let resume = Callback::new(move |index: usize| {
+        let Some(saved) = crate::ui::drafts::take(index) else {
+            return;
+        };
+        resume_text.set(saved.text);
+        resume_visibility.set(crate::ui::drafts::visibility(&saved.visibility));
+        resume_language.set(saved.language);
+        resume_done.set(None);
+        focus_textarea();
+    });
+
+    (open, resume)
 }
 
 /// Everything the composer holds, so submitting is one call rather than a closure that
@@ -169,6 +235,9 @@ struct Draft {
     hide_totals: RwSignal<bool>,
     /// Empty means "let the instance guess".
     language: RwSignal<String>,
+    /// What the last successful post went out as: visibility and language, shown in the
+    /// pickers' own style so the confirmation reads as the same choice, not a second claim.
+    done: RwSignal<Option<(Visibility, String)>>,
     alive: Alive,
     which: StoredValue<nodus_sdk::Timeline>,
     set_reload: WriteSignal<u32>,
@@ -193,6 +262,7 @@ impl Draft {
             multiple: RwSignal::new(false),
             hide_totals: RwSignal::new(false),
             language: RwSignal::new(String::new()),
+            done: RwSignal::new(None),
             alive: Alive::new(),
             which,
             set_reload,
@@ -215,6 +285,7 @@ impl Draft {
             multiple: self.multiple,
             hide_totals: self.hide_totals,
             language: self.language,
+            done: self.done,
             alive: self.alive,
             which: self.which,
             set_reload: self.set_reload,
@@ -238,6 +309,7 @@ struct Signals {
     multiple: RwSignal<bool>,
     hide_totals: RwSignal<bool>,
     language: RwSignal<String>,
+    done: RwSignal<Option<(Visibility, String)>>,
     alive: Alive,
     which: StoredValue<nodus_sdk::Timeline>,
     set_reload: WriteSignal<u32>,
@@ -293,6 +365,7 @@ impl Signals {
             busy: self.busy,
             error: self.error,
             notice: self.notice,
+            done: self.done,
             media: self.media,
             custom_at: self.custom,
             poll_open: self.poll_open,
@@ -323,6 +396,7 @@ struct Snapshot {
     busy: RwSignal<bool>,
     error: RwSignal<Option<String>>,
     notice: RwSignal<Option<String>>,
+    done: RwSignal<Option<(Visibility, String)>>,
     media: RwSignal<Vec<MediaAttachment>>,
     custom_at: RwSignal<String>,
     poll_open: RwSignal<bool>,
@@ -341,6 +415,15 @@ impl Snapshot {
                 if !self.alive.is_alive() {
                     return;
                 }
+                // The pickers' answer, echoed back: what actually went out. Only for a real
+                // post — a scheduled one names its time in `notice` instead.
+                if scheduled.is_empty() {
+                    self.done.set(Some((
+                        self.status.visibility,
+                        self.status.language.clone().unwrap_or_default(),
+                    )));
+                }
+                crate::ui::drafts::clear();
                 self.text.set(String::new());
                 self.media.set(Vec::new());
                 self.custom_at.set(String::new());

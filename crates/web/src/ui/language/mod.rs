@@ -209,3 +209,15 @@ fn ordered_with_default(
     }
     list
 }
+
+/// The human name of a language code, or the code itself.
+///
+/// Used where a code is shown outside the picker (the composer's success line): a writer
+/// who chose "Deutsch" should not be told they posted in "de".
+#[must_use]
+pub fn name_of(code: &str) -> String {
+    FALLBACK
+        .iter()
+        .find(|(known, _)| *known == code)
+        .map_or_else(|| code.to_owned(), |(_, name)| (*name).to_owned())
+}

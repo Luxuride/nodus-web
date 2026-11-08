@@ -4,8 +4,8 @@
 //! same thing — a heading that says "People" on one screen and "Directory" on another is
 //! how a reader loses confidence that they are in the right place.
 
+pub mod drafts;
 pub mod editor;
-pub mod emoji_text;
 pub mod icons;
 pub mod language;
 pub mod page;

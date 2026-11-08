@@ -11,8 +11,12 @@ use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, with_sdk};
 
 mod accounts;
+
+/// The grant prompt. Moderation shows it in place of its own message when the token lacks
+/// the admin scopes, so it lives here rather than being duplicated — but it only exists in a
+/// build that carries the moderation screens.
 #[cfg(feature = "admin")]
-mod admin;
+pub(crate) mod admin;
 pub(crate) mod clock;
 mod feeds;
 pub(crate) mod filters;
@@ -26,8 +30,6 @@ mod tabs;
 pub(crate) mod tags;
 
 use accounts::AccountsCard;
-#[cfg(feature = "admin")]
-use admin::AdministrationCard;
 use clock::ClockCard;
 use feeds::FeedsCard;
 use filters::FiltersCard;
@@ -102,31 +104,8 @@ pub fn Settings(section: String) -> impl IntoView {
                 <InstanceCard/>
             </Show>
 
-            // The section is only listed in a moderator build (`Tab::all`), so this arm
-            // exists for an address someone kept, not for the tab bar.
-            <Show when=move || tab.get() == Tab::Administration>{administration()}</Show>
 
         </section>
     }
 }
 
-/// The administration section, when this build has one.
-///
-/// A function instead of a `#[cfg]` inside `view!`: attributes do not reach the body of a
-/// view expression, so the alternative was a reference to a component that a build without
-/// the feature never defines.
-#[cfg(feature = "admin")]
-fn administration() -> impl IntoView {
-    view! { <AdministrationCard/> }
-}
-
-/// What a build without the moderation screens answers when the address is kept.
-#[cfg(not(feature = "admin"))]
-fn administration() -> impl IntoView {
-    view! {
-        <p class="text-sm opacity-70">
-            "This build has no moderation screens. A moderator build is "
-            <code>"trunk build --release --features admin"</code> "."
-        </p>
-    }
-}

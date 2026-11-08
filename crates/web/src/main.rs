@@ -37,6 +37,8 @@ use crate::state::bridge::{init, revision, with_sdk};
 use crate::ui::icons::Icon;
 
 use leptos::prelude::*;
+#[cfg(feature = "admin")]
+use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
 
 use wasm_bindgen::JsCast as _;
@@ -404,31 +406,50 @@ fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -
     }
 }
 
-/// The rail's administration door, in a build that carries the screens.
+/// The moderation doors, in a build that carries the screens.
 ///
-/// A `#[cfg]` inside `view!` is not evaluated as an attribute — it is printed as text —
-/// so the choice has to be made by a function that simply does not exist in the other
-/// build.
+/// Shown only once the instance has answered that this account may moderate: a rail entry
+/// that leads to "you are not a moderator" is a dead end, and `admin::staff()` is the only
+/// honest source for that answer. The check re-runs when the session or the grant changes,
+/// because both can arrive after the first paint.
 #[cfg(feature = "admin")]
 fn staff_rail_items() -> impl IntoView {
-    view! {
-        <RailItem
-            label="Moderation"
-            icon=Icon::Shield
-            hint="Reports, accounts, registrations and blocked domains"
-            route=Route::Moderation(crate::router::MODERATION_DEFAULT.to_owned())
-        />
-        <RailItem
-            label="Administration"
-            icon=Icon::Globe
-            hint="The dashboard, relays, allowed domains and announcements"
-            route=Route::Admin(crate::router::ADMIN_DEFAULT.to_owned())
-        />
-    }
+    view! { <StaffRail/> }
 }
 
 #[cfg(not(feature = "admin"))]
 fn staff_rail_items() -> impl IntoView {}
+
+/// The probe behind the moderation doors.
+#[cfg(feature = "admin")]
+#[component]
+fn StaffRail() -> impl IntoView {
+    let staff = RwSignal::new(false);
+    Effect::new(move |_| {
+        revision().get();
+        spawn_local(async move {
+            let answer = crate::state::bridge::admin::staff().await;
+            staff.set(matches!(answer, crate::state::bridge::admin::Staff::Yes));
+        });
+    });
+
+    view! {
+        <Show when=move || staff.get()>
+            <RailItem
+                label="Moderation"
+                icon=Icon::Shield
+                hint="Reports, accounts, registrations and blocked domains"
+                route=Route::Moderation(crate::router::MODERATION_DEFAULT.to_owned())
+            />
+            <RailItem
+                label="Administration"
+                icon=Icon::Globe
+                hint="The dashboard, allowed domains and announcements"
+                route=Route::Admin(crate::router::ADMIN_DEFAULT.to_owned())
+            />
+        </Show>
+    }
+}
 
 /// The icon for a rail destination, chosen by the label `nodus_view::rail()` publishes.
 ///

@@ -100,13 +100,21 @@ impl Section {
 pub fn Moderation(section: String) -> impl IntoView {
     let section = StoredValue::new(Section::of(&section));
     let alive = Alive::new();
-    let (allowed, set_allowed) = signal(None::<bool>);
-
-    Effect::new(move |_| {
-        spawn_local(async move {
-            let verdict = matches!(admin::staff().await, admin::Staff::Yes);
-            alive.if_alive(|| set_allowed.set(Some(verdict)));
-        });
+    // `None` is "not asked yet", `Some(NeedsGrant)` is "this token lacks the scope", and the
+    // gate answers each of those differently: a spinner, a grant prompt, or the screens.
+    let (allowed, set_allowed) = signal(None::<admin::Staff>);
+    let probe = {
+        move || {
+            spawn_local(async move {
+                let verdict = admin::staff().await;
+                alive.if_alive(|| set_allowed.set(Some(verdict)));
+            });
+        }
+    };
+    Effect::new(move |_| probe());
+    let retry = Callback::new(move |()| {
+        set_allowed.set(None);
+        probe();
     });
 
     view! {
@@ -116,9 +124,9 @@ pub fn Moderation(section: String) -> impl IntoView {
                 description="Decisions about people: reports, accounts, registrations and blocked domains."
             />
 
-            <StaffGate allowed=allowed/>
+            <StaffGate allowed=allowed retry=retry/>
 
-            <Show when=move || allowed.get() == Some(true)>
+            <Show when=move || allowed.get() == Some(admin::Staff::Yes)>
                 <Strip current=section.get_value()/>
                 {move || match section.get_value() {
                     Section::Reports => view! { <ReportQueue/> }.into_any(),

@@ -15,27 +15,22 @@ pub enum Tab {
     Nodus,
     Filters,
     Instance,
-    Administration,
 }
 
 impl Tab {
     /// Every section, in the order a reader is likely to want them.
     ///
-    /// Administration is listed only in a moderator build: a tab that answers "this build
-    /// has no moderation screens" is a dead end the reader has to walk into to discover.
+    /// Every section. Moderation and administration are not settings: they are a separate
+    /// area behind a staff check, reached from the rail, never from this bar.
     #[must_use]
     pub fn all() -> Vec<Self> {
-        let mut sections = vec![
+        vec![
             Self::Account,
             Self::Profile,
             Self::Nodus,
             Self::Filters,
             Self::Instance,
-        ];
-        if cfg!(feature = "admin") {
-            sections.push(Self::Administration);
-        }
-        sections
+        ]
     }
 
     pub fn label(self) -> &'static str {
@@ -45,7 +40,6 @@ impl Tab {
             Self::Nodus => "Nodus",
             Self::Filters => "Filters",
             Self::Instance => "Instance",
-            Self::Administration => "Administration",
         }
     }
 
@@ -58,7 +52,6 @@ impl Tab {
             Self::Nodus => "nodus",
             Self::Filters => "filters",
             Self::Instance => "instance",
-            Self::Administration => "administration",
         }
     }
 
@@ -78,7 +71,6 @@ impl Tab {
             Self::Nodus => "Recommendations, background sync and which feeds the rail offers",
             Self::Filters => "Words and phrases to hide, and hashtags pinned to your profile",
             Self::Instance => "The instance's own identity and rules",
-            Self::Administration => "The grant, and the way into moderation and administration",
         }
     }
 }

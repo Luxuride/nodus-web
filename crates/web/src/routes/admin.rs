@@ -88,13 +88,21 @@ impl Section {
 pub fn Admin(section: String) -> impl IntoView {
     let section = StoredValue::new(Section::of(&section));
     let alive = Alive::new();
-    let (allowed, set_allowed) = signal(None::<bool>);
-
-    Effect::new(move |_| {
-        spawn_local(async move {
-            let verdict = matches!(admin::staff().await, admin::Staff::Yes);
-            alive.if_alive(|| set_allowed.set(Some(verdict)));
-        });
+    // `None` is "not asked yet", `Some(NeedsGrant)` is "this token lacks the scope", and the
+    // gate answers each of those differently: a spinner, a grant prompt, or the screens.
+    let (allowed, set_allowed) = signal(None::<admin::Staff>);
+    let probe = {
+        move || {
+            spawn_local(async move {
+                let verdict = admin::staff().await;
+                alive.if_alive(|| set_allowed.set(Some(verdict)));
+            });
+        }
+    };
+    Effect::new(move |_| probe());
+    let retry = Callback::new(move |()| {
+        set_allowed.set(None);
+        probe();
     });
 
     view! {
@@ -104,9 +112,9 @@ pub fn Admin(section: String) -> impl IntoView {
                 description="This instance: what it counted, who it talks to, what it says."
             />
 
-            <StaffGate allowed=allowed/>
+            <StaffGate allowed=allowed retry=retry/>
 
-            <Show when=move || allowed.get() == Some(true)>
+            <Show when=move || allowed.get() == Some(admin::Staff::Yes)>
                 <Strip current=section.get_value()/>
                 {move || match section.get_value() {
                     Section::Overview => view! { <Overview/> }.into_any(),
@@ -118,26 +126,64 @@ pub fn Admin(section: String) -> impl IntoView {
     }
 }
 
-/// What to say while the probe is out, and when it comes back negative.
+/// What to say while the probe is out, when the token lacks the scope, and when the
+/// account genuinely cannot moderate.
+///
+/// `NeedsGrant` is the interesting arm: the account may well be staff, and the app simply
+/// never asked for `admin:read`, so the gate offers the grant instead of a dead end.
 #[component]
-pub fn StaffGate(allowed: ReadSignal<Option<bool>>) -> impl IntoView {
+pub fn StaffGate(
+    allowed: ReadSignal<Option<admin::Staff>>,
+    retry: Callback<()>,
+) -> impl IntoView {
     view! {
         <Show when=move || allowed.get().is_none()>
             <p class="text-sm opacity-70">"Checking what this account may do…"</p>
         </Show>
 
-        <Show when=move || allowed.get() == Some(false)>
+        <Show when=move || matches!(allowed.get(), Some(admin::Staff::NeedsGrant))>
+            <div class="card border border-base-300 bg-base-100 shadow-sm">
+                <div class="card-body gap-3 p-4">
+                    <h2 class="card-title text-base">"This needs a moderation token"</h2>
+                    <p class="text-sm opacity-70">
+                        "Moderation lives behind a permission this app does not ask for at
+                         sign-in. Granting it authorizes a second token for this instance,
+                         with "
+                        <code class="text-xs">"admin:read"</code>
+                        " and "
+                        <code class="text-xs">"admin:write"</code>
+                        " — enough to read every report, suspend an account or block a domain."
+                    </p>
+                    <p class="text-sm opacity-70">
+                        "Your ordinary session keeps its own, narrower token; this grant is
+                         used only here, and can be forgotten again at any time."
+                    </p>
+                    <button
+                        class="btn btn-sm w-fit"
+                        on:click=move |_| {
+                            spawn_local(async move {
+                                // The grant navigates away to the instance; the retry covers
+                                // the case where the reader comes back without finishing it.
+                                let _ = super::settings::admin::request_grant().await;
+                                retry.run(());
+                            });
+                        }
+                    >
+                        "Grant admin access"
+                    </button>
+                </div>
+            </div>
+        </Show>
+
+        <Show when=move || matches!(allowed.get(), Some(admin::Staff::No))>
             <div class="card border border-base-300 bg-base-100 shadow-sm">
                 <div class="card-body gap-2 p-4">
                     <h2 class="card-title text-base">"Not a moderator here"</h2>
                     <p class="text-sm opacity-70">
-                        "This account cannot moderate this instance, so nothing below would
-                         work anyway. Settings → Administration can ask for the permission
-                         if you believe it should."
+                        "This account has no staff role on this instance, so nothing here
+                         would work. An admin has to give it one; that is not something a
+                         client can do."
                     </p>
-                    <a class="link link-primary w-fit text-sm" href="/settings/administration">
-                        "Open Settings → Administration"
-                    </a>
                 </div>
             </div>
         </Show>

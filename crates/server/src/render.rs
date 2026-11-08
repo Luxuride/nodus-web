@@ -13,6 +13,8 @@
 //! - **Unknown is not a default.** When the server has no session it paints the signed-out
 //!   page; it never paints one account's page and lets the client swap it.
 
+use std::fmt::Write as _;
+
 use nodus_instance::model::{MediaKind, Status};
 
 /// The assets `trunk` produced. Discovered at startup, because the names carry content
@@ -182,6 +184,143 @@ fn status_card(status: &Status) -> String {
     )
 }
 
+
+/// The destinations the rail offers, in the order the client renders them.
+type Entry = (&'static str, &'static str, &'static str);
+type Section = (&'static str, [Entry; 3]);
+
+const RAIL: [Section; 3] = [
+    (
+        "Read",
+        [
+            ("Home", "/home", "Your timeline, the feed, and the instance's"),
+            ("Messages", "/messages", "Direct conversations"),
+            (
+                "Notifications",
+                "/notifications",
+                "Mentions, boosts, favourites and follow requests",
+            ),
+        ],
+    ),
+    (
+        "Find",
+        [
+            (
+                "Search",
+                "/search",
+                "Accounts, posts and hashtags, including remote ones",
+            ),
+            ("People", "/directory", "Accounts this instance suggests"),
+            (
+                "Saved",
+                "/saved/favourites",
+                "Your favourites and bookmarks",
+            ),
+        ],
+    ),
+    (
+        "Library",
+        [
+            ("Scheduled", "/scheduled", "Posts waiting to be published"),
+            (
+                "Lists",
+                "/lists",
+                "Hand-picked accounts with a timeline each",
+            ),
+            (
+                "Settings",
+                "/settings/account",
+                "Profile, tags, filters, sync and this instance",
+            ),
+        ],
+    ),
+];
+
+/// The rail, painted with the same classes the client uses.
+///
+/// The icons are squares of the icon's own size rather than glyphs: the client swaps in
+/// the real paths on mount, and matching the *box* is what keeps the column from moving.
+/// Copying twenty-seven SVGs into this server would be a second icon set to keep in sync
+/// for a difference nobody sees after the first paint.
+fn nav() -> String {
+    let mut items = String::new();
+    for (section, entries) in RAIL {
+        let _ = write!(
+            items,
+            "<li class=\"menu-title hidden xl:block\">{}</li>",
+            escape(section)
+        );
+        for (label, href, hint) in entries {
+            let _ = write!(
+                items,
+                "<li>\
+                   <a class=\"flex w-full items-center gap-2 font-medium\" href=\"{}\" title=\"{}\">\
+                     <span class=\"inline-block h-4 w-4 shrink-0 rounded-sm bg-base-300\"></span>\
+                     <span class=\"truncate\">{}</span>\
+                   </a>\
+                 </li>",
+                escape(href),
+                escape(hint),
+                escape(label)
+            );
+        }
+    }
+    format!(
+        "<nav class=\"hidden shrink-0 xl:block xl:w-44\">\
+           <ul class=\"menu w-full flex-row flex-wrap gap-1 rounded-box bg-base-100 p-2 shadow-sm xl:flex-col xl:flex-nowrap\">{items}</ul>\
+         </nav>"
+    )
+}
+
+/// The application's own frame: the same root element, column widths and gaps the client
+/// renders, so the swap is a replacement in place rather than a reflow.
+fn chrome(signed_in: bool, inner: &str) -> String {
+    if !signed_in {
+        return format!(
+            "<div class=\"min-h-screen bg-base-200 text-base-content\">\
+               <div class=\"mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4\">\
+                 <main class=\"min-w-0 flex-1\">{inner}</main>\
+               </div>\
+             </div>"
+        );
+    }
+    format!(
+        "<div class=\"min-h-screen bg-base-200 text-base-content\">\
+           <header class=\"sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-base-300 bg-base-100 px-3 py-2 xl:hidden\">\
+             <a class=\"font-semibold tracking-tight\" href=\"/home\">Nodus</a>\
+           </header>\
+           <div class=\"mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row\">{}\n\
+             <main class=\"min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] xl:pb-0\">{inner}</main>\
+           </div>\
+         </div>",
+        nav()
+    )
+}
+
+/// The composer and the timeline tabs, at the size the client gives them.
+fn timeline_header() -> String {
+    "<div class=\"sticky top-0 z-20 -mx-1 flex flex-col gap-2 bg-base-200/95 px-1 pb-2 pt-1 backdrop-blur\">\
+       <div class=\"card border border-base-300 bg-base-100 shadow-sm\">\
+         <div class=\"card-body gap-2 p-3\">\
+           <textarea class=\"textarea textarea-ghost h-16 w-full resize-none text-base\" aria-label=\"Write a post\" placeholder=\"What is on your mind?\"></textarea>\
+           <div class=\"flex items-center gap-2\">\
+             <span class=\"btn btn-outline btn-sm gap-1 border-dashed\">+</span>\
+             <span class=\"select select-bordered select-sm\">Public</span>\
+             <span class=\"ml-auto text-xs opacity-50\">0/500</span>\
+             <span class=\"btn btn-sm btn-primary\">Post</span>\
+           </div>\
+         </div>\
+       </div>\
+       <div role=\"tablist\" class=\"tabs tabs-box\">\
+         <a role=\"tab\" class=\"tab tab-active\" href=\"/home\">Home</a>\
+         <a role=\"tab\" class=\"tab\" href=\"/feed\">Feed</a>\
+         <a role=\"tab\" class=\"tab\" href=\"/local\">Local</a>\
+         <a role=\"tab\" class=\"tab\" href=\"/federated\">Federated</a>\
+       </div>\
+     </div>"
+        .to_owned()
+}
+
 /// The signed-in home page, painted.
 pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&str>) -> String {
     let cards = statuses.iter().map(status_card).collect::<String>();
@@ -202,11 +341,14 @@ pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&st
     page(
         assets,
         &format!("Home · {acct}"),
-        &format!(
-            "<section class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
-               <h1 class=\"text-xl font-semibold tracking-tight\">Home</h1>\
-               <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
-             </section>"
+        &chrome(
+            true,
+            &format!(
+                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">{header}\
+                   <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
+                 </div>",
+                header = timeline_header()
+            ),
         ),
         Some(&island),
     )
@@ -217,12 +359,15 @@ pub fn landing(assets: &Assets) -> String {
     page(
         assets,
         "Nodus",
-        "<section class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
-           <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>\
-           <p class=\"text-sm opacity-70\">A Mastodon client that keeps its state, so a page you have \
-             already read does not load again.</p>\
-           <p class=\"text-sm opacity-70\">Sign in to see your timelines.</p>\
-         </section>",
+        &chrome(
+            false,
+            "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
+               <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>\
+               <p class=\"text-sm opacity-70\">A Mastodon client that keeps its state, so a page you \
+                 have already read does not load again.</p>\
+               <p class=\"text-sm opacity-70\">Sign in to see your timelines.</p>\
+             </div>",
+        ),
         None,
     )
 }
@@ -243,12 +388,15 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
     page(
         assets,
         "Nodus",
-        &format!(
-            "<section class=\"mx-auto flex w-full max-w-2xl flex-col gap-2\">\
-               <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>{who}\
-               <p class=\"text-xs opacity-50\">Opening {}</p>\
-             </section>",
-            escape(path)
+        &chrome(
+            acct.is_some(),
+            &format!(
+                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-2\">\
+                   <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>{who}\
+                   <p class=\"text-xs opacity-50\">Opening {}</p>\
+                 </div>",
+                escape(path)
+            ),
         ),
         None,
     )
@@ -260,12 +408,15 @@ pub fn error(assets: &Assets, message: &str) -> String {
     page(
         assets,
         "Timeline unavailable",
-        &format!(
-            "<section class=\"mx-auto w-full max-w-2xl\">\
-               <h1 class=\"text-xl font-semibold tracking-tight\">Home</h1>\
-               <p class=\"alert alert-error mt-2 text-sm\" role=\"alert\">Could not read the timeline: {}</p>\
-             </section>",
-            escape(message)
+        &chrome(
+            true,
+            &format!(
+                "<div class=\"mx-auto w-full max-w-2xl\">\
+                   <h1 class=\"text-xl font-semibold tracking-tight\">Home</h1>\
+                   <p class=\"alert alert-error mt-2 text-sm\" role=\"alert\">Could not read the timeline: {}</p>\
+                 </div>",
+                escape(message)
+            ),
         ),
         None,
     )
@@ -302,7 +453,7 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> Strin
              </script>\
            </head>\
            <body class=\"min-h-screen bg-base-200\">\
-             <main id=\"app\" class=\"px-2 py-4\">{body}</main>\
+             <div id=\"app\">{body}</div>\
              {island}\
            </body>\
          </html>",

@@ -168,17 +168,7 @@ pub fn RichEditor(
             set_text.set(value);
         });
         let on_submit = Closure::<dyn FnMut()>::new(move || on_submit.run(()));
-        let on_query = Closure::<dyn FnMut(String, js_sys::Array)>::new(
-            move |code: String, list: js_sys::Array| {
-                if code.is_empty() {
-                    query.set(None);
-                    return;
-                }
-                let options: Vec<String> =
-                    list.iter().filter_map(|item| item.as_string()).collect();
-                query.set(Some((code, options)));
-            },
-        );
+        let on_query = query_callback(query);
 
         let options = mount_options(
             &initial,
@@ -420,8 +410,50 @@ pub fn EmojiPanel(
     }
 }
 
+/// One row of the hint list: the code, and what to draw for it (a URL or a character).
+#[derive(Clone, Debug, PartialEq)]
+pub struct EmojiHint {
+    pub code: String,
+    pub preview: String,
+}
+
+/// The hints the editor is offering, and where the caret is inside the editor box.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EmojiHintsValue {
+    pub options: Vec<EmojiHint>,
+    pub left: f64,
+    pub top: f64,
+}
+
+/// The JS callback that carries the pending `:token` and the caret's place in the box.
+///
+/// It lives outside `RichEditor` so the component stays inside the line budget: the closure
+/// body is one wire crossing (a code, an array of pairs, two coordinates) and nothing else.
+fn query_callback(
+    query: RwSignal<Option<EmojiQuery>>,
+) -> Closure<dyn FnMut(String, js_sys::Array, f64, f64)> {
+    Closure::<dyn FnMut(String, js_sys::Array, f64, f64)>::new(
+        move |code: String, list: js_sys::Array, left: f64, top: f64| {
+            if code.is_empty() {
+                query.set(None);
+                return;
+            }
+            let options = list
+                .iter()
+                .filter_map(|item| {
+                    let pair = item.dyn_into::<js_sys::Array>().ok()?;
+                    let code = pair.get(0).as_string()?;
+                    let preview = pair.get(1).as_string()?;
+                    Some(EmojiHint { code, preview })
+                })
+                .collect();
+            query.set(Some(EmojiHintsValue { options, left, top }));
+        },
+    )
+}
+
 /// The `:token` the editor is completing and the shortcodes that match it.
-pub type EmojiQuery = (String, Vec<String>);
+pub type EmojiQuery = EmojiHintsValue;
 
 /// The options object `mount` reads. Kept out of `boot` so that function stays readable.
 fn mount_options(

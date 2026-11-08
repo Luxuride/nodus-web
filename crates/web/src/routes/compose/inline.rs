@@ -546,41 +546,58 @@ fn focus_textarea() {
     }
 }
 
-/// The codes that match the token being typed, above the body.
+/// The hints for the token being typed, anchored at the caret by the editor.
 ///
 /// Keyboard handling lives in the editor (Enter and Tab take the first match, Escape
 /// dismisses); this list exists so the writer can see *what* will be taken, and can click a
-/// row instead. Pressing a row must not blur the editor into a half-typed token, so the row
-/// calls back into the mounted editor rather than editing the text signal.
+/// row instead. Rows draw the emoji itself — an instance picture or the character — because
+/// a list of codes is a list the writer has to decode.
 #[component]
 fn EmojiHints(query: ReadSignal<Option<crate::ui::editor::EmojiQuery>>) -> impl IntoView {
     view! {
         <Show when=move || query.get().is_some()>
             {move || {
-                let (code, options) = query.get()?;
+                let hints = query.get()?;
+                let style = format!(
+                    "left: min({}px, calc(100% - 16rem)); top: {}px;",
+                    hints.left, hints.top
+                );
                 Some(view! {
                     <ul
-                        class="absolute bottom-full left-0 z-40 mb-1 max-h-48 w-64 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-xl"
+                        class="absolute z-40 max-h-48 w-64 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-xl"
+                        style=style
                         data-emoji-hints=""
                         role="listbox"
                         aria-label="Emoji matching the typed code"
                     >
-                        <li class="px-2 py-1 text-xs opacity-60">{format!(":{code}")}</li>
-                        {options
+                        {hints
+                            .options
                             .into_iter()
-                            .map(|option| {
-                                let label = option.clone();
+                            .map(|hint| {
+                                let code = hint.code.clone();
+                                let preview = hint.preview.clone();
+                                let label = format!(":{code}:");
+                                // One element or the other, decided before the view so the
+                                // markup holds no `Show` closure to satisfy.
+                                let face = if preview.starts_with("http") {
+                                    view! { <img class="h-5 w-5 object-contain" src=preview alt=""/> }
+                                        .into_any()
+                                } else {
+                                    view! { <span class="text-base">{preview}</span> }.into_any()
+                                };
                                 view! {
-                                    <li role="option">
+                                    <li role="option" class="flex items-center gap-2">
                                         <button
                                             type="button"
-                                            class="w-full rounded px-2 py-1 text-left text-sm hover:bg-base-200"
+                                            class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-base-200"
                                             on:mousedown=move |event: web_sys::MouseEvent| {
                                                 event.prevent_default();
-                                                let _ = crate::ui::editor::accept_active(&label);
+                                                let code = code.clone();
+                                                let _ = crate::ui::editor::accept_active(&code);
                                             }
                                         >
-                                            {format!(":{option}:")}
+                                            {face}
+                                            <span class="truncate">{label}</span>
                                         </button>
                                     </li>
                                 }

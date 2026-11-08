@@ -90,7 +90,12 @@ function mount(element, options = {}) {
     const found = [...custom, ...rest, ...plain].filter(
       (candidate, at, all) => all.indexOf(candidate) === at,
     );
-    return found.slice(0, 8);
+    // Each row carries what to draw: the instance's picture, or the character itself, so the
+    // list shows emoji rather than a list of codes the writer has to decode.
+    return found.slice(0, 8).map((candidate) => [
+      candidate,
+      index.get(`:${candidate}:`) ?? standard.get(candidate) ?? "",
+    ]);
   };
 
   /** The `:token` immediately before the caret, with the range it occupies. */
@@ -164,7 +169,7 @@ function mount(element, options = {}) {
       }
       if (event.key === "Tab" && hint) {
         event.preventDefault();
-        accept(hint.options[0]);
+        accept(hint.options[0][0]);
         return true;
       }
       if (event.key !== "Enter" || event.isComposing) {
@@ -174,7 +179,7 @@ function mount(element, options = {}) {
       // `:blob` is never what the writer meant.
       if (hint) {
         event.preventDefault();
-        accept(hint.options[0]);
+        accept(hint.options[0][0]);
         return true;
       }
       if (event.shiftKey) {
@@ -199,7 +204,21 @@ function mount(element, options = {}) {
         const before = hint;
         hint = trailing(view.state);
         if (hint?.code !== before?.code || hint?.options.length !== before?.options.length) {
-          onQuery(hint?.code ?? "", hint?.options ?? []);
+          // Where the caret is, so the list can sit at the word instead of at the box.
+          let left = 0;
+          let top = 0;
+          if (hint) {
+            try {
+              const caret = view.coordsAtPos(view.state.selection.from);
+              const host = element.getBoundingClientRect();
+              left = Math.max(0, Math.round(caret.left - host.left));
+              top = Math.round(caret.bottom - host.top);
+            } catch {
+              left = 0;
+              top = 0;
+            }
+          }
+          onQuery(hint?.code ?? "", hint?.options ?? [], left, top);
         }
         onText(toDraft(view.state.doc));
       }

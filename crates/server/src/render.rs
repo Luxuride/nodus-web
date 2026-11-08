@@ -512,7 +512,7 @@ pub fn profile_page(
             true,
             &format!("/accounts/{}", account.id),
             &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">{header}\
+                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">{header}\
                    <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
                  </div>",
                 more = more_button(cursor)
@@ -550,7 +550,7 @@ pub fn thread_page(assets: &Assets, acct: &str, status: &Status, context: &Conte
             true,
             &format!("/status/{}", status.id),
             &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">\
+                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
                    <ul class=\"flex flex-col gap-2\">{ancestors}</ul>\
                    <ul class=\"flex flex-col gap-2\">{focused}</ul>{replies}\
                  </div>",
@@ -757,7 +757,7 @@ pub fn landing(assets: &Assets) -> String {
         &chrome(
             false,
             "/",
-            "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">\
+            "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
                <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>\
                <p class=\"text-sm opacity-70\">A Mastodon client that keeps its state, so a page you \
                  have already read does not load again.</p>\
@@ -788,7 +788,7 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
                 false,
                 path,
                 &format!(
-                    "<section class=\"mx-auto flex w-full flex-col gap-3 max-w-md\">\
+                    "<section class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-md\">\
                        <div class=\"card border border-base-300 bg-base-100 shadow-sm\">\
                          <div class=\"card-body gap-4\">\
                            <h1 class=\"card-title\">Sign in</h1>\
@@ -813,7 +813,7 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
             acct.is_some(),
             path,
             &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">\
+                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
                    <div class=\"flex flex-col gap-1\">\
                      <h1 class=\"text-xl font-semibold tracking-tight\">{}</h1>\
                      <p class=\"text-sm opacity-70\">{}</p>\
@@ -976,7 +976,7 @@ pub fn error(assets: &Assets, message: &str) -> String {
             true,
             "/home",
             &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 max-w-2xl\">\
+                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
                    <h1 class=\"text-xl font-semibold tracking-tight\">Home</h1>\
                    <p class=\"alert alert-error mt-2 text-sm\" role=\"alert\">Could not read the timeline: {}</p>\
                  </div>",

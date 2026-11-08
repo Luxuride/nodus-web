@@ -128,26 +128,20 @@ pub struct Island<'a> {
 }
 
 /// One status as markup: who, when, what.
-fn status_card(status: &Status) -> String {
-    let boosted = status
-        .reblog
-        .as_ref()
-        .map(|_| {
-            format!(
-                "<p class=\"text-xs opacity-60\">{} boosted</p>",
-                escape(&status.account.acct)
-            )
-        })
-        .unwrap_or_default();
-    let inner: &Status = status.reblog.as_deref().unwrap_or(status);
-    let handle = format!("@{}{}", escape(&inner.account.acct), "");
+/// The attachment grid: images inline, video and audio with a player, and a one-picture
+/// post given the full width so it is not forced into a half-empty pair.
+fn media_grid(status: &Status) -> String {
     let mut media = String::new();
-    for attachment in &inner.media_attachments {
-        let Some(url) = attachment.url.as_deref() else {
+    for attachment in &status.media_attachments {
+        let href = attachment
+            .url
+            .as_deref()
+            .or(attachment.preview_url.as_deref())
+            .unwrap_or_default();
+        if href.is_empty() {
             continue;
-        };
-        let href = escape(url);
-        let poster = attachment
+        }
+        let preview = attachment
             .preview_url
             .as_deref()
             .map(|preview| format!(" poster=\"{}\"", escape(preview)))
@@ -160,28 +154,102 @@ fn status_card(status: &Status) -> String {
         let element = match attachment.kind {
             // A GIF in Mastodon is a muted video, so it plays in place and loops.
             MediaKind::Video | MediaKind::Gifv => format!(
-                "<video class=\"mt-2 w-full rounded\" controls playsinline preload=\"metadata\" loop{poster} src=\"{href}\"></video>"
+                "<li class=\"self-start overflow-hidden rounded-box\"><video class=\"max-h-[32rem] w-full rounded-box bg-base-300\" controls playsinline preload=\"metadata\" loop{preview} src=\"{href}\"></video></li>"
             ),
             MediaKind::Audio => format!(
-                "<audio class=\"mt-2 w-full\" controls preload=\"metadata\" src=\"{href}\"></audio>"
+                "<li class=\"self-start overflow-hidden rounded-box\"><audio class=\"w-full\" controls preload=\"metadata\" src=\"{href}\"></audio></li>"
             ),
             MediaKind::Image | MediaKind::Unknown => format!(
-                "<a class=\"mt-2 block\" href=\"{href}\"><img class=\"w-full rounded\" loading=\"lazy\"{alt} src=\"{href}\"></a>"
+                "<li class=\"self-start overflow-hidden rounded-box\"><img class=\"h-auto w-full rounded-box bg-base-300 object-cover\" loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"{alt} src=\"{href}\"></li>"
             ),
         };
-        let _ = std::fmt::Write::write_str(&mut media, &element);
+        media.push_str(&element);
     }
+    if media.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<ul class=\"{} gap-2\">{media}</ul>",
+            if status.media_attachments.len() == 1 {
+                "mt-1 grid grid-cols-1 items-start"
+            } else {
+                "mt-1 grid grid-cols-2 items-start"
+            }
+        )
+    }
+}
+
+fn status_card(status: &Status) -> String {
+    // A boost renders the boosted post under the booster's name, exactly as the client
+    // does: the wrapper carries nothing but the line that says who boosted it.
+    let (boosted, inner) = match status.reblog.as_deref() {
+        Some(inner) => (
+            format!(
+                "<p class=\"text-xs opacity-60\">{} boosted</p>",
+                escape(&status.account.acct)
+            ),
+            inner,
+        ),
+        None => (String::new(), status),
+    };
+    let name = if inner.account.display_name.is_empty() {
+        inner.account.acct.clone()
+    } else {
+        inner.account.display_name.clone()
+    };
+    let grid = media_grid(inner);
+    let avatar = if inner.account.avatar.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<img class=\"h-full w-full object-cover\" loading=\"lazy\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
+            escape(&inner.account.avatar)
+        )
+    };
     format!(
         "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-           <div class=\"card-body gap-1 p-4\">{boosted}\
-             <p class=\"text-sm font-semibold\">{name} <span class=\"font-normal opacity-60\">{handle}</span></p>\
-             <p class=\"text-xs opacity-60\">{when}</p>\
-             <div class=\"text-sm whitespace-pre-wrap\">{body}</div>{media}\
-           </div></li>",
-        name = escape(&inner.account.display_name),
-        when = escape(&inner.created_at),
+           <div class=\"card-body gap-3 p-4\">{boosted}\
+             <header class=\"flex items-center gap-3\">\
+               <a class=\"avatar\" href=\"/accounts/{id}\">\
+                 <div class=\"w-10 rounded-full bg-base-300 overflow-hidden\">{avatar}</div>\
+               </a>\
+               <div class=\"min-w-0 flex-1\">\
+                 <a class=\"block truncate font-semibold leading-tight hover:underline\" href=\"/accounts/{id}\">{name}</a>\
+                 <a class=\"block truncate text-sm opacity-60 hover:underline\" href=\"/accounts/{id}\">{handle}</a>\
+               </div>\
+               <a class=\"text-xs whitespace-nowrap opacity-50 hover:underline\" href=\"/status/{sid}\">{when}</a>\
+             </header>\
+             <div class=\"text-sm whitespace-pre-wrap\">{body}</div>{grid}\
+             <footer class=\"flex items-center justify-between gap-2 border-t border-base-200 pt-2\">\
+               <span class=\"text-xs opacity-60\">{replies} replies</span>\
+               <div class=\"flex items-center gap-1\">\
+                 <a class=\"btn btn-ghost btn-sm\" href=\"/status/{sid}\"><span>\u{21a9}</span><span class=\"ml-1\">Reply</span></a>\
+                 <span class=\"btn btn-ghost btn-sm\"><span>\u{21c4}</span><span class=\"ml-1 tabular-nums\">{reblogs}</span></span>\
+                 <span class=\"btn btn-ghost btn-sm\"><span>\u{2606}</span><span class=\"ml-1 tabular-nums\">{favourites}</span></span>\
+                 <span class=\"btn btn-ghost btn-sm\"><span>\u{1f516}</span></span>\
+               </div>\
+             </footer>\
+           </div>\
+         </li>",
+        id = escape(&inner.account.id),
+        name = escape(&name),
+        handle = escape(&inner.account.acct),
+        sid = escape(&inner.id),
+        when = escape(&stamp(&inner.created_at)),
         body = escape(&body_text(&inner.content)),
+        replies = inner.replies_count,
+        reblogs = inner.reblogs_count,
+        favourites = inner.favourites_count,
     )
+}
+
+/// The timestamp the server paints. The client replaces it with a relative time on mount;
+/// both are `text-xs` in the header, so the row keeps its height either way.
+fn stamp(rfc3339: &str) -> String {
+    rfc3339
+        .get(..16)
+        .map(|head| head.replace('T', " "))
+        .unwrap_or_default()
 }
 
 
@@ -381,25 +449,175 @@ pub fn landing(assets: &Assets) -> String {
 /// Painting the chrome is still worth it — the reader sees the application, not a blank
 /// document, while two megabytes of wasm arrive.
 pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
-    let who = acct.map_or_else(
-        || "<p class=\"text-sm opacity-70\">Sign in to see your timelines.</p>".to_owned(),
-        |acct| format!("<p class=\"text-sm opacity-70\">Signed in as {}</p>", escape(acct)),
-    );
+    if acct.is_none() {
+        // The client's gate, painted: a signed-out reader never gets a skeleton of a page
+        // they cannot see, and the card they *do* get is the one the client renders.
+        let (_, description) = describe(path);
+        return page(
+            assets,
+            "Sign in · Nodus",
+            &chrome(
+                false,
+                &format!(
+                    "<section class=\"mx-auto w-full max-w-md px-4 py-10\">\
+                       <div class=\"card border border-base-300 bg-base-100 shadow-sm\">\
+                         <div class=\"card-body gap-4\">\
+                           <h1 class=\"card-title\">Sign in</h1>\
+                           <p class=\"text-sm font-medium\">{}</p>\
+                           <p class=\"text-sm opacity-70\">Authorize this app on your instance. Approval happens on your instance's own page, and the access token it returns can be revoked there at any time.</p>\
+                           <span class=\"input input-bordered flex w-full items-center opacity-60\">mastodon.social</span>\
+                           <span class=\"btn btn-primary mt-2\">Sign in</span>\
+                         </div>\
+                       </div>\
+                     </section>",
+                    escape(&description)
+                ),
+            ),
+            None,
+        );
+    }
+    let (title, description) = describe(path);
     page(
         assets,
-        "Nodus",
+        &format!("{title} · Nodus"),
         &chrome(
             acct.is_some(),
             &format!(
-                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-2\">\
-                   <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>{who}\
-                   <p class=\"text-xs opacity-50\">Opening {}</p>\
+                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
+                   <div class=\"flex flex-col gap-1\">\
+                     <h1 class=\"text-xl font-semibold tracking-tight\">{}</h1>\
+                     <p class=\"text-sm opacity-70\">{}</p>\
+                   </div>{tabs}{body}\
                  </div>",
-                escape(path)
+                escape(&title),
+                escape(&description),
+                tabs = tabs_for(path),
+                body = skeleton(path)
             ),
         ),
         None,
     )
+}
+
+/// What this address is, in the same words the screen itself uses.
+fn describe(path: &str) -> (String, String) {
+    let head = path.trim_start_matches('/');
+    let section = head.split('/').next().unwrap_or_default();
+    let (title, description) = match section {
+        "messages" => ("Messages", "Direct conversations, newest first."),
+        "notifications" => (
+            "Notifications",
+            "Mentions, boosts, favourites and follow requests.",
+        ),
+        "search" => (
+            "Search",
+            "Accounts, posts and hashtags, including remote ones.",
+        ),
+        "directory" => ("People", "Accounts this instance suggests."),
+        "saved" => ("Saved", "Your favourites and bookmarks, newest first."),
+        "scheduled" => ("Scheduled", "Posts waiting to be published."),
+        "lists" => (
+            "Lists",
+            "Hand-picked accounts with a timeline each.",
+        ),
+        "compose" => ("Compose", "A post, with media, a content warning and a poll."),
+        "status" => ("Conversation", "This post and the replies to it."),
+        "accounts" => ("Profile", "An account and what it published."),
+        "settings" => ("Settings", "Profile, tags, filters, sync and this instance."),
+        "moderation" => ("Moderation", "Reports, accounts and federation decisions."),
+        "admin" => ("Administration", "This instance: its server and what it publishes."),
+        "feed" => ("Feed", "Posts chosen for you, from this instance and elsewhere."),
+        "local" => ("Local", "Posts from accounts on this instance."),
+        "federated" => ("Federated", "Posts this instance has received from elsewhere."),
+        _ => ("Nodus", "A Mastodon client that keeps its state."),
+    };
+    (title.to_owned(), description.to_owned())
+}
+
+/// The section's own tab strip, painted so the heading does not move when the client
+/// mounts. The client replaces it with the same strip, one tab marked active.
+fn tabs_for(path: &str) -> String {
+    let head = path.trim_start_matches('/');
+    let section = head.split('/').next().unwrap_or_default();
+    let tabs: &[(&str, &str)] = match section {
+        "settings" => &[
+            ("Account", "/settings/account"),
+            ("Profile", "/settings/profile"),
+            ("Nodus", "/settings/nodus"),
+            ("Filters", "/settings/filters"),
+            ("Instance", "/settings/instance"),
+        ],
+        "saved" => &[
+            ("Favourites", "/saved/favourites"),
+            ("Bookmarks", "/saved/bookmarks"),
+        ],
+        "local" | "federated" | "feed" | "home" => &[
+            ("Home", "/home"),
+            ("Feed", "/feed"),
+            ("Local", "/local"),
+            ("Federated", "/federated"),
+        ],
+        _ => &[],
+    };
+    if tabs.is_empty() {
+        return String::new();
+    }
+    let mut items = String::new();
+    for (label, href) in tabs {
+        let active = if head == href.trim_start_matches('/') || path == *href {
+            " tab-active"
+        } else {
+            ""
+        };
+        let _ = write!(
+            items,
+            "<a role=\"tab\" class=\"tab{active}\" href=\"{}\"{}>{}</a>",
+            escape(href),
+            if active.is_empty() { "" } else { " aria-selected=\"true\"" },
+            escape(label)
+        );
+    }
+    format!("<div role=\"tablist\" class=\"tabs tabs-box\">{items}</div>")
+}
+
+/// A skeleton of the screen, drawn at the sizes the real cards take.
+///
+/// The server cannot paint a thread or a notification queue — it has neither — but it can
+/// paint the shape: the same card frames, at the same paddings, so the client's first
+/// render lands in the space already reserved instead of pushing the page around.
+fn skeleton(path: &str) -> String {
+    let head = path.trim_start_matches('/');
+    let section = head.split('/').next().unwrap_or_default();
+    let rows = match section {
+        "messages" | "notifications" | "search" | "directory" | "saved" | "scheduled"
+        | "lists" | "local" | "federated" | "feed" | "moderation" | "admin" => 4,
+        "status" => 1,
+        _ => 3,
+    };
+    let mut cards = String::new();
+    for _ in 0..rows {
+        let _ = write!(
+            cards,
+            "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
+               <div class=\"card-body gap-3 p-4\">\
+                 <div class=\"flex items-center gap-3\">\
+                   <div class=\"skeleton h-10 w-10 shrink-0 rounded-full\"></div>\
+                   <div class=\"flex min-w-0 flex-1 flex-col gap-1\">\
+                     <div class=\"skeleton h-3 w-1/3\"></div>\
+                     <div class=\"skeleton h-3 w-1/4\"></div>\
+                   </div>\
+                 </div>\
+                 <div class=\"skeleton h-3 w-full\"></div>\
+                 <div class=\"skeleton h-3 w-4/5\"></div>\
+                 <div class=\"flex gap-2 border-t border-base-200 pt-2\">\
+                   <div class=\"skeleton h-6 w-16\"></div>\
+                   <div class=\"skeleton h-6 w-16\"></div>\
+                 </div>\
+               </div>\
+             </li>"
+        );
+    }
+    format!("<ul class=\"flex flex-col gap-2\">{cards}</ul>")
 }
 
 /// A page that says what went wrong and still loads the app, so the reader can sign out or

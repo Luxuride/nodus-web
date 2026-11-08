@@ -389,6 +389,17 @@ fn timeline_header(path: &str) -> String {
     })
 }
 
+/// The screen heading, drawn by the crate the client draws with.
+fn page_header(title: &str, description: &str) -> String {
+    use leptos::prelude::*;
+
+    let title = title.to_owned();
+    let description = description.to_owned();
+    Owner::new().with(|| {
+        nodus_view::PageHeader(nodus_view::PageHeaderProps { title, description }).to_html()
+    })
+}
+
 /// The signed-in home page, painted.
 pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&str>) -> String {
     feed(assets, acct, "home", "Home", "/home", statuses, cursor)
@@ -581,14 +592,8 @@ pub fn list_page(
             true,
             path,
             &format!(
-                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">\
-                   <header class=\"flex flex-col gap-1\">\
-                     <h1 class=\"text-lg font-semibold\">{heading}</h1>\
-                     <p class=\"text-sm opacity-70\">{description}</p>\
-                   </header>{inner}\
-                 </div>",
-                heading = escape(heading),
-                description = escape(description)
+                "<div class=\"mx-auto flex w-full max-w-2xl flex-col gap-3\">{}{inner}</div>",
+                page_header(heading, description)
             ),
         ),
         island.as_deref(),

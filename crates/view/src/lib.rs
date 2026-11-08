@@ -282,3 +282,20 @@ pub fn ComposerCard(children: ChildrenFn) -> impl IntoView {
         </div>
     }
 }
+
+/// A title and one sentence of orientation.
+///
+/// The sentence is not decoration: a reader arriving from a link needs to know what the
+/// screen is for before it finishes loading, and every empty state on the screen is cheaper
+/// to read once that is on the page. It lives here because both paints open a screen with
+/// it, and a heading that drifts by one opacity step is exactly the kind of difference that
+/// makes a handover look like a reload.
+#[component]
+pub fn PageHeader(#[prop(into)] title: String, #[prop(into)] description: String) -> impl IntoView {
+    view! {
+        <header class="flex flex-col gap-0.5">
+            <h1 class="text-lg font-semibold">{title}</h1>
+            <p class="text-sm opacity-60">{description}</p>
+        </header>
+    }
+}

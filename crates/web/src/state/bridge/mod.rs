@@ -247,6 +247,10 @@ fn install(instance: &Instance, token: &str) -> Result<(), String> {
         subscriptions.push(state.stream.subscribe(bump));
         subscriptions.push(state.feed.subscribe(bump));
         subscriptions.push(state.timelines.subscribe(bump));
+        // The page store backs notifications, messages, saved, scheduled, people and the
+        // directory. Without this line the first visit to any of them loaded the data and
+        // then never re-rendered: the screen showed its empty state until it was remounted.
+        subscriptions.push(state.pages.subscribe(bump));
         // Entities, for the same reason as pages: a status that arrives on the socket,
         // or is favourited in another tab, must repaint every screen showing it.
         subscriptions.push(state.statuses.subscribe(bump));

@@ -13,7 +13,7 @@ use wasm_bindgen_futures::JsFuture;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
-/// The id of the hidden file input, so the `+` button can open the picker.
+/// The id of the hidden file input, so the control row can open the picker.
 const ATTACH_INPUT: &str = "nodus-attach-input";
 
 /// Reads a picked file into bytes and its declared MIME type.
@@ -24,7 +24,19 @@ async fn read(file: web_sys::File) -> Result<(Vec<u8>, String), String> {
     Ok((js_sys::Uint8Array::new(&buffer).to_vec(), file.type_()))
 }
 
-/// The upload control and the thumbnails of what has been uploaded.
+/// Opens the hidden picker. The button lives in the control row, so the row is the only
+/// place that has to know how a file gets chosen.
+pub fn request_pick() {
+    if let Some(input) = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.get_element_by_id(ATTACH_INPUT))
+        .and_then(|element| element.dyn_into::<web_sys::HtmlInputElement>().ok())
+    {
+        input.click();
+    }
+}
+
+/// The hidden file input and the thumbnails of what has been uploaded.
 #[component]
 pub fn Attachments(
     media: RwSignal<Vec<MediaAttachment>>,
@@ -77,19 +89,6 @@ pub fn Attachments(
         });
     };
 
-    // One add button, and the list of what was added. The native control is hidden
-    // because its own wording ("No file chosen") is a sentence about the browser's state
-    // rather than about the post, and it stays on screen after the upload has finished.
-    let open_picker = move |()| {
-        if let Some(input) = web_sys::window()
-            .and_then(|window| window.document())
-            .and_then(|document| document.get_element_by_id(ATTACH_INPUT))
-            .and_then(|element| element.dyn_into::<web_sys::HtmlInputElement>().ok())
-        {
-            input.click();
-        }
-    };
-
     view! {
         <div class="flex flex-wrap items-center gap-2">
             <input
@@ -101,16 +100,6 @@ pub fn Attachments(
                 disabled=move || uploading.get()
                 on:change=pick
             />
-            <button
-                type="button"
-                class="btn btn-outline btn-sm gap-1 border-dashed"
-                title="Add images, video or audio"
-                disabled=move || uploading.get()
-                on:click=move |_| open_picker(())
-            >
-                <span class="text-base leading-none">"+"</span>
-                <span>"Add media"</span>
-            </button>
             <Show when=move || uploading.get()>
                 <span class="loading loading-spinner loading-xs" aria-label="Uploading"></span>
             </Show>

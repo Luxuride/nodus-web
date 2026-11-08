@@ -66,7 +66,10 @@ export function sessionRecord({ host = HOST, token = TOKEN, id = ACCOUNT_ID, acc
  * request pass by matching the wrong route, which is the class of bug these tests
  * exist to catch.
  */
-export async function stubApi(page, { statuses = [status()], status: single } = {}) {
+export async function stubApi(
+  page,
+  { statuses = [status()], status: single, notifications = [] } = {},
+) {
   await page.route('**/api/v1/meta', (route) =>
     route.fulfill({
       json: { api: '1', contract: '0.1.0', min_contract: '0.1.0', features: [] },
@@ -83,7 +86,9 @@ export async function stubApi(page, { statuses = [status()], status: single } = 
   await page.route(/\/api\/v1\/statuses\/[^/]+$/, (route) =>
     route.fulfill({ json: single ?? statuses[0] }),
   )
-  await page.route('**/api/v1/notifications**', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/v1/notifications**', (route) =>
+    route.fulfill({ json: notifications }),
+  )
   await page.route('**/api/v1/me', (route) =>
     route.fulfill({
       json: {
@@ -113,4 +118,15 @@ export async function signedIn(page, { host = HOST, id = ACCOUNT_ID, acct = 'ada
     },
     [sessionRecord({ host, id, acct }), host, id, acct],
   )
+}
+
+/** One notification, shaped like the wire's. */
+export function notification({ id = '5001', type = 'favourite' } = {}) {
+  return {
+    id,
+    type,
+    created_at: '2024-01-01T00:00:00.000Z',
+    account,
+    status: status(),
+  }
 }

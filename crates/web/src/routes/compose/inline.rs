@@ -9,7 +9,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{MediaAttachment, Visibility};
 
-use crate::routes::compose::attachments::Attachments;
+use crate::routes::compose::attachments::{self, Attachments};
 use crate::routes::compose::inline::bar::ComposerBar;
 use crate::state::alive::Alive;
 use crate::state::bridge::{actions, timeline};
@@ -162,8 +162,6 @@ pub fn InlineComposer(
                     on:input=move |event| set_text.set(event_target_value(&event))
                 />
 
-                <Attachments media=media set_error=set_error/>
-
                 <ComposerBar
                     text=text
                     visibility=visibility
@@ -171,8 +169,13 @@ pub fn InlineComposer(
                     when=when
                     set_when=set_when
                     busy=busy
+                    on_add_media=Callback::new(move |()| attachments::request_pick())
                     on_submit=on_submit
                 />
+
+                // The thumbnails get their own row: they are the result of the control
+                // above, and squeezing them into it would push the buttons around.
+                <Attachments media=media set_error=set_error/>
 
                 {move || error.get().map(|message| view! {
                     <p class="text-error text-xs" role="alert">{message}</p>

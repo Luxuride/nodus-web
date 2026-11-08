@@ -15,11 +15,24 @@ pub(super) fn ComposerBar(
     when: ReadSignal<When>,
     set_when: WriteSignal<When>,
     busy: ReadSignal<bool>,
+    /// Opens the media picker.
+    on_add_media: Callback<()>,
     on_submit: Callback<()>,
 ) -> impl IntoView {
     let count = move || text.get().chars().count();
     view! {
         <div class="flex flex-wrap items-center gap-2">
+            <button
+                type="button"
+                class="btn btn-outline btn-sm gap-1 border-dashed"
+                title="Add images, video or audio"
+                disabled=move || busy.get()
+                on:click=move |_| on_add_media.run(())
+            >
+                <span class="text-base leading-none">"+"</span>
+                <span>"Media"</span>
+            </button>
+
             <VisibilityPicker visibility=visibility set_visibility=set_visibility/>
 
             <select

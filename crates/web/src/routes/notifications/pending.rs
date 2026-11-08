@@ -28,9 +28,11 @@ pub fn PendingRequests(set_error: WriteSignal<Option<String>>) -> impl IntoView 
         pending.get();
 
         spawn_local(async move {
-            match actions::follow_requests().await {
-                Ok(found) => alive.if_alive(|| set_requests.set(found)),
-                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            // Quiet on failure: this list is a supplement to the notifications the reader
+            // came for, and a server that refuses it must not paint an error over them. An
+            // empty list renders nothing, which is the honest outcome.
+            if let Ok(found) = actions::follow_requests().await {
+                alive.if_alive(|| set_requests.set(found));
             }
         });
     });

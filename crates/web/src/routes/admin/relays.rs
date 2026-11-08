@@ -9,10 +9,10 @@ use crate::state::bridge::{admin, revision};
 
 /// Relays followed, plus the domains allowed through a block.
 #[component]
-pub(super) fn Federation() -> impl IntoView {
+pub fn Relays() -> impl IntoView {
     view! {
         <div class="flex flex-col gap-3">
-            <Relays/>
+            <RelayList/>
             <AllowedDomains/>
         </div>
     }
@@ -20,7 +20,7 @@ pub(super) fn Federation() -> impl IntoView {
 
 /// The relays this instance follows, and the form that adds one.
 #[component]
-fn Relays() -> impl IntoView {
+fn RelayList() -> impl IntoView {
     let revision = revision();
     let (items, set_items) = signal(Vec::<Relay>::new());
     let (url, set_url) = signal(String::new());

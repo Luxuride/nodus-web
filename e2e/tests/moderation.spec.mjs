@@ -1,17 +1,11 @@
-//! The administration area is addressable: one section per URL, reachable by link.
+//! Moderation and administration are separate areas, each addressable per section.
 
 import { expect, test } from '@playwright/test'
 
 import { HOST, signedIn, stubApi } from '../fixtures.mjs'
 
-const SECTIONS = [
-  'Overview',
-  'Reports',
-  'Accounts',
-  'Registrations',
-  'Federation',
-  'Announcements',
-]
+const MODERATION = ['Reports', 'Accounts', 'Registrations', 'Federation']
+const ADMINISTRATION = ['Overview', 'Relays', 'Announcements']
 
 /** Answer everything the probes touch, as a moderator would see it. */
 async function moderator(page) {
@@ -24,7 +18,7 @@ async function moderator(page) {
   await page.route('**/api/v1/announcements**', (route) => route.fulfill({ json: [] }))
 }
 
-test('administration has a section per address, reachable by link', async ({ page }) => {
+test('moderation and administration are separate areas, one section per address', async ({ page }) => {
   await signedIn(page)
   await stubApi(page)
   await moderator(page)
@@ -35,12 +29,12 @@ test('administration has a section per address, reachable by link', async ({ pag
     ['nodus-admin/1', `${HOST}\tstub-admin-token`],
   )
 
-  await page.goto('/admin')
-  await expect(page.getByRole('heading', { name: 'Administration' })).toBeVisible()
+  await page.goto('/moderation')
+  await expect(page.getByRole('heading', { name: 'Moderation', level: 1 })).toBeVisible()
 
   const tabs = page.getByRole('tablist').first().getByRole('tab')
-  await expect(tabs).toHaveCount(SECTIONS.length)
-  for (const section of SECTIONS) {
+  await expect(tabs).toHaveCount(MODERATION.length)
+  for (const section of MODERATION) {
     await expect(page.getByRole('tab', { name: section })).toBeVisible()
   }
 
@@ -48,16 +42,22 @@ test('administration has a section per address, reachable by link', async ({ pag
     window.__marker = 'kept'
   })
   await page.getByRole('tab', { name: 'Registrations' }).click()
-  await expect(page).toHaveURL(`/admin/registrations`)
+  await expect(page).toHaveURL(`/moderation/registrations`)
   await expect(page.getByRole('heading', { name: 'Invitations' })).toBeVisible()
   expect(await page.evaluate(() => window.__marker)).toBe('kept')
 
-  // A deep link lands on its section, and an unknown section lands on the overview
-  // rather than on an error: a stale bookmark should still be useful.
-  await page.goto('/admin/federation')
+  // Administration is the other half, with its own sections.
+  await page.goto('/admin')
+  for (const section of ADMINISTRATION) {
+    await expect(page.getByRole('tab', { name: section })).toBeVisible()
+  }
+
+  // A deep link lands on its section, and an unknown section lands on the default rather
+  // than on an error: a stale bookmark should still be useful.
+  await page.goto('/moderation/federation')
   await expect(page.getByRole('tab', { name: 'Federation' })).toHaveClass(/tab-active/)
-  await page.goto('/admin/not-a-section')
-  await expect(page.getByRole('tab', { name: 'Overview' })).toHaveClass(/tab-active/)
+  await page.goto('/moderation/not-a-section')
+  await expect(page.getByRole('tab', { name: 'Reports' })).toHaveClass(/tab-active/)
 
   await expect(page).toHaveTitle(new RegExp(`${HOST}|Nodus`, 'i')).catch(() => {})
 })

@@ -75,6 +75,7 @@ pub enum Route {
     /// Accounts the viewer blocked.
     Blocks,
     Admin(String),
+    Moderation(String),
     /// Settings, with the section in the address (`/settings/privacy`). Empty is the
     /// account section, so `/settings` stays a working link.
     Settings(String),
@@ -124,6 +125,7 @@ impl Route {
             Self::Mutes => "/mutes".to_owned(),
             Self::Blocks => "/blocks".to_owned(),
             Self::Admin(section) => format!("/admin/{section}"),
+            Self::Moderation(section) => format!("/moderation/{section}"),
             Self::Settings(section) => format!("/settings/{section}"),
             // The OAuth flow registers this path as `redirect_uris`; sharing the
             // constant is what keeps the address bar and the registered URI identical.
@@ -174,6 +176,11 @@ impl Route {
                 return Self::Settings(section.to_owned());
             }
         }
+        if let Some(section) = trimmed.strip_prefix("/moderation/") {
+            if !section.is_empty() {
+                return Self::Moderation(section.to_owned());
+            }
+        }
         if let Some(section) = trimmed.strip_prefix("/admin/") {
             if !section.is_empty() {
                 return Self::Admin(section.to_owned());
@@ -211,6 +218,7 @@ impl Route {
             "/mutes" => Self::Mutes,
             "/blocks" => Self::Blocks,
             "/admin" => Self::Admin(ADMIN_DEFAULT.to_owned()),
+            "/moderation" => Self::Moderation(MODERATION_DEFAULT.to_owned()),
             "/settings" => Self::Settings(SECTION_DEFAULT.to_owned()),
             _ => Self::Feed,
         }
@@ -336,6 +344,9 @@ pub const SHELF_DEFAULT: &str = "favourites";
 /// The administration section `/admin` lands on. Declared here rather than in the admin
 /// module so a build without the moderation screens can still parse the address.
 pub const ADMIN_DEFAULT: &str = "overview";
+
+/// The moderation section `/moderation` lands on: the queue is what a moderator opens.
+pub const MODERATION_DEFAULT: &str = "reports";
 
 pub const BASE: &str = match option_env!("NODUS_BASE") {
     Some(base) => base,

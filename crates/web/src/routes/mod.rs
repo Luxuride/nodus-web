@@ -13,6 +13,8 @@ pub mod filtering;
 pub mod format;
 pub mod home;
 pub mod lists;
+#[cfg(feature = "admin")]
+pub mod moderation;
 pub mod notifications;
 pub mod people;
 pub mod saved;

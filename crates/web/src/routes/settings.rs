@@ -8,7 +8,7 @@
 use leptos::prelude::*;
 
 use crate::routes::settings::sync::SyncCard;
-use crate::state::bridge::{revision, sign_out, with_sdk};
+use crate::state::bridge::{revision, with_sdk};
 
 mod accounts;
 #[cfg(feature = "admin")]
@@ -20,6 +20,7 @@ pub(crate) mod instance;
 mod moderation;
 mod profile;
 pub(crate) mod sensitive;
+mod session;
 pub(crate) mod sync;
 mod tabs;
 pub(crate) mod tags;
@@ -34,6 +35,7 @@ use instance::InstanceCard;
 use moderation::ModerationLinks;
 use profile::ProfileCard;
 use sensitive::SensitiveCard;
+use session::SessionCard;
 use tabs::{SettingsTabs, Tab};
 use tags::FeaturedTagsCard;
 
@@ -75,28 +77,9 @@ pub fn Settings(section: String) -> impl IntoView {
             <SettingsTabs tab=tab/>
 
             <Show when=move || tab.get() == Tab::Account>
-                <ModerationLinks/>
-                <div class="card mb-4 border border-base-300 bg-base-100 shadow-sm">
-                <div class="card-body gap-2 p-4">
-                    <h2 class="card-title text-base">"Session"</h2>
-                    <dl class="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
-                        <dt class="opacity-60">"Instance"</dt>
-                        <dd class="truncate">{move || host()}</dd>
-                        <dt class="opacity-60">"Account"</dt>
-                        <dd class="truncate">{move || acct()}</dd>
-                    </dl>
-                    <div class="card-actions mt-2 justify-end">
-                        <button class="btn btn-ghost btn-sm" on:click=move |_| sign_out()>
-                            "Sign out"
-                        </button>
-                    </div>
-                    <p class="text-xs opacity-60">"Signing out forgets the token stored in this browser."</p>
-                </div>
-            </div>
-
+                <SessionCard host=host acct=acct/>
                 <AccountsCard/>
                 <ModerationLinks/>
-
             </Show>
 
             <Show when=move || tab.get() == Tab::Profile>
@@ -105,19 +88,13 @@ pub fn Settings(section: String) -> impl IntoView {
                 <SensitiveCard/>
             </Show>
 
-            <Show when=move || tab.get() == Tab::Privacy>
+            <Show when=move || tab.get() == Tab::Nodus>
                 <SyncCard/>
-            </Show>
-
-            <Show when=move || tab.get() == Tab::Feeds>
                 <FeedsCard/>
             </Show>
 
             <Show when=move || tab.get() == Tab::Filters>
                 <FiltersCard/>
-            </Show>
-
-            <Show when=move || tab.get() == Tab::Tags>
                 <FeaturedTagsCard/>
             </Show>
 

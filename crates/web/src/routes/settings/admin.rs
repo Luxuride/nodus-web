@@ -71,21 +71,32 @@ pub fn AdministrationCard() -> impl IntoView {
             <div class="flex flex-col gap-3">
                 <div class="card border border-base-300 bg-base-100 shadow-sm">
                     <div class="card-body gap-2 p-4">
-                        <h2 class="card-title text-base">"Administration"</h2>
+                        <h2 class="card-title text-base">"Staff areas"</h2>
                         <p class="text-sm opacity-70">
-                            "Reports, account standing, registrations, federation and
-                             announcements each have their own section under /admin."
+                            "Two separate places: moderation is decisions about people,
+                             administration is decisions about this server."
                         </p>
                         <div class="card-actions mt-1 flex-wrap gap-2">
                             <a
                                 class="btn btn-primary btn-sm"
+                                href=Route::Moderation(crate::router::MODERATION_DEFAULT.to_owned())
+                                    .path()
+                                on:click=move |event| crate::router::link(
+                                    event,
+                                    Route::Moderation(crate::router::MODERATION_DEFAULT.to_owned()),
+                                )
+                            >
+                                "Moderation"
+                            </a>
+                            <a
+                                class="btn btn-outline btn-sm"
                                 href=Route::Admin(crate::router::ADMIN_DEFAULT.to_owned()).path()
                                 on:click=move |event| crate::router::link(
                                     event,
                                     Route::Admin(crate::router::ADMIN_DEFAULT.to_owned()),
                                 )
                             >
-                                "Open administration"
+                                "Administration"
                             </a>
                             <a
                                 class="btn btn-ghost btn-sm"

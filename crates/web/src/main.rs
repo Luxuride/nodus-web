@@ -120,7 +120,7 @@ fn App() -> impl IntoView {
 
                         <li class="menu-title hidden xl:block">"Account"</li>
                         <RailItem label="Settings" icon=Icon::Settings hint="Profile, tags, filters, sync and this instance" route=Route::Settings(crate::router::SECTION_DEFAULT.to_owned())/>
-                        {moderation_rail_item()}
+                        {staff_rail_items()}
                     </ul>
                 </nav>
                 </Show>
@@ -169,6 +169,23 @@ fn App() -> impl IntoView {
                                     .into_any()
                             }
                             Route::Lists if signed_in => view! { <Lists/> }.into_any(),
+                            Route::Moderation(section) if signed_in => {
+                                #[cfg(feature = "admin")]
+                                {
+                                    view! { <crate::routes::moderation::Moderation section=section/> }
+                                        .into_any()
+                                }
+                                #[cfg(not(feature = "admin"))]
+                                {
+                                    let _ = &section;
+                                    view! {
+                                        <p class="text-sm opacity-70">
+                                            "This build has no moderation screens."
+                                        </p>
+                                    }
+                                    .into_any()
+                                }
+                            }
                             Route::Admin(section) if signed_in => {
                                 #[cfg(feature = "admin")]
                                 {
@@ -247,7 +264,7 @@ fn App() -> impl IntoView {
                                 }
                                     .into_any()
                             }
-                            Route::Admin(_) => {
+                            Route::Admin(_) | Route::Moderation(_) => {
                                 view! { <SignIn note="Sign in to moderate."/> }.into_any()
                             }
                             // A shared link works without a session: the address names the
@@ -353,16 +370,22 @@ fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -
 /// so the choice has to be made by a function that simply does not exist in the other
 /// build.
 #[cfg(feature = "admin")]
-fn moderation_rail_item() -> impl IntoView {
+fn staff_rail_items() -> impl IntoView {
     view! {
         <RailItem
-            label="Administration"
+            label="Moderation"
             icon=Icon::Shield
-            hint="Reports, accounts, registrations, federation and announcements"
+            hint="Reports, accounts, registrations and blocked domains"
+            route=Route::Moderation(crate::router::MODERATION_DEFAULT.to_owned())
+        />
+        <RailItem
+            label="Administration"
+            icon=Icon::Globe
+            hint="The dashboard, relays, allowed domains and announcements"
             route=Route::Admin(crate::router::ADMIN_DEFAULT.to_owned())
         />
     }
 }
 
 #[cfg(not(feature = "admin"))]
-fn moderation_rail_item() -> impl IntoView {}
+fn staff_rail_items() -> impl IntoView {}

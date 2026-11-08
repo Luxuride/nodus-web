@@ -276,11 +276,16 @@ so the dev origin contains no CORS surprises.
     this client never saw. Writes are never queued: an action attempted offline fails
     visibly, because a favourite the server never received must not look applied.
 
-### Administration is an area, not a tab
+### Moderation and administration are two areas
 
-`/admin` is its own addressable area with six sections — `overview`, `reports`, `accounts`,
-`registrations`, `federation`, `announcements` — one URL each (`/admin/{slug}`), the same
-shape as Settings and Saved. The reasons are the ones that produced the tab strips in the
+Mastodon draws the line and so do we: **moderation** is a decision about people
+(`/moderation/{reports,accounts,registrations,federation}` — the queue, standing,
+approvals, blocked domains) and **administration** is a decision about the server
+(`/admin/{overview,relays,announcements}` — the dashboard, relays and allowed domains,
+announcements). A moderator who is not an administrator should not have to read server
+levers to find the report queue.
+
+Each area is addressable, one URL per section, the same shape as Settings and Saved. The reasons are the ones that produced the tab strips in the
 first place: a section can be bookmarked, sent to another moderator, and reloaded, and the
 browser's back button does what it says. Unknown slugs land on the overview rather than on
 an error, because a stale bookmark should still be useful.

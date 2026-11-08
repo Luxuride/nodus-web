@@ -77,7 +77,7 @@ test('a feed can be hidden from the home tabs in settings', async ({ page }) => 
   const tabs = page.getByRole('tablist').first()
   await expect(tabs.getByRole('tab', { name: 'Local' })).toBeVisible()
 
-  await page.goto('/settings/feeds')
+  await page.goto('/settings/nodus')
   await page.getByRole('checkbox', { name: /Local/ }).uncheck()
 
   // The tab is gone, and it is gone without a reload: the strip is rendered from the
@@ -88,7 +88,7 @@ test('a feed can be hidden from the home tabs in settings', async ({ page }) => 
   await expect(page.getByRole('tablist').first().getByRole('tab', { name: 'Home' })).toHaveCount(1)
 
   // Turning it back on restores it, so the test leaves the profile as it found it.
-  await page.goto('/settings/feeds')
+  await page.goto('/settings/nodus')
   await page.getByRole('checkbox', { name: /Local/ }).check()
 })
 
@@ -112,7 +112,7 @@ test('home stays in the navigation, and the feed can be closed', async ({ page }
   test.skip(test.info().project.name !== 'desktop', 'the rail is hidden on a phone');
   await stubApi(page, {});
   await signedIn(page);
-  await page.goto('/settings/feeds');
+  await page.goto('/settings/nodus');
   // Home is the front door: its switch exists so the rule is visible, not so it can be
   // turned off.
   const home = page.locator('label', { hasText: 'Home' }).locator('input[type="checkbox"]').first();

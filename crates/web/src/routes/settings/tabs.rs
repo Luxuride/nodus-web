@@ -4,16 +4,16 @@ use leptos::prelude::*;
 
 use crate::router::Route;
 
-/// One settings section at a time: seven cards stacked read as a wall, and the reader
-/// arrives knowing which one they came for.
+/// One settings section at a time: cards stacked read as a wall, and the reader arrives
+/// knowing which one they came for. Six sections, each answering one question — who am I,
+/// what do I look like, what does Nodus do for me, what do I hide, where am I, and what may
+/// I moderate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tab {
     Account,
     Profile,
-    Privacy,
-    Feeds,
+    Nodus,
     Filters,
-    Tags,
     Instance,
     Administration,
 }
@@ -28,10 +28,8 @@ impl Tab {
         let mut sections = vec![
             Self::Account,
             Self::Profile,
-            Self::Privacy,
-            Self::Feeds,
+            Self::Nodus,
             Self::Filters,
-            Self::Tags,
             Self::Instance,
         ];
         if cfg!(feature = "admin") {
@@ -44,10 +42,8 @@ impl Tab {
         match self {
             Self::Account => "Account",
             Self::Profile => "Profile",
-            Self::Privacy => "Privacy",
-            Self::Feeds => "Feeds",
+            Self::Nodus => "Nodus",
             Self::Filters => "Filters",
-            Self::Tags => "Tags",
             Self::Instance => "Instance",
             Self::Administration => "Administration",
         }
@@ -59,10 +55,8 @@ impl Tab {
         match self {
             Self::Account => "account",
             Self::Profile => "profile",
-            Self::Privacy => "privacy",
+            Self::Nodus => "nodus",
             Self::Filters => "filters",
-            Self::Tags => "tags",
-            Self::Feeds => "feeds",
             Self::Instance => "instance",
             Self::Administration => "administration",
         }
@@ -80,13 +74,11 @@ impl Tab {
     pub fn hint(self) -> &'static str {
         match self {
             Self::Account => "This session, connected accounts, muting and blocking",
-            Self::Profile => "Display name, bio, and how sensitive media is shown",
-            Self::Privacy => "Background sync consent and the token it uses",
-            Self::Feeds => "Which timelines the navigation offers",
-            Self::Filters => "Words and phrases to hide or warn about",
-            Self::Tags => "Hashtags pinned to your profile",
-            Self::Instance => "The rules this instance publishes",
-            Self::Administration => "Invites, pending approvals and the moderation screens",
+            Self::Profile => "Display name, bio, clock and how sensitive media is shown",
+            Self::Nodus => "Recommendations, background sync and which feeds the rail offers",
+            Self::Filters => "Words and phrases to hide, and hashtags pinned to your profile",
+            Self::Instance => "The instance's own identity and rules",
+            Self::Administration => "The grant, and the way into moderation and administration",
         }
     }
 }

@@ -3,7 +3,7 @@
 use super::{admin_transport, instance_transport};
 use nodus_instance::actions::{AdminActions, RegistrationActions};
 use nodus_instance::model::{
-    AdminAccount, AdminMeasure, Announcement, DomainAllow, DomainBlock, DomainSeverity,
+    AdminAccount, AdminMeasure, DomainAllow, DomainBlock, DomainSeverity,
     ModerationAction, Relay, Report, ReportState,
 };
 
@@ -131,42 +131,6 @@ pub async fn delete_domain_block(id: &str) -> Result<(), String> {
         .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .delete_domain_block(id)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// Announcements, including ones this account has not seen yet.
-pub async fn announcements() -> Result<Vec<Announcement>, String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .admin_announcements()
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// Publishes an announcement. `ends_at` empty means "never ends".
-pub async fn create_announcement(
-    content: &str,
-    ends_at: Option<&str>,
-) -> Result<Announcement, String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .create_announcement(content, None, ends_at)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// Withdraws an announcement.
-pub async fn delete_announcement(id: &str) -> Result<(), String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .delete_announcement(id)
         .await
         .map_err(|error| error.to_string())
 }

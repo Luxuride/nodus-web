@@ -9,6 +9,7 @@ use leptos::prelude::*;
 use nodus_instance::BrowserInstance;
 use nodus_sdk::instance_api::{Instance, InstanceApi};
 use nodus_sdk::state::Session;
+use wasm_bindgen::JsCast as _;
 
 use self::record::StoredSession;
 use super::feed::load_first_page;
@@ -33,6 +34,12 @@ pub(super) fn restore_saved() {
         return;
     }
     adopt(&stored);
+    // The SSR host can only paint a page for a browser whose cookie it already holds, and
+    // a session created before this call existed (or on another device) has none. Telling
+    // it here is idempotent: the server verifies the token and, if it already knows this
+    // pair, keeps the same session. Without this, every reload of `/home` paints the
+    // signed-out landing page and the reader waits for the client to fetch the timeline.
+    announce_to_server(&stored.host, &stored.token);
     restore(stored);
 }
 
@@ -111,6 +118,7 @@ pub async fn sign_in(host: &str, token: &str) -> Result<(), String> {
 
 /// Signs out: forgets the stored session and tells the SDK.
 pub fn sign_out() {
+    forget_on_server();
     let Some(sdk) = handle() else {
         clear_session();
         return;
@@ -121,7 +129,11 @@ pub fn sign_out() {
         super::forget(&key);
     }
     clear_session();
-    forget_on_server();
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(storage)) = window.session_storage() {
+            let _ = storage.remove_item(SSR_RELOADED);
+        }
+    }
     wasm_bindgen_futures::spawn_local(async move {
         // `sign_out` dispatches `SignedOut` before awaiting the cache clear, so the
         // UI flips on the next microtask; a cache failure has nothing left to show.
@@ -300,6 +312,9 @@ fn scopes() -> Vec<String> {
     vec!["read".to_owned(), "write".to_owned(), "follow".to_owned()]
 }
 
+/// The `sessionStorage` key that keeps the one reload from becoming a loop.
+const SSR_RELOADED: &str = "nodus-ssr-announced";
+
 /// Hands the session to the SSR host, which keeps it behind an opaque cookie.
 ///
 /// The request is same-origin (`/api/session`), so the cookie it sets is `HttpOnly` and
@@ -319,11 +334,29 @@ fn announce_to_server(host: &str, token: &str) {
             return;
         };
         let _ = request.headers().set("content-type", "application/json");
-        if let Ok(response) =
+        let Ok(response) =
             wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request)).await
-        {
-            let _ = response;
+        else {
+            return;
+        };
+        let Ok(response) = response.dyn_into::<web_sys::Response>() else {
+            return;
+        };
+        if !response.ok() {
+            return;
         }
+        // The document on screen was painted before the server knew this session, so it
+        // shows the landing page. Reloading once turns the next paint into the reader's
+        // own timeline; the flag keeps that from becoming a loop when the cookie still
+        // does not stick (private mode, storage cleared between requests).
+        let Some(storage) = window.session_storage().ok().flatten() else {
+            return;
+        };
+        if storage.get_item(SSR_RELOADED).ok().flatten().is_some() {
+            return;
+        }
+        let _ = storage.set_item(SSR_RELOADED, "1");
+        let _ = window.location().reload();
     });
 }
 

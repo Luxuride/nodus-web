@@ -264,7 +264,7 @@ pub fn status_card(status: &Status) -> String {
         handle = escape(&inner.account.acct),
         sid = escape(&inner.id),
         when = escape(&stamp(&inner.created_at)),
-        body = body_html(&inner.content),
+        body = with_emojis(body_html(&inner.content), &inner.emojis),
         replies = inner.replies_count,
         reblogs = inner.reblogs_count,
         favourites = inner.favourites_count,
@@ -1026,4 +1026,35 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> Strin
         script = escape(&assets.script),
         wasm = escape(&assets.wasm),
     )
+}
+
+/// Draws the status's own custom emoji in its body, the same way the client does.
+///
+/// The server paints before any wasm runs, so without this a post with shortcodes showed
+/// as `:blobcat:` until the client took over — a visible flash of text where a picture
+/// belongs. Only the emoji the status itself lists are substituted: the instance's whole
+/// catalogue is not needed to render one post, and an unknown shortcode stays text.
+fn with_emojis(html: String, emojis: &[nodus_instance::model::CustomEmoji]) -> String {
+    if emojis.is_empty() {
+        return html;
+    }
+    let mut painted = html;
+    for emoji in emojis {
+        let source = if emoji.url.is_empty() {
+            emoji.static_url.as_deref().unwrap_or_default()
+        } else {
+            emoji.url.as_str()
+        };
+        if source.is_empty() {
+            continue;
+        }
+        let token = format!(":{}:", emoji.shortcode);
+        let replacement = format!(
+            "<img class=\"emoji inline-block h-[1.2em] w-auto align-[-0.2em]\" alt=\"{token}\" title=\"{token}\" loading=\"lazy\" decoding=\"async\" src=\"{source}\">",
+            token = escape(&token),
+            source = escape(source)
+        );
+        painted = painted.replace(&token, &replacement);
+    }
+    painted
 }

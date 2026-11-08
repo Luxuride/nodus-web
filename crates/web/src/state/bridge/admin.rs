@@ -3,7 +3,7 @@
 use super::{admin_transport, instance_transport};
 use nodus_instance::actions::{AdminActions, RegistrationActions};
 use nodus_instance::model::{
-    AdminAccount, AdminMeasure, Announcement, DomainAllow, DomainBlock, DomainSeverity, Invite,
+    AdminAccount, AdminMeasure, Announcement, DomainAllow, DomainBlock, DomainSeverity,
     ModerationAction, Relay, Report, ReportState,
 };
 
@@ -256,42 +256,6 @@ pub async fn delete_domain_allow(id: &str) -> Result<(), String> {
         .ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .delete_domain_allow(id)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// The invites this account may hand out.
-pub async fn invites() -> Result<Vec<Invite>, String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .invites(PAGE)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// Creates an invite. `max_uses` of `None` is unlimited; `expires_in` is in seconds.
-pub async fn create_invite(
-    max_uses: Option<u32>,
-    expires_in: Option<u64>,
-) -> Result<Invite, String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .create_invite(max_uses, expires_in, false)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// Revokes an invite, so its link stops working.
-pub async fn revoke_invite(id: &str) -> Result<(), String> {
-    let transport = admin_transport()
-        .or_else(instance_transport)
-        .ok_or_else(|| "Not signed in.".to_owned())?;
-    transport
-        .revoke_invite(id)
         .await
         .map_err(|error| error.to_string())
 }

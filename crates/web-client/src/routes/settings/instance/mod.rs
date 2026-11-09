@@ -3,7 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::InstanceInfo;
-use nodus_view::pages::settings::instance::{Identity, Rules};
+use nodus_view::pages::settings::instance_card::InstanceCard as SharedInstanceCard;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
@@ -28,22 +28,9 @@ pub fn InstanceCard() -> impl IntoView {
     });
 
     view! {
-        <nodus_view::components::panel::Panel title="This instance">
-
-                <Show when=move || failed.get()>
-                    <p class="text-sm text-error">
-                        "This server did not answer with its details. That is a fact about the server or the connection, not about your account."
-                    </p>
-                </Show>
-
-                <Show when=move || info.get().is_none() && !failed.get()>
-                    <p class="text-sm opacity-60">"Asking the server who it is…"</p>
-                </Show>
-
-                <Show when=move || info.get().is_some()>
-                    <Identity info=info/>
-                    <Rules info=info/>
-                </Show>
-        </nodus_view::components::panel::Panel>
+        <SharedInstanceCard
+            info=Signal::derive(move || info.get())
+            failed=Signal::derive(move || failed.get())
+        />
     }
 }

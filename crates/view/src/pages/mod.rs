@@ -19,6 +19,7 @@ pub mod admin;
 pub mod compose;
 pub mod directory;
 pub mod feed;
+pub mod landing;
 pub mod lists;
 pub mod messages;
 pub mod moderation;
@@ -33,9 +34,11 @@ pub use saved_shelf as saved;
 #[path = "status/reply_card/mod.rs"]
 pub mod reply_card;
 pub mod scheduled;
-pub mod signing_in;
 pub mod search;
 pub mod settings;
+pub mod shell;
+pub mod sign_in;
+pub mod signing_in;
 
 #[path = "status/[id]/mod.rs"]
 pub mod status_page;

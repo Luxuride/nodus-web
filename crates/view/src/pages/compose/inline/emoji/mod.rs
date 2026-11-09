@@ -112,3 +112,57 @@ pub fn Suggestions(
         </Show>
     }
 }
+
+/// The picker: the whole catalogue, searchable.
+///
+/// The search box owns its own query because it is not part of the post; only whether the
+/// picker is open and which catalogue it reads belong to the composer.
+#[component]
+pub fn Picker(
+    #[prop(into)] open: Signal<bool>,
+    #[prop(optional_no_strip)] set_open: Option<Callback<bool>>,
+    #[prop(into)] catalogue: Signal<Vec<CustomEmoji>>,
+    #[prop(optional_no_strip)] insert: Option<Callback<String>>,
+) -> impl IntoView {
+    let (query, set_query) = signal(String::new());
+    let matches = move || {
+        let wanted = query.get().to_lowercase();
+        let all = catalogue.get();
+        if wanted.is_empty() {
+            all
+        } else {
+            all.into_iter()
+                .filter(|emoji| emoji.shortcode.to_lowercase().contains(&wanted))
+                .collect()
+        }
+    };
+    let close = move |()| {
+        set_query.set(String::new());
+        if let Some(set_open) = set_open {
+            set_open.run(false);
+        }
+    };
+    view! {
+        <Show when=move || open.get()>
+            <div class="rounded-box border border-base-300 bg-base-100 p-2 shadow">
+                <div class="flex items-center gap-2">
+                    <input
+                        class="input input-bordered input-sm w-full"
+                        type="search"
+                        placeholder="Search emoji"
+                        prop:value=query
+                        on:input=move |event| set_query.set(event_target_value(&event))
+                    />
+                    <button type="button" class="btn btn-ghost btn-sm" on:click=move |_| close(())>
+                        "Close"
+                    </button>
+                </div>
+                <div class="mt-2 flex max-h-48 flex-wrap gap-1 overflow-y-auto">
+                    <For each=matches key=|emoji| emoji.shortcode.clone() let:emoji>
+                        <EmojiButton emoji=emoji.clone() insert=insert/>
+                    </For>
+                </div>
+            </div>
+        </Show>
+    }
+}

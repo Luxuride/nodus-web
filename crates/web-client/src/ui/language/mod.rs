@@ -18,10 +18,6 @@ use wasm_bindgen::closure::Closure;
 
 use crate::state::bridge::actions;
 
-mod list;
-
-use list::LanguageList;
-
 type ClickListener = Closure<dyn FnMut(web_sys::MouseEvent)>;
 
 thread_local! {
@@ -140,32 +136,15 @@ pub fn LanguagePicker(
     view! {
         // Same footprint as the visibility select next to it, so the bar reads as one row of
         // controls rather than a select plus a stray button.
-        <div class="relative" node_ref=host>
-            <button
-                type="button"
-                // `bg-none` kills the arrow daisyUI paints on `.select`; without it the button
-                // shows that background caret *and* the span below, which reads as two.
-                // `w-fit` lets the control follow the chosen name instead of a fixed width.
-                class="select select-bordered select-sm w-fit max-w-72 gap-1 bg-none pr-2 text-left"
-                aria-haspopup="listbox"
-                aria-expanded=move || open.get().to_string()
-                aria-label="Post language"
-                title="The language this post is written in"
-                on:click=move |_| set_open.update(|showing| *showing = !*showing)
-            >
-                // No truncation: the point of the wider control is that "Português (Brasil)"
-                // is readable without opening the list.
-                <span class="whitespace-nowrap">{move || name_of(&language.get())}</span>
-                // Same colour as the text: the visibility select's native caret is not faded, and a
-                // washed-out arrow next to a solid one reads as a disabled control.
-                <span class="text-[0.6rem] leading-none">"▼"</span>
-            </button>
-
-            <Show when=move || open.get()>
-                // An Escape hands `pick` an empty code: the panel closes, the choice stays.
-                <LanguageList options=options selected=selected on_pick=pick/>
-            </Show>
-        </div>
+        <nodus_view::LanguagePicker
+            selected=Signal::derive(move || selected.get())
+            name=Signal::derive(move || name_of(&language.get()))
+            open=Signal::derive(move || open.get())
+            options=Signal::derive(move || options.get())
+            host=host
+            on_toggle=Some(Callback::new(move |()| set_open.update(|showing| *showing = !*showing)))
+            on_pick=Some(pick)
+        />
     }
 }
 

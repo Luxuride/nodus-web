@@ -402,30 +402,15 @@ pub fn EmojiPanel(
     });
 
     view! {
-        <Show when=move || open.get()>
-            <div class="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-1rem)] rounded-box border border-base-300 bg-base-100 p-2 shadow-xl">
-                <div node_ref=host></div>
-            </div>
-        </Show>
+        <nodus_view::Popover
+            open=Signal::derive(move || open.get())
+            host=host
+            class="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-1rem)] rounded-box border border-base-300 bg-base-100 p-2 shadow-xl".to_owned()
+        />
     }
 }
 
-/// One row of the hint list: the code, and what to draw for it (a URL or a character).
-#[derive(Clone, Debug, PartialEq)]
-pub struct EmojiHint {
-    pub code: String,
-    pub preview: String,
-}
-
-/// The hints the editor is offering, and where the caret is inside the editor box.
-#[derive(Clone, Debug, PartialEq)]
-pub struct EmojiHintsValue {
-    pub options: Vec<EmojiHint>,
-    pub left: f64,
-    pub top: f64,
-    /// Which row Enter and Tab will take; the arrows move it in the editor.
-    pub active: usize,
-}
+pub use nodus_view::pages::compose::inline::hints::{EmojiHint, EmojiHintsValue};
 
 /// The JS callback that carries the pending `:token` and the caret's place in the box.
 ///

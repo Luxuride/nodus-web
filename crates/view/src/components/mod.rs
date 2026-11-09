@@ -4,17 +4,21 @@
 //! (`crate::pages`). A component may hold a `ChildrenFn` slot or a `Callback`, but it never
 //! reads state, a clock, storage or the router — those arrive from the screen that owns them.
 
+pub mod anchor;
 pub mod card_renderer;
 pub mod chrome;
 pub mod composer_card;
+pub mod field_box;
 pub mod format;
 pub mod frame;
 pub mod icons;
+pub mod language_picker;
 pub mod lists;
 pub mod media;
 pub mod notification_card;
 pub mod page_header;
 pub mod panel;
+pub mod popover;
 pub mod props;
 pub mod rail;
 pub mod screen;

@@ -198,7 +198,7 @@ fn Body(
     query: RwSignal<Option<crate::ui::editor::EmojiQuery>>,
 ) -> impl IntoView {
     view! {
-        <div class="rounded-box border border-base-300 bg-base-100 p-3">
+        <nodus_view::FieldBox>
             <crate::ui::editor::RichEditor
                 text=text
                 set_text=set_text
@@ -206,6 +206,6 @@ fn Body(
                 on_submit=submit
                 query=query
             />
-        </div>
+        </nodus_view::FieldBox>
     }
 }

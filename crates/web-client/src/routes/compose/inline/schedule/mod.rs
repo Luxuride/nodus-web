@@ -2,13 +2,16 @@
 //!
 //! A post is scheduled by absolute time only: "tomorrow at 9" is a convenience that
 //! resolves to a clock time here, so what is stored is always one unambiguous value.
-
-mod calendar;
+//!
+//! The panel's markup is shared. What stays in this crate is the reader's clock: the quick
+//! answers, the month grid, and the label the button shows all depend on today's date here.
 
 use leptos::prelude::*;
+use nodus_view::pages::compose::inline::schedule::{QuickTime, SchedulePanel as Panel};
 
 use crate::state::clock_format;
-use calendar::Calendar;
+
+pub(super) use nodus_view::pages::compose::inline::schedule::split;
 
 /// The panel, hung from the caret rather than from a control of its own: the answer
 /// it sets is read by the post button's label, so the two read as one control.
@@ -22,181 +25,108 @@ pub(super) fn SchedulePanel(
     // Mounted only while open, so this seeds from the current answer; the grid and
     // the fields edit a draft, and half-finished choices schedule nothing.
     let (draft, set_draft) = signal(at.get_untracked());
-    let close = Callback::new(move |()| open.set(false));
+    let today = js_sys::Date::new_0();
+    let (shown, set_shown) = signal((today.get_full_year(), today.get_month()));
 
-    view! {
-        <>
-            <div class="fixed inset-0 z-20" on:click=move |_| close.run(())></div>
-            <div class="absolute top-full right-0 z-30 mt-2 w-80 rounded-box border border-base-300 bg-base-100 p-2 shadow-xl">
-                <ul class="menu w-full gap-0 p-0">
-                    <Quick label="Send now" when=String::new() set_at=set_at close=close/>
-                    <Quick label="In 30 minutes" when=in_minutes(30) set_at=set_at close=close/>
-                    <Quick label="In 1 hour" when=in_minutes(60) set_at=set_at close=close/>
-                    <Quick label="In 2 hours" when=in_minutes(120) set_at=set_at close=close/>
-                    <Quick label="Tomorrow at 9:00" when=in_days_at(1, 9) set_at=set_at close=close/>
-                    <Quick label="Next Monday at 9:00" when=next_weekday_at(1, 9) set_at=set_at close=close/>
-                </ul>
+    let cells = Signal::derive(move || {
+        let (year, month) = shown.get();
+        let month = i32::try_from(month).unwrap_or(0);
+        let first = js_sys::Date::new_with_year_month_day(year, month, 1);
+        let mut cells: Vec<Option<u32>> =
+            vec![None; usize::try_from(first.get_day().min(6)).unwrap_or(0)];
+        cells.extend((1..=last_day(year, month)).map(Some));
+        cells
+    });
 
-                <CustomRow draft=draft set_draft=set_draft/>
+    let month_label = Signal::derive(move || {
+        let (year, month) = shown.get();
+        let name =
+            js_sys::Date::new_with_year_month_day(year, i32::try_from(month).unwrap_or(0), 1);
+        let month_name = name.to_locale_string(
+            "en",
+            &wasm_bindgen::JsValue::from_str("{\"month\":\"long\"}"),
+        );
+        format!("{} {year}", month_name.as_string().unwrap_or_default())
+    });
 
-                <div class="mt-3 flex gap-2 px-2 pb-1">
-                    <button type="button" class="btn btn-ghost btn-sm" on:click=move |_| close.run(())>
-                        "Cancel"
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-primary btn-sm flex-1"
-                        on:click=move |_| {
-                            set_at.set(draft.get_untracked());
-                            close.run(());
-                        }
-                    >
-                        {move || format!("Schedule for {}", describe(&draft.get()))}
-                    </button>
-                </div>
-            </div>
-        </>
-    }
-}
-
-/// One promise on the left, the clock time it means on the right.
-#[component]
-fn Quick(
-    label: &'static str,
-    when: String,
-    set_at: WriteSignal<String>,
-    close: Callback<()>,
-) -> impl IntoView {
-    let clock = when.clone();
-    let hint = if clock.is_empty() {
-        String::new()
-    } else {
-        describe(&clock)
+    let selected = Signal::derive(move || split(&draft.get()).0);
+    let clock = match clock_format::format() {
+        clock_format::ClockFormat::TwentyFour => "24-hour",
+        clock_format::ClockFormat::Twelve => "AM/PM",
     };
+    let quick = vec![
+        QuickTime {
+            label: "Send now".to_owned(),
+            when: String::new(),
+        },
+        QuickTime {
+            label: "In 30 minutes".to_owned(),
+            when: in_minutes(30),
+        },
+        QuickTime {
+            label: "In 1 hour".to_owned(),
+            when: in_minutes(60),
+        },
+        QuickTime {
+            label: "In 2 hours".to_owned(),
+            when: in_minutes(120),
+        },
+        QuickTime {
+            label: "Tomorrow at 9:00".to_owned(),
+            when: in_days_at(1, 9),
+        },
+        QuickTime {
+            label: "Next Monday at 9:00".to_owned(),
+            when: next_weekday_at(1, 9),
+        },
+    ];
+
+    let on_day = Callback::new(move |day: u32| {
+        let (year, month) = shown.get_untracked();
+        let (_, hour, minute) = split(&draft.get_untracked());
+        let month = month + 1;
+        set_draft.set(format!("{year:04}-{month:02}-{day:02}T{hour}:{minute}"));
+    });
+
     view! {
-        <li>
-            <button
-                type="button"
-                class="flex w-full items-center justify-between gap-2"
-                on:click=move |_| {
-                    set_at.set(when.clone());
-                    close.run(());
-                }
-            >
-                <span>{label}</span>
-                <span class="text-xs opacity-60">{hint}</span>
-            </button>
-        </li>
+        <Panel
+            draft=Signal::derive(move || draft.get())
+            set_draft=set_draft
+            set_at=set_at
+            open=open
+            quick=quick
+            describe=Some(Callback::new(describe))
+            clock=clock
+            month_label=month_label
+            cells=cells
+            selected=selected
+            on_prev_month=Some(Callback::new(move |()| {
+                set_shown.update(|(year, month)| {
+                    if *month == 0 { *month = 11; *year -= 1; } else { *month -= 1; }
+                });
+            }))
+            on_next_month=Some(Callback::new(move |()| {
+                set_shown.update(|(year, month)| {
+                    if *month == 11 { *month = 0; *year += 1; } else { *month += 1; }
+                });
+            }))
+            on_day=Some(on_day)
+        />
     }
 }
 
-/// The custom row: a month grid and two fields for the clock time.
-#[component]
-fn CustomRow(draft: ReadSignal<String>, set_draft: WriteSignal<String>) -> impl IntoView {
-    let calendar_open = RwSignal::new(false);
-    // The fields are text, so "9" is read as nine o'clock and anything past the end
-    // of the clock is clamped here rather than sent to the instance as nonsense.
-    let write = move |day_value: String, hour: String, minute: String| {
-        let clean = |value: &str, max: u32| {
-            let digits: String = value.chars().filter(char::is_ascii_digit).collect();
-            format!("{:02}", digits.parse::<u32>().unwrap_or(0).min(max))
-        };
-        set_draft.set(format!(
-            "{day_value}T{}:{}",
-            clean(&hour, 23),
-            clean(&minute, 59)
-        ));
-    };
-
-    view! {
-        <div class="divider my-1 text-xs opacity-60">"Or pick a time"</div>
-
-        <div class="px-2">
-            // A date field that opens the grid: the value is what gets read back, and
-            // the grid is the help, not the only way in.
-            <button
-                type="button"
-                class="input input-bordered input-sm mb-2 flex w-full items-center justify-between text-left"
-                on:click=move |_| calendar_open.update(|shown| *shown = !*shown)
-                aria-expanded=move || calendar_open.get().to_string()
-                aria-label="Pick a day"
-            >
-                <span>{move || split(&draft.get()).0}</span>
-                <span class="text-[0.6rem] opacity-60">"▼"</span>
-            </button>
-
-            <Show when=move || calendar_open.get()>
-                <Calendar
-                    draft=draft
-                    set_draft=set_draft
-                    close=Callback::new(move |()| calendar_open.set(false))
-                />
-            </Show>
-
-            <div class="flex items-center gap-2 text-xs">
-                <input
-                    class="input input-bordered input-sm w-14 text-center tabular-nums"
-                    inputmode="numeric"
-                    maxlength="2"
-                    placeholder="HH"
-                    aria-label="Hour"
-                    prop:value=move || split(&draft.get()).1
-                    on:focus=move |event| select_all(&event)
-                    on:change=move |event| {
-                        let (day_value, _, minute) = split(&draft.get_untracked());
-                        write(day_value, event_target_value(&event), minute);
-                    }
-                />
-                <span class="opacity-50">":"</span>
-                <input
-                    class="input input-bordered input-sm w-14 text-center tabular-nums"
-                    inputmode="numeric"
-                    maxlength="2"
-                    placeholder="mm"
-                    aria-label="Minute"
-                    prop:value=move || split(&draft.get()).2
-                    on:focus=move |event| select_all(&event)
-                    on:change=move |event| {
-                        let (day_value, hour, _) = split(&draft.get_untracked());
-                        write(day_value, hour, event_target_value(&event));
-                    }
-                />
-                <span class="ml-auto text-[0.65rem] opacity-50">
-                    {move || match clock_format::format() {
-                        clock_format::ClockFormat::TwentyFour => "24-hour",
-                        clock_format::ClockFormat::Twelve => "AM/PM",
-                    }}
-                </span>
-            </div>
-        </div>
-    }
-}
-
-/// Selects the whole value, so the first keystroke replaces "09" instead of appending.
-fn select_all(event: &web_sys::FocusEvent) {
-    use wasm_bindgen::JsCast;
-    if let Some(input) = event
-        .target()
-        .and_then(|target| target.dyn_into::<web_sys::HtmlInputElement>().ok())
-    {
-        input.select();
-    }
-}
-
-/// `YYYY-MM-DD` and `HH`/`mm` out of `YYYY-MM-DDTHH:mm`.
-pub(super) fn split(at: &str) -> (String, String, String) {
-    let (day_value, clock) = at.split_once('T').unwrap_or((at, "09:00"));
-    let (hour, minute) = clock.split_once(':').unwrap_or(("09", "00"));
-    (day_value.to_owned(), hour.to_owned(), minute.to_owned())
+/// The last day number of a 0-based month: day 0 of the next month is its last day.
+fn last_day(year: u32, month: i32) -> u32 {
+    js_sys::Date::new_with_year_month_day(year, month + 1, 0).get_date()
 }
 
 /// "Send now", "Today, 09:00", "Tomorrow, 09:00" or "Sun 9, 09:00".
-fn describe(at: &str) -> String {
+fn describe(at: String) -> String {
     if at.trim().is_empty() {
         return "Send now".to_owned();
     }
     let clock = clock_format::format();
-    let (value, hour, minute) = split(at);
+    let (value, hour, minute) = split(&at);
     let hour_number = hour.parse::<u32>().unwrap_or(0);
     let minute_number = minute.parse::<u32>().unwrap_or(0);
     let label = if value == today(0) {

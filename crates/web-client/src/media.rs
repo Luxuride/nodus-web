@@ -145,81 +145,17 @@ pub fn ImageModal() -> impl IntoView {
             .unwrap_or_default()
     };
 
-    view! {
-        <Show when=move || gallery().is_some()>
-            // The backdrop is the close button: no tray, no labels, nothing to read. Escape
-            // does the same thing for the reader with a keyboard.
-            <div
-                class="modal modal-open cursor-zoom-out"
-                role="presentation"
-                on:click=move |_| close()
-            >
-                <Frame url=Signal::derive(url) alt=Signal::derive(alt) press=press swiped=swiped/>
-
-                <Show when=many>
-                    // Arrow keys work too; these exist because a phone has no arrows.
-                    <button
-                        type="button"
-                        class="btn btn-circle btn-sm absolute top-1/2 left-2 -translate-y-1/2 cursor-pointer"
-                        aria-label="Previous image"
-                        on:click=move |event| {
-                            event.stop_propagation();
-                            previous();
-                        }
-                    >
-                        "‹"
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-circle btn-sm absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer"
-                        aria-label="Next image"
-                        on:click=move |event| {
-                            event.stop_propagation();
-                            next();
-                        }
-                    >
-                        "›"
-                    </button>
-                    <p class="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-box bg-base-300/70 px-2 py-0.5 text-xs">
-                        {position}
-                    </p>
-                </Show>
-
-                <Show when=move || !alt().is_empty()>
-                    <p class="absolute top-3 left-1/2 max-w-[90vw] -translate-x-1/2 rounded-box bg-base-300/70 px-2 py-1 text-center text-xs text-balance">
-                        {alt}
-                    </p>
-                </Show>
-            </div>
-        </Show>
-    }
-}
-
-/// The image itself, and the gesture that moves through the gallery.
-///
-/// A separate component because the drag state is three closures and the viewer already
-/// had more lines than the lint allows.
-#[component]
-fn Frame(
-    url: Signal<String>,
-    alt: Signal<String>,
-    press: RwSignal<Option<(f64, f64)>>,
-    swiped: RwSignal<bool>,
-) -> impl IntoView {
-    let start = move |event: &web_sys::PointerEvent| {
-        press.set(Some((
-            f64::from(event.client_x()),
-            f64::from(event.client_y()),
-        )));
+    let start = move |(x, y): (f64, f64)| {
+        press.set(Some((x, y)));
         swiped.set(false);
     };
-    let end = move |event: &web_sys::PointerEvent| {
+    let end = move |(x, y): (f64, f64)| {
         let Some((from_x, from_y)) = press.get_untracked() else {
             return;
         };
         press.set(None);
-        let dx = f64::from(event.client_x()) - from_x;
-        let dy = f64::from(event.client_y()) - from_y;
+        let dx = x - from_x;
+        let dy = y - from_y;
         // Horizontal, deliberate, and not a vertical scroll that wandered.
         if dx.abs() < 60.0 || dx.abs() <= dy.abs() {
             return;
@@ -233,32 +169,20 @@ fn Frame(
     };
 
     view! {
-        <div
-            class="pointer-events-none absolute inset-0 flex items-center justify-center p-4"
-            role="presentation"
-        >
-            <img
-                class="pointer-events-auto max-h-[92vh] max-w-[96vw] touch-pan-y rounded-box object-contain"
-                src=move || url.get()
-                alt=move || alt.get()
-                referrerpolicy="no-referrer"
-                on:pointerdown=move |event| {
-                    event.stop_propagation();
-                    start(&event);
-                }
-                on:pointerup=move |event| {
-                    event.stop_propagation();
-                    end(&event);
-                }
-                on:pointercancel=move |_| press.set(None)
-                on:click=move |event| {
-                    // A swipe that ends on the image must not read as "close".
-                    if swiped.get_untracked() {
-                        swiped.set(false);
-                        event.stop_propagation();
-                    }
-                }
-            />
-        </div>
+        <nodus_view::Lightbox
+            open=Signal::derive(move || gallery().is_some())
+            url=Signal::derive(url)
+            alt=Signal::derive(alt)
+            many=Signal::derive(many)
+            position=Signal::derive(position)
+            swiped=Signal::derive(move || swiped.get())
+            on_close=Some(Callback::new(|()| close()))
+            on_previous=Some(Callback::new(|()| previous()))
+            on_next=Some(Callback::new(|()| next()))
+            on_press=Some(Callback::new(start))
+            on_release=Some(Callback::new(end))
+            on_cancel=Some(Callback::new(move |()| press.set(None)))
+            on_swipe_consumed=Some(Callback::new(move |()| swiped.set(false)))
+        />
     }
 }

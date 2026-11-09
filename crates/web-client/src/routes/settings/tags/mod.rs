@@ -2,9 +2,12 @@
 
 mod add;
 
+use std::sync::Arc;
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_sdk::page::{PageItems, PageKind};
+use nodus_view::pages::settings::lists::{FeaturedTagsCard as SharedFeaturedTagsCard, TagItem};
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{actions, pages, revision};
@@ -17,7 +20,7 @@ pub fn FeaturedTagsCard() -> impl IntoView {
     let revision = revision();
     // The list is the SDK's, not this component's: opening Settings again paints what the
     // store already holds, and only a page past its TTL asks the instance.
-    let tags = move || {
+    let tags = Signal::derive(move || {
         revision.get();
         pages::items(&PageKind::FeaturedTags, |items| match items {
             PageItems::FeaturedTags(list) => Some(list),
@@ -25,7 +28,13 @@ pub fn FeaturedTagsCard() -> impl IntoView {
         })
         .map(|(list, _)| list)
         .unwrap_or_default()
-    };
+        .into_iter()
+        .map(|tag| {
+            let label = tag.hashtag();
+            TagItem { id: tag.id, label }
+        })
+        .collect()
+    });
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
@@ -49,7 +58,7 @@ pub fn FeaturedTagsCard() -> impl IntoView {
 
     Effect::new(move |_| read());
 
-    let remove = move |id: String| {
+    let remove = Callback::new(move |id: String| {
         set_busy.set(true);
         spawn_local(async move {
             match actions::unfeature_tag(&id).await {
@@ -63,43 +72,27 @@ pub fn FeaturedTagsCard() -> impl IntoView {
                 }),
             }
         });
-    };
+    });
+
+    let add_form: ChildrenFn = Arc::new(move || {
+        view! {
+            <AddTag
+                busy=busy
+                set_busy=set_busy
+                set_error=set_error
+                on_added=Callback::new(move |()| reload())
+            />
+        }
+        .into_any()
+    });
 
     view! {
-        <nodus_view::components::panel::Panel title="Featured tags">
-                <p class="text-sm opacity-70">
-                    "Tags on your profile, so a visitor sees what you post about."
-                </p>
-
-                <Show when=move || tags().is_empty() fallback=|| ()>
-                    <p class="text-sm opacity-60">"No featured tags yet."</p>
-                </Show>
-
-                <ul class="flex flex-wrap gap-2">
-                    <For each=tags key=|tag| tag.id.clone() let:tag>
-                        {
-                            let id = tag.id.clone();
-                            view! {
-                                <li class="badge badge-lg badge-outline gap-1">
-                                    <span>{tag.hashtag()}</span>
-                                    <button
-                                        class="btn btn-ghost btn-xs"
-                                        disabled=move || busy.get()
-                                        on:click=move |_| remove(id.clone())
-                                    >
-                                        "×"
-                                    </button>
-                                </li>
-                            }
-                        }
-                    </For>
-                </ul>
-
-                <AddTag busy=busy set_busy=set_busy set_error=set_error on_added=Callback::new(move |()| reload())/>
-
-                {move || error.get().map(|message| view! {
-                    <p class="text-sm text-error">{message}</p>
-                })}
-        </nodus_view::components::panel::Panel>
+        <SharedFeaturedTagsCard
+            tags=tags
+            busy=Signal::derive(move || busy.get())
+            error=Signal::derive(move || error.get())
+            on_delete=Some(remove)
+            add_form=add_form
+        />
     }
 }

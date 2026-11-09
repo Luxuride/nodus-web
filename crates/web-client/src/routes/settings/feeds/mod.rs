@@ -5,6 +5,7 @@
 //! instance — Mastodon has no API for "which timelines this person reads".
 
 use leptos::prelude::*;
+use nodus_view::pages::settings::feeds::{FeedItem, FeedsCard as SharedFeedsCard};
 
 use crate::state::feeds::{self as prefs, Feed};
 
@@ -12,53 +13,39 @@ use crate::state::feeds::{self as prefs, Feed};
 #[component]
 pub fn FeedsCard() -> impl IntoView {
     let Some(changed) = prefs::revision() else {
-        return view! { <div class="text-sm opacity-70">"Preferences are not available."</div> }
-            .into_any();
+        return view! {
+            <nodus_view::Note>"Preferences are not available."</nodus_view::Note>
+        }
+        .into_any();
     };
 
+    let feeds = Signal::derive(move || {
+        changed.get();
+        Feed::ALL
+            .into_iter()
+            .map(|feed| FeedItem {
+                key: feed.key().to_owned(),
+                label: feed.label().to_owned(),
+                description: feed.description().to_owned(),
+                enabled: prefs::enabled(feed),
+                fixed: !feed.optional(),
+            })
+            .collect()
+    });
+
     view! {
-        <nodus_view::components::panel::Panel title="Timelines">
-                <p class="text-sm opacity-70">
-                    "Which timelines the navigation offers. Hiding one does not delete anything: turn it back on and it is where it was."
-                </p>
-
-                <div class="mt-1 flex flex-col gap-1">
-                    <For each=|| Feed::ALL key=|feed| feed.key() let:feed>
-                        {
-                            let on = move || {
-                                changed.get();
-                                prefs::enabled(feed)
-                            };
-                            // Home has no switch: it is the front door, and a toggle that
-                            // cannot be turned off reads as a bug.
-                            let fixed = !feed.optional();
-                            view! {
-                                <label class="flex cursor-pointer items-start gap-3 rounded-box p-2 hover:bg-base-200">
-                                    <input
-                                        type="checkbox"
-                                        class="toggle toggle-sm mt-0.5"
-                                        prop:checked=on
-                                        prop:disabled=fixed
-                                        on:change=move |event| {
-                                            prefs::set(feed, event_target_checked(&event));
-                                        }
-                                    />
-                                    <span class="flex flex-col">
-                                        <span class="text-sm font-medium">{feed.label()}</span>
-                                        <span class="text-xs opacity-60">{feed.description()}</span>
-                                    </span>
-                                </label>
-                            }
-                        }
-                    </For>
-                </div>
-
-                <p class="mt-2 text-xs opacity-60">
-                    "Home stays: it is where a sign-in lands, and the timeline every client
-                     has. The Feed is this client's own recommendation screen, and it can be
-                     closed like the others."
-                </p>
-        </nodus_view::components::panel::Panel>
+        <SharedFeedsCard
+            feeds=feeds
+            on_toggle=Some(Callback::new(move |(key, on): (String, bool)| {
+                if let Some(feed) = feed_of(&key) {
+                    prefs::set(feed, on);
+                }
+            }))
+        />
     }
     .into_any()
+}
+
+fn feed_of(key: &str) -> Option<Feed> {
+    Feed::ALL.into_iter().find(|feed| feed.key() == key)
 }

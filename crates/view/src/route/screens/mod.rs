@@ -1,0 +1,14 @@
+#![expect(clippy::needless_pass_by_value, reason = "Leptos components receive their props by value")]
+
+//! Route bodies shared by both paints.
+
+pub mod account;
+pub mod directory;
+pub mod lists;
+pub mod messages;
+pub mod notifications;
+pub mod people;
+pub mod saved;
+pub mod scheduled;
+pub mod search;
+pub mod thread;

@@ -17,8 +17,8 @@ use leptos::prelude::*;
 use nodus_instance::model::{Notification, NotificationKind, Status};
 
 use super::request::FollowRequestActions;
-use crate::status_card::{StatusCard, StatusCardProps};
 use crate::NotificationCard;
+use crate::status_card::{StatusCard, StatusCardProps};
 
 /// A single notification.
 #[component]

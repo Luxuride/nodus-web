@@ -18,11 +18,11 @@ use leptos::tachys::html::element::InnerHtmlAttribute as _;
 use leptos::tachys::view::RenderHtml as _;
 use leptos::tachys::view::any_view::IntoAny as _;
 
-use nodus_instance::model::{Account, Context, Status};
+use nodus_instance::model::{Context, Status};
 
 // The rows live beside the page builders: they are the parts a page is made of, and they are
 // the only place markup is produced for them.
-pub(crate) use crate::rows::{now_millis, *};
+pub(crate) use crate::rows::*;
 
 /// The assets `trunk` produced. Discovered at startup, because the names carry content
 /// hashes: writing them down here would mean a stale page after every build.
@@ -131,28 +131,25 @@ fn staff_doors() -> leptos::prelude::AnyView {
 /// Markup for the extra rail rows, kept beside the frame so both come from one place.
 mod imperative {
     use leptos::prelude::*;
-    use nodus_view::icons::Icon;
 
     /// The moderation and administration rows.
     #[must_use]
     pub fn rail_rows() -> AnyView {
-        let row = |label: &'static str, href: &'static str, hint: &'static str| {
-            view! {
-                <li>
-                    <a
-                        class="flex w-full items-center gap-2 font-medium"
-                        href=href
-                        title=hint
-                    >
-                        <Icon icon=Icon::Shield/>
-                        <span class="truncate">{label}</span>
-                    </a>
-                </li>
-            }
-        };
         view! {
-            {row("Moderation", "/moderation", "The queue, the accounts and what the server allows")}
-            {row("Administration", "/admin", "What this instance publishes and allows")}
+            <nodus_view::RailEntry
+                label="Moderation"
+                href="/moderation"
+                hint="The queue, the accounts and what the server allows"
+                icon=nodus_view::icons::Icon::Shield
+                active=Signal::derive(|| false)
+            />
+            <nodus_view::RailEntry
+                label="Administration"
+                href="/admin"
+                hint="What this instance publishes and allows"
+                icon=nodus_view::icons::Icon::Globe
+                active=Signal::derive(|| false)
+            />
         }
         .into_any()
     }
@@ -195,49 +192,16 @@ fn timeline_header(path: &str) -> String {
 
     let here = path.to_owned();
     Owner::new().with(|| {
-        view! {
-            <div class="flex flex-col gap-2">
-                <nodus_view::ComposerCard>
-                    <textarea
-                        class="textarea textarea-ghost min-h-20 w-full resize-none p-1 text-[15px]"
-                        aria-label="Write a post"
-                        placeholder="What is on your mind?"
-                    ></textarea>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="btn btn-outline btn-sm gap-1 border-dashed">"+"</span>
-                        <span class="select select-bordered select-sm">"Public"</span>
-                        <span class="ml-auto text-xs opacity-50">"0/500"</span>
-                        <span class="btn btn-sm btn-primary">"Post"</span>
-                    </div>
-                </nodus_view::ComposerCard>
-                <nodus_view::TimelineTabs active=Signal::derive(move || here.clone())/>
-            </div>
-        }
+        nodus_view::pages::timeline::TimelineHeaderPlaceholder(
+            nodus_view::pages::timeline::TimelineHeaderPlaceholderProps {
+                active: Signal::derive(move || here.clone()),
+            },
+        )
         .to_html()
     })
 }
 
 /// The screen heading, drawn by the crate the client draws with.
-/// Why this timeline exists, in the words the client uses for the same screen.
-fn timeline_description(which: &str) -> &'static str {
-    match which {
-        "local" => "Posts from accounts on this instance.",
-        "federated" => "Posts this instance has received from elsewhere.",
-        "feed" => "People this instance suggests, and what they are posting.",
-        _ => "Posts from the accounts you follow, newest first.",
-    }
-}
-
-fn page_header(title: &str, description: &str) -> String {
-    use leptos::prelude::*;
-
-    let title = title.to_owned();
-    let description = description.to_owned();
-    Owner::new().with(|| {
-        nodus_view::PageHeader(nodus_view::PageHeaderProps { title, description }).to_html()
-    })
-}
-
 /// The signed-in home page, painted.
 pub fn home(assets: &Assets, acct: &str, statuses: &[Status], cursor: Option<&str>) -> String {
     feed(assets, acct, "home", "Home", "/home", statuses, cursor)
@@ -256,89 +220,45 @@ pub fn feed(
     statuses: &[Status],
     cursor: Option<&str>,
 ) -> String {
-    let cards = statuses.iter().map(status_card).collect::<String>();
     let island = serde_json::to_string(&Island {
         which,
         statuses,
         cursor,
     })
     .unwrap_or_else(|_| format!("{{\"which\":\"{which}\",\"statuses\":[],\"cursor\":null}}"));
-    let more = cursor
-        .map(|cursor| {
-            format!(
-                "<button class=\"btn btn-ghost btn-sm w-full\" data-cursor=\"{}\">Load more</button>",
-                escape(cursor)
-            )
-        })
-        .unwrap_or_default();
-    page(
-        assets,
-        &format!("{title} · {acct}"),
-        &chrome(
-            true,
-            path,
-            &format!(
-                "{heading}{header}\
-                   <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}",
-                heading = page_header(title, timeline_description(which)),
-                header = timeline_header(path)
+    let body = Owner::new().with(|| {
+        let route = match which {
+            "local" => nodus_web::shared::router::Route::Local,
+            "federated" => nodus_web::shared::router::Route::Federated,
+            _ => nodus_web::shared::router::Route::Home,
+        };
+        let card: nodus_view::components::card_renderer::CardRenderer =
+            std::sync::Arc::new(|status| {
+                leptos::html::div()
+                    .inner_html(status_card(&status))
+                    .into_any()
+            });
+        let header: leptos::prelude::ChildrenFn = {
+            let heading = timeline_header(path);
+            std::sync::Arc::new(move || leptos::html::div().inner_html(heading.clone()).into_any())
+        };
+        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+            runtime: crate::runtime::StaticRuntime::page(
+                statuses.to_vec(),
+                cursor.map(str::to_owned),
             ),
-        ),
-        Some(&island),
-    )
-}
-
-/// A profile: who they are, then what they posted.
-#[must_use]
-pub fn profile_page(
-    assets: &Assets,
-    acct: &str,
-    account: &Account,
-    statuses: &[Status],
-    cursor: Option<&str>,
-) -> String {
-    use leptos::prelude::{Callback, ChildrenFn, Owner, Signal};
-
-    // The header, the cards and the box around them come from the crate the client mounts.
-    // What is missing here is the verbs, and they are drawn disabled rather than left out.
-    let cards = statuses.to_vec();
-    let after: Option<ChildrenFn> = Some(std::sync::Arc::new({
-        let cursor = cursor.map(std::borrow::ToOwned::to_owned);
-        move || {
-            nodus_view::chrome::more_button::MoreButton(
-                nodus_view::chrome::more_button::MoreButtonProps {
-                    cursor: cursor.clone(),
-                    loading: false,
-                    on_more: None,
-                },
-            )
-            .into_any()
-        }
-    }));
-    let painted = Owner::new().with(|| {
-        nodus_view::profile::ProfilePage(nodus_view::profile::ProfilePageProps {
-            account: account.clone(),
-            relationship: None,
-            statuses: Signal::derive(move || cards.clone()),
-            show_statuses: true,
-            tabs: None,
-            after,
-            card: None,
-            age_of: Some(Callback::new(|created_at: String| {
-                nodus_view::relative_age(&created_at, now_millis())
-            })),
-            on_follow: None,
-            on_mute: None,
-            on_block: None,
-            on_avatar: None,
+            route,
+            card,
+            header: Some(header),
+            banner: None,
         })
         .to_html()
     });
     page(
         assets,
-        &format!("{} · {acct}", account.acct),
-        &chrome(true, &format!("/accounts/{}", account.id), &painted),
-        None,
+        &format!("{title} · {acct}"),
+        &chrome(true, path, &body),
+        Some(&island),
     )
 }
 
@@ -356,31 +276,11 @@ pub fn thread_page(assets: &Assets, acct: &str, status: &Status, context: &Conte
         }
         painted
     };
-    let ancestors = context.ancestors.iter().map(&paint).collect::<Vec<_>>();
-    let focused = paint(status);
-    let replies = context.descendants.iter().map(&paint).collect::<Vec<_>>();
-    let inner = Owner::new().with(|| {
-        // The ages come from this host's clock, asked once per status by the page that draws
-        // them; the view crate owns no clock of its own.
-        let clock = leptos::prelude::Callback::new(|created_at: String| {
-            nodus_view::relative_age(&created_at, now_millis())
-        });
-        nodus_view::thread::ThreadPage(nodus_view::thread::ThreadPageProps {
-            ancestors,
-            focused,
-            replies: replies.into(),
-            card: None,
-            age_of: Some(clock),
-            reply_slot: None,
-        })
-        .to_html()
-    });
-    page(
-        assets,
-        &format!("Thread · {acct}"),
-        &chrome(true, &format!("/status/{}", status.id), &inner),
-        None,
-    )
+    let painted_context = Context {
+        ancestors: context.ancestors.iter().map(&paint).collect(),
+        descendants: context.descendants.iter().map(&paint).collect(),
+    };
+    crate::pages::render_thread(assets, acct, &paint(status), &painted_context)
 }
 
 /// Paints a page that is already a rendered component tree.
@@ -406,21 +306,8 @@ pub fn page_of(
 
 /// The signed-out page, and the shell a signed-in reader gets before their data arrives.
 pub fn landing(assets: &Assets) -> String {
-    page(
-        assets,
-        "Nodus",
-        &chrome(
-            false,
-            "/",
-            "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
-               <h1 class=\"text-xl font-semibold tracking-tight\">Nodus</h1>\
-               <p class=\"text-sm opacity-70\">A Mastodon client that keeps its state, so a page you \
-                 have already read does not load again.</p>\
-               <p class=\"text-sm opacity-70\">Sign in to see your timelines.</p>\
-             </div>",
-        ),
-        None,
-    )
+    let inner = Owner::new().with(|| nodus_view::pages::landing::LandingPage().to_html());
+    page(assets, "Nodus", &chrome(false, "/", &inner), None)
 }
 
 /// The shell for every route the client owns.
@@ -432,54 +319,53 @@ pub fn landing(assets: &Assets) -> String {
 /// Painting the chrome is still worth it — the reader sees the application, not a blank
 /// document, while two megabytes of wasm arrive.
 pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
+    use leptos::prelude::*;
+
     if acct.is_none() {
-        // The client's gate, painted: a signed-out reader never gets a skeleton of a page
-        // they cannot see, and the card they *do* get is the one the client renders.
-        let (_, description) = describe(path);
+        // The client's gate, painted: a signed-out reader gets the form the client mounts,
+        // with every verb absent until wasm arrives.
+        let inner = Owner::new().with(|| {
+            nodus_view::pages::sign_in::SignInPage(nodus_view::pages::sign_in::SignInPageProps {
+                note: None,
+                host: Signal::derive(String::new),
+                token: Signal::derive(String::new),
+                authorizing: Signal::derive(|| false),
+                pasting: Signal::derive(|| false),
+                authorize_error: Signal::derive(|| None),
+                token_error: Signal::derive(|| None),
+                startup_error: Signal::derive(|| None),
+                on_host: None,
+                on_token: None,
+                on_authorize: None,
+                on_token_submit: None,
+            })
+            .to_html()
+        });
         return page(
             assets,
             "Sign in · Nodus",
-            &chrome(
-                false,
-                path,
-                &format!(
-                    "<section class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-md\">\
-                       <div class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-                         <div class=\"card-body gap-4\">\
-                           <h1 class=\"card-title\">Sign in</h1>\
-                           <p class=\"text-sm font-medium\">{}</p>\
-                           <p class=\"text-sm opacity-70\">Authorize this app on your instance. Approval happens on your instance's own page, and the access token it returns can be revoked there at any time.</p>\
-                           <span class=\"input input-bordered flex w-full items-center opacity-60\">mastodon.social</span>\
-                           <span class=\"btn btn-primary mt-2\">Sign in</span>\
-                         </div>\
-                       </div>\
-                     </section>",
-                    escape(&description)
-                ),
-            ),
+            &chrome(false, path, &inner),
             None,
         );
     }
+
     let (title, description) = describe(path);
+    let (tabs, active) = tabs_for(path);
+    let inner = Owner::new().with(|| {
+        nodus_view::pages::shell::ShellPage(nodus_view::pages::shell::ShellPageProps {
+            title: title.clone(),
+            description,
+            tabs,
+            active,
+            skeleton_count: skeleton_count(path),
+            on_navigate: None,
+        })
+        .to_html()
+    });
     page(
         assets,
         &format!("{title} · Nodus"),
-        &chrome(
-            acct.is_some(),
-            path,
-            &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
-                   <div class=\"flex flex-col gap-1\">\
-                     <h1 class=\"text-xl font-semibold tracking-tight\">{}</h1>\
-                     <p class=\"text-sm opacity-70\">{}</p>\
-                   </div>{tabs}{body}\
-                 </div>",
-                escape(&title),
-                escape(&description),
-                tabs = tabs_for(path),
-                body = skeleton(path)
-            ),
-        ),
+        &chrome(true, path, &inner),
         None,
     )
 }
@@ -533,9 +419,7 @@ fn describe(path: &str) -> (String, String) {
 
 /// The section's own tab strip, painted so the heading does not move when the client
 /// mounts. The client replaces it with the same strip, one tab marked active.
-fn tabs_for(path: &str) -> String {
-    use leptos::prelude::*;
-
+fn tabs_for(path: &str) -> (Vec<nodus_view::Tab>, String) {
     let head = path.trim_start_matches('/');
     let section = head.split('/').next().unwrap_or_default();
     let links: &[(&str, &str)] = match section {
@@ -559,7 +443,7 @@ fn tabs_for(path: &str) -> String {
         _ => &[],
     };
     if links.is_empty() {
-        return String::new();
+        return (Vec::new(), String::new());
     }
     // The same component the client mounts; the only difference is the absent `on_navigate`,
     // which turns each tab into a plain link rather than a router press.
@@ -571,52 +455,34 @@ fn tabs_for(path: &str) -> String {
         .iter()
         .find(|(_, href)| head == href.trim_start_matches('/') || path == *href)
         .map_or_else(String::new, |(label, _)| (*label).to_owned());
-    Owner::new().with(|| {
-        nodus_view::TabList(nodus_view::TabListProps {
-            tabs,
-            active,
-            on_navigate: None,
-        })
-        .to_html()
-    })
+    (tabs, active)
 }
 
-/// A skeleton of the screen, drawn at the sizes the real cards take.
+/// How many card frames the screen's skeleton stands in for.
 ///
 /// The server cannot paint a thread or a notification queue — it has neither — but it can
-/// paint the shape: the same card frames, at the same paddings, so the client's first
-/// render lands in the space already reserved instead of pushing the page around.
-fn skeleton(path: &str) -> String {
+/// paint the shape, so the client's first render lands in the space already reserved.
+fn skeleton_count(path: &str) -> usize {
     let head = path.trim_start_matches('/');
     let section = head.split('/').next().unwrap_or_default();
-    let count = match section {
+    match section {
         "messages" | "notifications" | "search" | "directory" | "saved" | "scheduled" | "lists"
         | "local" | "federated" | "feed" | "moderation" | "admin" => 4,
         "status" => 1,
         _ => 3,
-    };
-    Owner::new().with(|| {
-        nodus_view::chrome::skeleton::Skeleton(nodus_view::chrome::skeleton::SkeletonProps {
-            count,
-        })
-        .to_html()
-    })
+    }
 }
 pub fn error(assets: &Assets, message: &str) -> String {
+    let inner = Owner::new().with(|| {
+        nodus_view::pages::shell::TimelineError(nodus_view::pages::shell::TimelineErrorProps {
+            message: message.to_owned(),
+        })
+        .to_html()
+    });
     page(
         assets,
         "Timeline unavailable",
-        &chrome(
-            true,
-            "/home",
-            &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
-                   <h1 class=\"text-xl font-semibold tracking-tight\">Home</h1>\
-                   <p class=\"alert alert-error mt-2 text-sm\" role=\"alert\">Could not read the timeline: {}</p>\
-                 </div>",
-                escape(message)
-            ),
-        ),
+        &chrome(true, "/home", &inner),
         None,
     )
 }

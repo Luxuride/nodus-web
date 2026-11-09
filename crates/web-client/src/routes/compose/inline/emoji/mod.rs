@@ -15,11 +15,9 @@
 //! view's ([`Suggestions`] is re-exported from there), because they are drawn the same way
 //! wherever a composer appears.
 
+use crate::state::bridge::actions;
 use leptos::prelude::*;
 use nodus_instance::model::CustomEmoji;
-use nodus_view::pages::compose::inline::emoji::EmojiButton;
-
-use crate::state::bridge::actions;
 
 pub use nodus_view::pages::compose::inline::emoji::Suggestions;
 
@@ -41,55 +39,6 @@ pub fn pending(text: &str) -> Option<(usize, String)> {
         return None;
     }
     Some((colon, query.to_lowercase()))
-}
-
-/// The picker: the whole catalogue, searchable.
-#[component]
-pub fn Picker(
-    open: ReadSignal<bool>,
-    set_open: WriteSignal<bool>,
-    catalogue: ReadSignal<Vec<CustomEmoji>>,
-    insert: Callback<String>,
-) -> impl IntoView {
-    let (query, set_query) = signal(String::new());
-    let matches = move || {
-        let wanted = query.get().to_lowercase();
-        let all = catalogue.get();
-        if wanted.is_empty() {
-            all
-        } else {
-            all.into_iter()
-                .filter(|emoji| emoji.shortcode.to_lowercase().contains(&wanted))
-                .collect()
-        }
-    };
-    let close = move |()| {
-        set_query.set(String::new());
-        set_open.set(false);
-    };
-    view! {
-        <Show when=move || open.get()>
-            <div class="rounded-box border border-base-300 bg-base-100 p-2 shadow">
-                <div class="flex items-center gap-2">
-                    <input
-                        class="input input-bordered input-sm w-full"
-                        type="search"
-                        placeholder="Search emoji"
-                        prop:value=query
-                        on:input=move |event| set_query.set(event_target_value(&event))
-                    />
-                    <button type="button" class="btn btn-ghost btn-sm" on:click=move |_| close(())>
-                        "Close"
-                    </button>
-                </div>
-                <div class="mt-2 flex max-h-48 flex-wrap gap-1 overflow-y-auto">
-                    <For each=matches key=|emoji| emoji.shortcode.clone() let:emoji>
-                        <EmojiButton emoji=emoji.clone() insert=Some(insert)/>
-                    </For>
-                </div>
-            </div>
-        </Show>
-    }
 }
 
 /// The catalogue, fetched the first time a composer needs it.

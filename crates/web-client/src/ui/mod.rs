@@ -1,11 +1,8 @@
-//! Presentation that more than one screen needs.
+//! Presentation that more than one screen needs and has no single screen of its own.
 //!
-//! Icons and page headers live here so two screens cannot drift into two spellings of the
-//! same thing — a heading that says "People" on one screen and "Directory" on another is
-//! how a reader loses confidence that they are in the right place.
+//! The drawings themselves are in `nodus-view`, beside the components that use them, so the
+//! server's first paint and the mounted client cannot spell the same icon two ways.
 
 pub mod drafts;
 pub mod editor;
-pub mod icons;
 pub mod language;
-pub mod page;

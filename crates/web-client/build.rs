@@ -34,7 +34,7 @@ fn main() {
         "js/schema.mjs",
         "package.json",
         "package-lock.json",
-        "crates/web/style/app.css",
+        "crates/web-shared/style/app.css",
     ] {
         println!("cargo:rerun-if-changed={watched}");
     }
@@ -79,7 +79,7 @@ fn stale(web: &Path, outputs: &[PathBuf]) -> bool {
         web.join("js/schema.mjs"),
         web.join("js/build.mjs"),
         web.join("js/css.mjs"),
-        web.join("crates/web/style/app.css"),
+        web.join("crates/web-shared/style/app.css"),
         web.join("package-lock.json"),
     ]) else {
         return true;

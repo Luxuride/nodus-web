@@ -18,9 +18,7 @@ pub fn TimelineHeader() -> impl IntoView {
     let publish_to = StoredValue::new(Timeline::Home);
 
     view! {
-        <div class="flex flex-col gap-2">
-            <InlineComposer which=publish_to set_reload=set_reload/>
-            <PrimaryTabs/>
-        </div>
+        <InlineComposer which=publish_to set_reload=set_reload/>
+        <PrimaryTabs/>
     }
 }

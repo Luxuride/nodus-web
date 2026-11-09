@@ -68,7 +68,11 @@ pub fn MobileTop(
     home_path: String,
     #[prop(optional)] on_home: Option<Callback<()>>,
 ) -> impl IntoView {
-    let home_path = StoredValue::new(if home_path.is_empty() { "/".to_owned() } else { home_path });
+    let home_path = StoredValue::new(if home_path.is_empty() {
+        "/".to_owned()
+    } else {
+        home_path
+    });
     view! {
         <header class="sticky top-0 z-30 border-b border-base-300 bg-base-200/95 backdrop-blur xl:hidden">
             <div class="mx-auto flex max-w-2xl items-center gap-2 px-3 py-2">

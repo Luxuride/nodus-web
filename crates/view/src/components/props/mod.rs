@@ -11,17 +11,19 @@
 //! place, and a page that forgets to is a compile error rather than a missing button.
 
 use leptos::prelude::{AnyView, Callback, Signal};
-use nodus_instance::model::{Account, Conversation, List, Notification, ScheduledStatus, SearchResults, Status};
+use nodus_instance::model::{
+    Account, Conversation, List, Notification, ScheduledStatus, SearchResults, Status,
+};
 
+use crate::components::card_renderer::CardRenderer;
 use crate::pages::directory::DirectoryPageProps;
 use crate::pages::lists::ListsPageProps;
 use crate::pages::messages::MessagesPageProps;
 use crate::pages::notifications::NotificationsPageProps;
-use crate::pages::saved::shelf::Shelf;
 use crate::pages::saved::SavedPageProps;
+use crate::pages::saved::shelf::Shelf;
 use crate::pages::scheduled::ScheduledPageProps;
 use crate::pages::search::SearchPageProps;
-use crate::components::card_renderer::CardRenderer;
 
 /// A value the caller already has, handed to a component that expects a signal.
 pub fn held<T: Clone + Send + Sync + 'static>(value: T) -> Signal<T> {
@@ -46,7 +48,10 @@ pub fn ages(now_millis: f64) -> Callback<String, String> {
 impl MessagesPageProps {
     /// The server's shape: conversations and a clock, no verbs.
     #[must_use]
-    pub fn server(conversations: Vec<Conversation>, age_of: Option<Callback<String, String>>) -> Self {
+    pub fn server(
+        conversations: Vec<Conversation>,
+        age_of: Option<Callback<String, String>>,
+    ) -> Self {
         Self {
             conversations: held(conversations),
             muted: held(Vec::new()),

@@ -1,17 +1,19 @@
 //! The reader's filters: phrases that hide a post, or put it behind a warning.
 
+use std::sync::Arc;
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use nodus_instance::model::FilterAction;
 use nodus_sdk::page::{PageItems, PageKind};
+use nodus_view::pages::settings::lists::{FilterItem, FiltersCard as SharedFiltersCard};
 
 mod new;
-mod row;
 
 use self::new::NewFilterForm;
-use self::row::FilterRow;
 
 use crate::state::alive::Alive;
-use crate::state::bridge::{pages, revision};
+use crate::state::bridge::{actions, pages, revision};
 
 /// Settings card listing filters and offering to add one.
 ///
@@ -23,7 +25,7 @@ pub fn FiltersCard() -> impl IntoView {
     let revision = revision();
     // Read out of the SDK's page store: this card is an editor, not a cache owner, so a
     // second visit paints the filters it already has instead of asking again.
-    let filters = move || {
+    let filters = Signal::derive(move || {
         revision.get();
         pages::items(&PageKind::Filters, |items| match items {
             PageItems::Filters(list) => Some(list),
@@ -31,7 +33,26 @@ pub fn FiltersCard() -> impl IntoView {
         })
         .map(|(list, _)| list)
         .unwrap_or_default()
-    };
+        .into_iter()
+        .map(|filter| {
+            let keywords = filter
+                .keywords
+                .iter()
+                .map(|keyword| keyword.keyword.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let action = match filter.filter_action {
+                FilterAction::Hide => "hides",
+                FilterAction::Warn => "warns",
+            };
+            FilterItem {
+                id: filter.id,
+                title: filter.title,
+                detail: format!("{action}: {keywords}"),
+            }
+        })
+        .collect()
+    });
     let (busy, set_busy) = signal(true);
     let (error, set_error) = signal(None::<String>);
 
@@ -58,28 +79,30 @@ pub fn FiltersCard() -> impl IntoView {
         });
     });
 
+    let delete = Callback::new(move |id: String| {
+        spawn_local(async move {
+            // A delete that failed leaves the row in place, which is the honest state:
+            // the filter is still on the server.
+            if actions::delete_filter(&id).await.is_ok() {
+                reload.run(());
+            }
+        });
+    });
+
+    let add_form: ChildrenFn = Arc::new(move || {
+        view! {
+            <NewFilterForm on_created=Callback::new(move |()| reload.run(())) set_error=set_error/>
+        }
+        .into_any()
+    });
+
     view! {
-        <nodus_view::components::panel::Panel title="Filters">
-                <p class="text-sm opacity-70">
-                    "A filter hides a post, or shows it behind a warning. The instance applies \
-                     it to timelines it returns."
-                </p>
-
-                <Show when=move || error.get().is_some()>
-                    <p class="text-sm text-error">{move || error.get().unwrap_or_default()}</p>
-                </Show>
-
-                <ul class="flex flex-col gap-2">
-                    <For each=filters key=|filter| filter.id.clone() let:filter>
-                        <FilterRow filter=filter reload=reload/>
-                    </For>
-                </ul>
-
-                <Show when=move || filters().is_empty() && !busy.get()>
-                    <p class="text-sm opacity-70">"No filters yet."</p>
-                </Show>
-
-                <NewFilterForm on_created=Callback::new(move |()| reload.run(())) set_error=set_error/>
-        </nodus_view::components::panel::Panel>
+        <SharedFiltersCard
+            filters=filters
+            busy=Signal::derive(move || busy.get())
+            error=Signal::derive(move || error.get())
+            on_delete=Some(delete)
+            add_form=add_form
+        />
     }
 }

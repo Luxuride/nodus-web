@@ -7,22 +7,33 @@
 //! router — so it compiles for `wasm32` and for the server, and `leptos::ssr` can turn it
 //! into the first paint while the client turns the same tree into the live one.
 
+pub mod alive;
 pub mod components;
 pub mod pages;
+pub mod route;
+
+pub use alive::Alive;
+pub use route::{RouteView, Runtime, TimelineKind, TimelineReply};
 
 // Components live under `components/`; these names are how both paints spell them, and how
 // they were spelled before the move.
+pub use components::anchor::{Anchor, Relative};
 pub use components::chrome;
 pub use components::chrome::tab_list::{Tab, TabList, TabListProps};
+pub use components::chrome::{AppFooter, Note};
 pub use components::composer_card::*;
+pub use components::field_box::FieldBox;
 pub use components::format::{describe_notification, display_name, relative_age, unix_seconds};
 pub use components::frame::*;
 pub use components::icons;
+pub use components::language_picker::LanguagePicker;
 pub use components::lists;
 pub use components::media::grid as media_grid;
+pub use components::media::lightbox::Lightbox;
 pub use components::media::rules as media;
 pub use components::notification_card::*;
 pub use components::page_header::*;
+pub use components::popover::Popover;
 pub use components::rail::*;
 pub use components::screen::*;
 pub use components::shell::*;

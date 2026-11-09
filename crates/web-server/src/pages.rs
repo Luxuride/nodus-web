@@ -6,20 +6,16 @@
 
 use leptos::prelude::Owner;
 
+use nodus_state::page::{PageEntry, PageItems, PageKind};
+use nodus_web::shared::router::Route;
 use nodus_web::shared::screens::{Screen, ScreenKind};
 
 use crate::mastodon::Client;
-use crate::{PAGE, document, rows::now_millis};
+use crate::{PAGE, document, runtime::StaticRuntime};
 
 /// The server's card painter: it has a status and needs the component's HTML.
 fn card() -> nodus_view::components::card_renderer::CardRenderer {
     std::sync::Arc::new(|status: nodus_instance::model::Status| card_view_for(&status))
-}
-
-/// The same painter where a page asks for a callback rather than a renderer.
-fn card_callback()
--> leptos::prelude::Callback<nodus_instance::model::Status, leptos::prelude::AnyView> {
-    leptos::prelude::Callback::new(|status: nodus_instance::model::Status| card_view_for(&status))
 }
 
 fn card_view_for(status: &nodus_instance::model::Status) -> leptos::prelude::AnyView {
@@ -42,6 +38,56 @@ fn painted<V: leptos::IntoView>(view: impl FnOnce() -> V) -> String {
     Owner::new().with(|| view().to_html())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one route renderer needs the request facts and the fetched page"
+)]
+fn render_route(
+    assets: &document::Assets,
+    acct: &str,
+    path: &str,
+    title: &str,
+    route: Route,
+    kind: PageKind,
+    entry: PageEntry,
+    island: serde_json::Value,
+) -> String {
+    let runtime = StaticRuntime::pages([(kind, entry)]);
+    let inner = painted(|| {
+        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+            runtime,
+            route,
+            card: card(),
+            header: None,
+            banner: None,
+        })
+    });
+    document::page_of(assets, acct, path, title, &inner, Some(island.to_string()))
+}
+
+pub(crate) fn render_thread(
+    assets: &document::Assets,
+    acct: &str,
+    status: &nodus_instance::model::Status,
+    context: &nodus_instance::model::Context,
+) -> String {
+    let path = format!("/status/{}", status.id);
+    let runtime = StaticRuntime::thread(status.clone(), context.clone());
+    let inner = painted(|| {
+        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+            runtime,
+            route: Route::Thread {
+                host: String::new(),
+                id: status.id.clone(),
+            },
+            card: card(),
+            header: None,
+            banner: None,
+        })
+    });
+    document::page_of(assets, acct, &path, "Thread", &inner, None)
+}
+
 pub(crate) async fn read_page(
     client: &Client,
     assets: &document::Assets,
@@ -54,67 +100,114 @@ pub(crate) async fn read_page(
     };
 
     let page = match screen.kind {
-        ScreenKind::Notifications => client.notifications(PAGE).await.map(|items| {
-            let inner = painted(|| nodus_view::pages::notifications::NotificationsPage(nodus_view::pages::notifications::NotificationsPageProps::server(items.clone(), Some(nodus_view::components::props::ages(now_millis())), None)));
-            document::page_of(
-                assets,
-                acct,
-                path,
-                screen.title,
-                &inner,
-                Some(serde_json::json!({ "kind": "notifications", "items": items, "cursor": null }).to_string()),
-            )
-        })
-        .ok(),
-        ScreenKind::Messages => client.conversations(PAGE).await.map(|items| {
-            let inner = painted(|| nodus_view::pages::messages::MessagesPage(nodus_view::pages::messages::MessagesPageProps::server(items.clone(), Some(nodus_view::components::props::ages(now_millis())))));
-            document::page_of(
-                assets,
-                acct,
-                path,
-                screen.title,
-                &inner,
-                Some(serde_json::json!({ "kind": "conversations", "items": items, "cursor": null }).to_string()),
-            )
-        })
-        .ok(),
+        ScreenKind::Notifications => client
+            .notifications(PAGE)
+            .await
+            .map(|items| {
+                render_route(
+                    assets,
+                    acct,
+                    path,
+                    screen.title,
+                    Route::Notifications,
+                    PageKind::Notifications,
+                    PageEntry {
+                        items: PageItems::Notifications(items.clone()),
+                        cursor: None,
+                        fetched_at: None,
+                    },
+                    serde_json::json!({ "kind": "notifications", "items": items, "cursor": null }),
+                )
+            })
+            .ok(),
+        ScreenKind::Messages => client
+            .conversations(PAGE)
+            .await
+            .map(|items| {
+                render_route(
+                    assets,
+                    acct,
+                    path,
+                    screen.title,
+                    Route::Messages,
+                    PageKind::Conversations,
+                    PageEntry {
+                        items: PageItems::Conversations(items.clone()),
+                        cursor: None,
+                        fetched_at: None,
+                    },
+                    serde_json::json!({ "kind": "conversations", "items": items, "cursor": null }),
+                )
+            })
+            .ok(),
         ScreenKind::Saved { bookmarks } => read_saved(client, assets, acct, path, bookmarks).await,
-        ScreenKind::Lists => client.lists().await.map(|items| {
-            let inner = painted(|| nodus_view::pages::lists::ListsPage(nodus_view::pages::lists::ListsPageProps::server(items.clone())));
-            document::page_of(
-                assets,
-                acct,
-                path,
-                screen.title,
-                &inner,
-                Some(serde_json::json!({ "kind": "lists", "items": items, "cursor": null }).to_string()),
-            )
-        })
-        .ok(),
-        ScreenKind::Scheduled => client.scheduled().await.map(|items| {
-            let inner = painted(|| nodus_view::pages::scheduled::ScheduledPage(nodus_view::pages::scheduled::ScheduledPageProps::server(items.clone(), Some(nodus_view::components::props::ages(now_millis())))));
-            document::page_of(
-                assets,
-                acct,
-                path,
-                screen.title,
-                &inner,
-                Some(serde_json::json!({ "kind": "scheduled", "items": items, "cursor": null }).to_string()),
-            )
-        })
-        .ok(),
-        ScreenKind::Directory => client.directory(true).await.map(|items| {
-            let inner = painted(|| nodus_view::pages::directory::DirectoryPage(nodus_view::pages::directory::DirectoryPageProps::server(items.clone())));
-            document::page_of(
-                assets,
-                acct,
-                path,
-                screen.title,
-                &inner,
-                Some(serde_json::json!({ "kind": "directory", "items": items, "cursor": null }).to_string()),
-            )
-        })
-        .ok(),
+        ScreenKind::Lists => client
+            .lists()
+            .await
+            .map(|items| {
+                let runtime = StaticRuntime::lists(items.clone());
+                let inner = painted(|| {
+                    nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+                        runtime,
+                        route: Route::Lists,
+                        card: card(),
+                        header: None,
+                        banner: None,
+                    })
+                });
+                document::page_of(
+                    assets,
+                    acct,
+                    path,
+                    screen.title,
+                    &inner,
+                    Some(
+                        serde_json::json!({ "kind": "lists", "items": items, "cursor": null })
+                            .to_string(),
+                    ),
+                )
+            })
+            .ok(),
+        ScreenKind::Scheduled => client
+            .scheduled()
+            .await
+            .map(|items| {
+                render_route(
+                    assets,
+                    acct,
+                    path,
+                    screen.title,
+                    Route::Scheduled,
+                    PageKind::Scheduled,
+                    PageEntry {
+                        items: PageItems::Scheduled(items.clone()),
+                        cursor: None,
+                        fetched_at: None,
+                    },
+                    serde_json::json!({ "kind": "scheduled", "items": items, "cursor": null }),
+                )
+            })
+            .ok(),
+        ScreenKind::Directory => client
+            .directory(true)
+            .await
+            .map(|items| {
+                render_route(
+                    assets,
+                    acct,
+                    path,
+                    screen.title,
+                    Route::Directory,
+                    PageKind::Directory(true),
+                    PageEntry {
+                        items: PageItems::Accounts(items.clone()),
+                        cursor: None,
+                        fetched_at: None,
+                    },
+                    serde_json::json!({ "kind": "directory", "items": items, "cursor": null }),
+                )
+            })
+            .ok(),
         ScreenKind::Search => read_search(client, assets, acct, path, query).await,
         _ => None,
     };
@@ -125,6 +218,35 @@ pub(crate) async fn read_page(
 }
 
 /// Before the routes with a name in them: one account, or one thread.
+/// A profile page, painted by the shared renderer.
+#[must_use]
+pub fn render_account(
+    assets: &document::Assets,
+    acct: &str,
+    account: &nodus_instance::model::Account,
+    statuses: &[nodus_instance::model::Status],
+    cursor: Option<&str>,
+) -> String {
+    let path = format!("/accounts/{}", account.id);
+    let title = format!("{} · {acct}", account.acct);
+    let runtime = StaticRuntime::profile(
+        account.clone(),
+        None,
+        statuses.to_vec(),
+        cursor.map(std::borrow::ToOwned::to_owned),
+    );
+    let painted = painted(|| {
+        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+            runtime,
+            route: Route::Account(account.id.clone()),
+            card: card(),
+            header: None,
+            banner: None,
+        })
+    });
+    document::page_of(assets, acct, &path, &title, &painted, None)
+}
+
 pub(crate) async fn read_entity(
     client: &Client,
     assets: &document::Assets,
@@ -135,7 +257,7 @@ pub(crate) async fn read_entity(
         if !id.is_empty() && !id.contains('/') {
             let account = client.account(id).await.ok()?;
             let (statuses, cursor) = client.account_statuses(id, PAGE).await.ok()?;
-            return Some(document::profile_page(
+            return Some(render_account(
                 assets,
                 acct,
                 &account,
@@ -170,27 +292,28 @@ pub(crate) async fn read_saved(
     } else {
         Shelf::Favourites
     };
-    let inner = painted(|| {
-        nodus_view::pages::saved::SavedPage(nodus_view::pages::saved::SavedPageProps::server(
-            shelf,
-            statuses.clone(),
-            card(),
-        ))
-    });
-    Some(document::page_of(
+    let kind = if bookmarks {
+        PageKind::Bookmarks
+    } else {
+        PageKind::Favourites
+    };
+    Some(render_route(
         assets,
         acct,
         path,
         shelf.label(),
-        &inner,
-        Some(
-            serde_json::json!({
-                "kind": if bookmarks { "bookmarks" } else { "favourites" },
-                "items": statuses,
-                "cursor": cursor,
-            })
-            .to_string(),
-        ),
+        Route::Saved(shelf.slug().to_owned()),
+        kind,
+        PageEntry {
+            items: PageItems::Statuses(statuses.clone()),
+            cursor: cursor.clone(),
+            fetched_at: None,
+        },
+        serde_json::json!({
+            "kind": if bookmarks { "bookmarks" } else { "favourites" },
+            "items": statuses,
+            "cursor": cursor,
+        }),
     ))
 }
 
@@ -214,13 +337,25 @@ pub(crate) async fn read_search(
         return None;
     }
     let results = client.search(&query).await.ok()?;
+    let runtime = StaticRuntime::pages_with_query(
+        [(
+            PageKind::Search(query.clone()),
+            PageEntry {
+                items: PageItems::Search(Box::new(results.clone())),
+                cursor: None,
+                fetched_at: None,
+            },
+        )],
+        [("q".to_owned(), query.clone())],
+    );
     let inner = painted(|| {
-        nodus_view::pages::search::SearchPage(nodus_view::pages::search::SearchPageProps::server(
-            query.clone(),
-            results.clone(),
-            Some(nodus_view::components::props::ages(now_millis())),
-            Some(card_callback()),
-        ))
+        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+            runtime,
+            route: Route::Search,
+            card: card(),
+            header: None,
+            banner: None,
+        })
     });
     let island = serde_json::json!({
         "kind": "search",

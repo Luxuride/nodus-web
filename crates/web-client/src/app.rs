@@ -5,31 +5,24 @@
 //! or `crate::shell`.
 
 use crate::router::{self, Route};
-use crate::routes::account::AccountView;
 use crate::routes::callback::Callback;
 use crate::routes::compose::{Compose, ComposeEdit};
-use crate::routes::conversations::Conversations;
-use crate::routes::directory::Directory;
 use crate::routes::feed::Feed;
 use crate::routes::home::Home;
-use crate::routes::lists::Lists;
-use crate::routes::notifications::Notifications;
-use crate::routes::people::{Kind, PeopleList};
-use crate::routes::saved::Saved;
-use crate::routes::scheduled::Scheduled;
-use crate::routes::search::Search;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
-use crate::routes::status::{PublicThread, Thread};
+use crate::routes::status::PublicThread;
 use crate::shell;
 use crate::state::bridge::{init, revision, with_sdk};
 
-#[cfg(feature = "admin")]
-use crate::ui::icons::Icon;
 use leptos::prelude::*;
 #[cfg(feature = "admin")]
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
+use nodus_view::components::CardRenderer;
+#[cfg(feature = "admin")]
+use nodus_view::icons::Icon;
+use nodus_view::route::RouteView;
 
 /// Application shell: the rail, and the screen the address bar asks for.
 #[component]
@@ -58,6 +51,10 @@ pub(crate) fn App() -> impl IntoView {
     // The sheet is a signal, not a route: opening it must not change the address bar.
     let sheet = RwSignal::new(false);
 
+    let card: CardRenderer = std::sync::Arc::new(|status| {
+        view! { <crate::routes::status::StatusCard status/> }.into_any()
+    });
+
     view! {
         <nodus_view::Frame
             signed_in=Signal::derive(move || signed_in.get())
@@ -84,29 +81,82 @@ pub(crate) fn App() -> impl IntoView {
                             Route::Federated if signed_in => {
                                 view! { <Home which=Timeline::Federated/> }.into_any()
                             }
-                            Route::Messages if signed_in => {
-                                view! { <Conversations/> }.into_any()
+                            Route::Messages if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Messages
+                                    card=card.clone()
+                                />
                             }
-                            Route::Notifications if signed_in => {
-                                view! { <Notifications/> }.into_any()
+                            .into_any(),
+                            Route::Notifications if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Notifications
+                                    card=card.clone()
+                                />
                             }
-                            Route::Search if signed_in => view! { <Search/> }.into_any(),
-                            Route::Directory if signed_in => view! { <Directory/> }.into_any(),
-                            Route::Saved(shelf) if signed_in => view! { <Saved shelf=shelf/> }.into_any(),
-                            Route::Scheduled if signed_in => view! { <Scheduled/> }.into_any(),
+                            .into_any(),
+                            Route::Search if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Search
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
+                            Route::Directory if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Directory
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
+                            Route::Saved(shelf) if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Saved(shelf)
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
+                            Route::Scheduled if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Scheduled
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
                             Route::Compose if signed_in => view! { <Compose/> }.into_any(),
                             Route::ComposeEdit(id) if signed_in => {
                                 view! { <ComposeEdit id=id/> }.into_any()
                             }
-                            Route::Mutes if signed_in => {
-                                view! { <PeopleList id=String::new() kind=Kind::Mutes/> }
-                                    .into_any()
+                            Route::Mutes if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Mutes
+                                    card=card.clone()
+                                />
                             }
-                            Route::Blocks if signed_in => {
-                                view! { <PeopleList id=String::new() kind=Kind::Blocks/> }
-                                    .into_any()
+                            .into_any(),
+                            Route::Blocks if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Blocks
+                                    card=card.clone()
+                                />
                             }
-                            Route::Lists if signed_in => view! { <Lists/> }.into_any(),
+                            .into_any(),
+                            Route::Lists if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Lists
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
                             Route::Moderation(section) if signed_in => {
                                 #[cfg(feature = "admin")]
                                 {
@@ -117,9 +167,9 @@ pub(crate) fn App() -> impl IntoView {
                                 {
                                     let _ = &section;
                                     view! {
-                                        <p class="text-sm opacity-70">
+                                        <nodus_view::Note>
                                             "This build has no moderation screens."
-                                        </p>
+                                        </nodus_view::Note>
                                     }
                                     .into_any()
                                 }
@@ -133,22 +183,32 @@ pub(crate) fn App() -> impl IntoView {
                                 {
                                     let _ = &section;
                                     view! {
-                                        <p class="text-sm opacity-70">
+                                        <nodus_view::Note>
                                             "This build has no moderation screens. A moderator build "
                                             "is " <code>"trunk build --release --features admin"</code>
                                             "."
-                                        </p>
+                                        </nodus_view::Note>
                                     }
                                     .into_any()
                                 }
                             }
                             Route::Settings(section) if signed_in => view! { <Settings section=section/> }.into_any(),
-                            Route::Thread { id, .. } if signed_in => {
-                                view! { <Thread id=id/> }.into_any()
+                            Route::Thread { id, .. } if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Thread { host: String::new(), id }
+                                    card=card.clone()
+                                />
                             }
-                            Route::Account(id) if signed_in => {
-                                view! { <AccountView id=id/> }.into_any()
+                            .into_any(),
+                            Route::Account(id) if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Account(id)
+                                    card=card.clone()
+                                />
                             }
+                            .into_any(),
                             Route::Feed => {
                                 view! { <SignIn note="Sign in to see your feed."/> }.into_any()
                             }
@@ -228,7 +288,9 @@ pub(crate) fn App() -> impl IntoView {
             <shell::MobileSheet open=sheet/>
         </Show>
         <crate::media::ImageModal/>
-        <Footer/>
+        <nodus_view::AppFooter host=Signal::derive(move || {
+            with_sdk(|sdk| sdk.state().session.get().map(|session| session.host))
+        })/>
     }
 }
 
@@ -248,40 +310,7 @@ fn extra_doors() -> Option<nodus_view::ExtraDoors> {
     None
 }
 
-/// The foot of every screen: what this is, and the two links a client owes its server.
-#[component]
-fn Footer() -> impl IntoView {
-    let host = with_sdk(|sdk| sdk.state().session.get().map(|session| session.host));
-    view! {
-        <footer class="mt-8 border-t border-base-300 px-4 py-6 text-xs opacity-70">
-            <div class="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-3 gap-y-2">
-                <span class="font-semibold tracking-tight text-base-content">"nodus"</span>
-                <span>"A Mastodon client with a recommendation feed."</span>
-                {move || host.clone().map(|host| view! {
-                    <a
-                        class="link link-hover"
-                        href=format!("https://{host}/about")
-                        target="_blank"
-                        rel="noreferrer noopener"
-                    >
-                        "About this instance"
-                    </a>
-                })}
-                <a
-                    class="link link-hover"
-                    href="https://github.com/nodus-social"
-                    target="_blank"
-                    rel="noreferrer noopener"
-                >
-                    "Source"
-                </a>
-                <span class="ml-auto opacity-60">
-                    "No ads, no tracking, no algorithm you cannot see."
-                </span>
-            </div>
-        </footer>
-    }
-}
+/// The foot of every screen now lives in `nodus_view`, so the server paints it too.
 
 /// One entry in the rail: the class that marks the current screen, and a click that
 /// keeps the address bar in step without a full page load.
@@ -294,25 +323,18 @@ fn Footer() -> impl IntoView {
 fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -> impl IntoView {
     let current = router::route();
     let marker = route.clone();
-    let target = route.clone();
-    let path = route.path();
+    let target = route;
+    let path = target.path();
+
     view! {
-        <li>
-            <a
-                // Full width, so the whole row is the hit area: a rail whose padding does
-                // nothing reads as a rail whose buttons are broken.
-                class="flex w-full items-center gap-2 font-medium"
-                // The hint is what a label cannot say: "Saved" does not tell you it holds
-                // both favourites and bookmarks.
-                title=hint
-                class:menu-active=move || current.get() == marker
-                href=path
-                on:click=move |event| router::link(event, target.clone())
-            >
-                <Icon icon=icon/>
-                <span class="truncate">{label}</span>
-            </a>
-        </li>
+        <nodus_view::RailEntry
+            label=label
+            hint=hint
+            href=path
+            icon=icon
+            active=Signal::derive(move || current.get() == marker)
+            on_click=Some(Callback::new(move || router::navigate(target.clone())))
+        />
     }
 }
 

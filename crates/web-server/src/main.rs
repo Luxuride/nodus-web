@@ -19,6 +19,7 @@ mod html;
 mod mastodon;
 mod pages;
 mod rows;
+mod runtime;
 mod session;
 
 use std::net::SocketAddr;
@@ -34,8 +35,8 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::document::Assets;
-use crate::pages::read_page;
 use crate::mastodon::Client;
+use crate::pages::read_page;
 use crate::session::{COOKIE, Session, Sessions};
 
 /// How many statuses the server paints. One page, the same size the client asks for: the

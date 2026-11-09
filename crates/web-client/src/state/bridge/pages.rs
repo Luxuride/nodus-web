@@ -96,29 +96,3 @@ pub async fn refresh(kind: PageKind) -> Result<bool, String> {
         .map_err(|error| error.to_string())
 }
 
-/// When this page was fetched, in Unix milliseconds.
-///
-/// `None` means "unknown": the page was never loaded, or the socket reconnected and
-/// marked it stale. A view that shows old data must say so, which is what `held` asks.
-#[must_use]
-pub fn fetched_at(kind: &PageKind) -> Option<i64> {
-    read(kind).and_then(|entry| entry.fetched_at)
-}
-
-/// Whether the store holds this page at all, fresh or stale.
-///
-/// A screen asks this before it decides to look busy: a visit to a page that is already
-/// held renders immediately, and the refresh happens behind the content.
-#[must_use]
-pub fn held(kind: &PageKind) -> bool {
-    fetched_at(kind).is_some()
-}
-
-/// Accounts from a people page, in the order the instance sent them.
-#[must_use]
-pub fn accounts(kind: &PageKind) -> Option<(Vec<nodus_instance::model::Account>, Option<String>)> {
-    items(kind, |items| match items {
-        PageItems::Accounts(accounts) => Some(accounts),
-        _ => None,
-    })
-}

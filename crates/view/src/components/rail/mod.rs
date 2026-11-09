@@ -172,3 +172,45 @@ pub fn Rail(
         </nav>
     }
 }
+
+/// One rail entry whose destination is the caller's route, not one of `rail()`'s.
+///
+/// The address is a real `href`, so a modified click still opens a new tab; only a plain
+/// primary click is taken over, and only when the caller has somewhere to send it.
+#[component]
+pub fn RailEntry(
+    #[prop(into)] label: String,
+    #[prop(into)] hint: String,
+    #[prop(into)] href: String,
+    icon: Icon,
+    #[prop(into)] active: Signal<bool>,
+    #[prop(optional_no_strip)] on_click: Option<Callback<()>>,
+) -> impl IntoView {
+    view! {
+        <li>
+            <a
+                class="flex w-full items-center gap-2 font-medium"
+                class:menu-active=move || active.get()
+                href=href
+                title=hint
+                on:click=move |event| {
+                    if event.button() != 0
+                        || event.meta_key()
+                        || event.ctrl_key()
+                        || event.shift_key()
+                        || event.alt_key()
+                    {
+                        return;
+                    }
+                    event.prevent_default();
+                    if let Some(on_click) = on_click {
+                        on_click.run(());
+                    }
+                }
+            >
+                <Icon icon=icon/>
+                <span class="truncate">{label}</span>
+            </a>
+        </li>
+    }
+}

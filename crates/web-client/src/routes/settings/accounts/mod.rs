@@ -8,6 +8,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use nodus_view::pages::settings::account::{AccountItem, AccountsCard as SharedAccountsCard};
 
 use crate::state::bridge;
 
@@ -17,14 +18,22 @@ pub fn AccountsCard() -> impl IntoView {
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
 
-    let list = move || {
+    let accounts = Signal::derive(move || {
         tick.get();
+        let current = bridge::active_key();
         bridge::account_list()
-    };
-    let active = move || {
-        tick.get();
-        bridge::active_key()
-    };
+            .into_iter()
+            .map(|account| {
+                let key = account.key();
+                AccountItem {
+                    current: current.as_deref() == Some(key.as_str()),
+                    key,
+                    label: format!("@{}", account.acct),
+                    host: account.host.clone(),
+                }
+            })
+            .collect()
+    });
 
     let choose = move |key: String| {
         set_busy.set(true);
@@ -36,7 +45,7 @@ pub fn AccountsCard() -> impl IntoView {
         set_busy.set(false);
     };
 
-    let sign_out = move |_: web_sys::MouseEvent| {
+    let sign_out = move |()| {
         set_busy.set(true);
         spawn_local(async move {
             bridge::session::sign_out();
@@ -46,61 +55,12 @@ pub fn AccountsCard() -> impl IntoView {
     };
 
     view! {
-        <nodus_view::components::panel::Panel title="Accounts">
-                <ul class="flex flex-col gap-2">
-                    {move || {
-                        let current = active();
-                        list()
-                            .into_iter()
-                            .map(|account| {
-                                let key = account.key();
-                                let is_current = current.as_deref() == Some(key.as_str());
-                                let target = key.clone();
-                                let label = format!("@{}", account.acct);
-                                let host = account.host.clone();
-                                let switch = move |_: web_sys::MouseEvent| choose(target.clone());
-                                let badge = if is_current {
-                                    view! { <span class="badge badge-primary badge-sm">"on screen"</span> }
-                                        .into_any()
-                                } else {
-                                    view! {
-                                        <button
-                                            class="btn btn-ghost btn-xs"
-                                            disabled=move || busy.get()
-                                            on:click=switch
-                                        >
-                                            "Switch"
-                                        </button>
-                                    }
-                                        .into_any()
-                                };
-                                view! {
-                                    <li class="flex items-center justify-between gap-3 rounded-box bg-base-200 px-3 py-2">
-                                        <div class="flex min-w-0 flex-col">
-                                            <span class="truncate text-sm font-medium">{label}</span>
-                                            <span class="truncate text-xs opacity-60">{host}</span>
-                                        </div>
-                                        {badge}
-                                    </li>
-                                }
-                            })
-                            .collect_view()
-                    }}
-                </ul>
-                <p class="text-xs opacity-60">
-                    "Signing in with another account adds it here. Switching keeps the \
-                     timelines the other account already loaded."
-                </p>
-                <Show when=move || error.get().is_some()>
-                    <p class="text-sm text-error">{move || error.get().unwrap_or_default()}</p>
-                </Show>
-                <button
-                    class="btn btn-ghost btn-sm self-start"
-                    disabled=move || busy.get()
-                    on:click=sign_out
-                >
-                    "Sign out of this account"
-                </button>
-        </nodus_view::components::panel::Panel>
+        <SharedAccountsCard
+            accounts=accounts
+            busy=Signal::derive(move || busy.get())
+            error=Signal::derive(move || error.get())
+            on_switch=Some(Callback::new(choose))
+            on_sign_out=Some(Callback::new(sign_out))
+        />
     }
 }

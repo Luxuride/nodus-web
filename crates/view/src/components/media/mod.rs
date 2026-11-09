@@ -4,6 +4,8 @@
 //! grid: the client sizes a single picture for the viewer, the server only ever draws the grid.
 
 pub mod grid;
+pub mod lightbox;
 pub mod rules;
 
+pub use lightbox::Lightbox;
 pub use rules::{attachments_label, box_style, extent, is_player, style_for, veil};

@@ -1534,6 +1534,8 @@ dependencies = [
  "leptos",
  "nodus-instance",
  "nodus-shared",
+ "nodus-state",
+ "nodus-web",
  "serde_json",
 ]
 
@@ -1573,6 +1575,7 @@ dependencies = [
  "lol_html",
  "nodus-instance",
  "nodus-sdk",
+ "nodus-state",
  "nodus-view",
  "nodus-web",
  "serde",

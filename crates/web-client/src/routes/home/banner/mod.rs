@@ -50,25 +50,17 @@ pub fn Banner() -> impl IntoView {
     };
 
     view! {
-        <Show when=move || current.get().is_some()>
-            {move || current.get().map(|announcement| {
-                let html = plain_text(&announcement.content);
-                let id = announcement.id.clone();
-                view! {
-                    <div class="alert alert-info flex items-start gap-2 py-2 text-sm">
-                        <span class="min-w-0 flex-1">{html}</span>
-                        <button
-                            class="btn btn-ghost btn-xs"
-                            on:click=move |_| dismiss(id.clone())
-                        >
-                            "Dismiss"
-                        </button>
-                    </div>
-                }
-            })}
-        </Show>
-        <Show when=move || error.get().is_some()>
-            <p class="text-xs text-error">{move || error.get().unwrap_or_default()}</p>
-        </Show>
+        <nodus_view::pages::timeline::banner::TimelineBanner
+            current=Signal::derive(move || {
+                current
+                    .get()
+                    .map(|announcement| nodus_view::pages::timeline::banner::Announcement {
+                        id: announcement.id,
+                        text: plain_text(&announcement.content),
+                    })
+            })
+            error=Signal::derive(move || error.get())
+            on_dismiss=Some(Callback::new(dismiss))
+        />
     }
 }

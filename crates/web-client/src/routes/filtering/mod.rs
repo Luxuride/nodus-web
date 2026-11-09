@@ -1,3 +1,5 @@
+#![expect(dead_code, reason = "the shared thread does not filter yet")]
+
 //! What the reader asked never to see, applied where the posts are cached.
 //!
 //! Mastodon filters on the server for the pages it assembles, but this client renders

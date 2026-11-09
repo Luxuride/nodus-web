@@ -5,6 +5,7 @@
 //! exactly what a reader who has already decided does not want.
 
 use leptos::prelude::*;
+use nodus_view::pages::settings::profile::SensitiveCard as SharedSensitiveCard;
 
 use super::super::status::sensitive;
 
@@ -13,29 +14,13 @@ use super::super::status::sensitive;
 pub(super) fn SensitiveCard() -> impl IntoView {
     let (automatic, set_automatic) = signal(sensitive::reveals_automatically());
 
-    let toggle = move |_| {
-        let next = !automatic.get_untracked();
-        sensitive::set_automatic(next);
-        set_automatic.set(next);
-    };
-
     view! {
-        <nodus_view::components::panel::Panel title="Sensitive media">
-                <label class="flex cursor-pointer items-center justify-between gap-4">
-                    <span class="text-sm">
-                        "Show sensitive media without asking"
-                        <span class="block text-xs opacity-60">
-                            "Otherwise every post marked sensitive waits for a click. "
-                            "This preference stays in this browser."
-                        </span>
-                    </span>
-                    <input
-                        type="checkbox"
-                        class="toggle toggle-sm"
-                        prop:checked=move || automatic.get()
-                        on:change=toggle
-                    />
-                </label>
-        </nodus_view::components::panel::Panel>
+        <SharedSensitiveCard
+            automatic=Signal::derive(move || automatic.get())
+            on_toggle=Some(Callback::new(move |next: bool| {
+                sensitive::set_automatic(next);
+                set_automatic.set(next);
+            }))
+        />
     }
 }

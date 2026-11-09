@@ -80,7 +80,7 @@ pub(super) fn EmojiToggle(
     view! {
         // The emoticon sits with the counter, not with the compose-your-post row: it edits
         // the body, and the left group is about what kind of post this is.
-        <div class="relative" node_ref=host>
+        <nodus_view::Anchor host=host>
             <EmojiToggleButton
                 open=open
                 busy=busy
@@ -89,6 +89,6 @@ pub(super) fn EmojiToggle(
             // Absolutely positioned so opening the picker does not push the bar taller and
             // move the button the writer just pressed.
             <crate::ui::editor::EmojiPanel open=open/>
-        </div>
+        </nodus_view::Anchor>
     }
 }

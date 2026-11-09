@@ -15,6 +15,9 @@ pub mod bar;
 pub mod drafts_panel;
 pub mod emoji;
 pub mod emoji_toggle;
+pub mod hints;
+pub mod poll;
+pub mod schedule;
 
 pub use bar::ComposerBar;
 pub use drafts_panel::{Draft, DraftsPanel};

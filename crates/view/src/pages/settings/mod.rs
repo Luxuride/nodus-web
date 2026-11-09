@@ -6,10 +6,16 @@
 //! same tree from `*PageProps`.
 //!
 //! Only the blocks that are still markup live here so far: the instance's identity and
-//! rules, the background-sync rows and its consent dialog, and the form rows the settings
-//! cards are built from. The cards themselves still wrap `components::panel::Panel` on the
-//! client, which is the arrangement the caller is free to change.
+//! rules, the background-sync rows and its consent dialog, the account, clock, feed and
+//! list cards, and the tab strip and page shell that hold them.
 
+pub mod account;
+pub mod feeds;
 pub mod form;
 pub mod instance;
+pub mod instance_card;
+pub mod lists;
+pub mod nav;
+pub mod page;
+pub mod profile;
 pub mod sync;

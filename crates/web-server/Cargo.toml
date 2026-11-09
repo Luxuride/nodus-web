@@ -32,6 +32,7 @@ leptos = { version = "0.8.23", features = ["ssr"] }
 # The instance client is the SDK's native build: one place knows Mastodon's endpoints.
 nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0", features = ["native"] }
 nodus-sdk = { workspace = true }
+nodus-state = { path = "../../../sdk/crates/state", version = "0.1.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 # Post bodies arrive as HTML; this keeps the parts a post is made of and nothing else.

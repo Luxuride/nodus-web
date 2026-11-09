@@ -9,9 +9,6 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 
-mod thread;
-
-pub use self::thread::Thread;
 use nodus_instance::model::Status;
 pub use public::PublicThread;
 
@@ -21,7 +18,6 @@ mod body;
 mod footer;
 mod menu;
 mod public;
-mod reply;
 pub(crate) mod sensitive;
 mod share;
 
@@ -103,7 +99,9 @@ pub fn StatusCard(status: Status) -> impl IntoView {
     let extra: ChildrenFn = Arc::new(move || {
         view! {
             <Show when=move || error.get().is_some()>
-                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
+                <nodus_view::Note class="text-error text-xs">
+                    {move || error.get().unwrap_or_default()}
+                </nodus_view::Note>
             </Show>
         }
         .into_any()

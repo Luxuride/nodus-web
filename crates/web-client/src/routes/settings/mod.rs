@@ -6,6 +6,8 @@
 //! where two unrelated questions are answered.
 
 use leptos::prelude::*;
+use nodus_view::pages::settings::nav::SettingsSection;
+use nodus_view::pages::settings::page::SettingsPage;
 
 use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, with_sdk};
@@ -26,7 +28,6 @@ mod profile;
 pub(crate) mod sensitive;
 mod session;
 pub(crate) mod sync;
-mod tabs;
 pub(crate) mod tags;
 
 use accounts::AccountsCard;
@@ -38,7 +39,6 @@ use moderation::ModerationLinks;
 use profile::ProfileCard;
 use sensitive::SensitiveCard;
 use session::SessionCard;
-use tabs::{SettingsTabs, Tab};
 use tags::FeaturedTagsCard;
 
 /// The section a `/settings/{slug}` address names.
@@ -51,7 +51,7 @@ use tags::FeaturedTagsCard;
 pub fn Settings(section: String) -> impl IntoView {
     let revision = revision();
     // The address decides the section: `/settings/privacy` opens Privacy.
-    let (tab, _set_tab) = signal(Tab::of(&section));
+    let (tab, _set_tab) = signal(SettingsSection::of(&section));
 
     let host = move || {
         revision.get();
@@ -73,38 +73,37 @@ pub fn Settings(section: String) -> impl IntoView {
     };
 
     view! {
-        <nodus_view::Screen>
-            <h1 class="mb-5 text-xl font-semibold tracking-tight">"Settings"</h1>
-
-            <SettingsTabs tab=tab/>
-
-            <Show when=move || tab.get() == Tab::Account>
+        <SettingsPage
+            section=Signal::derive(move || tab.get())
+            on_navigate=Some(Callback::new(move |next: SettingsSection| {
+                crate::router::navigate(crate::router::Route::Settings(next.slug().to_owned()));
+            }))
+        >
+            <Show when=move || tab.get() == SettingsSection::Account>
                 <SessionCard host=host acct=acct/>
                 <AccountsCard/>
                 <ModerationLinks/>
             </Show>
 
-            <Show when=move || tab.get() == Tab::Profile>
+            <Show when=move || tab.get() == SettingsSection::Profile>
                 <ProfileCard/>
                 <ClockCard/>
                 <SensitiveCard/>
             </Show>
 
-            <Show when=move || tab.get() == Tab::Nodus>
+            <Show when=move || tab.get() == SettingsSection::Nodus>
                 <SyncCard/>
                 <FeedsCard/>
             </Show>
 
-            <Show when=move || tab.get() == Tab::Filters>
+            <Show when=move || tab.get() == SettingsSection::Filters>
                 <FiltersCard/>
                 <FeaturedTagsCard/>
             </Show>
 
-            <Show when=move || tab.get() == Tab::Instance>
+            <Show when=move || tab.get() == SettingsSection::Instance>
                 <InstanceCard/>
             </Show>
-
-
-        </nodus_view::Screen>
+        </SettingsPage>
     }
 }

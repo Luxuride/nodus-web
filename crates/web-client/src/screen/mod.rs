@@ -23,6 +23,7 @@ use crate::state::alive::Alive;
 /// The guard is the point: `on_ok` runs after the `.await`, so anything it writes is a write
 /// to a signal that may already belong to a screen the reader has left. A missing guard there
 /// is the panic that poisons the js-sys executor.
+#[expect(dead_code, reason = "shared request helper")]
 pub fn spawn_with<T, F, D>(
     error: WriteSignal<Option<String>>,
     done: WriteSignal<bool>,
@@ -48,6 +49,7 @@ pub fn spawn_with<T, F, D>(
 }
 
 /// [`spawn_with`] for a request whose success carries nothing the screen needs.
+#[expect(dead_code, reason = "shared request helper")]
 pub fn spawn_into<F>(error: WriteSignal<Option<String>>, done: WriteSignal<bool>, request: F)
 where
     F: Future<Output = Result<(), String>> + 'static,

@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use nodus_view::pages::settings::profile::{ClockCard as SharedClockCard, ClockStyle};
 
 use crate::state::clock_format::{self, ClockFormat};
 
@@ -10,37 +11,26 @@ use crate::state::clock_format::{self, ClockFormat};
 pub fn ClockCard() -> impl IntoView {
     let chosen = clock_format::signal();
     let current = move || chosen.map_or(ClockFormat::TwentyFour, |signal| signal.get());
-
-    let pick = move |format: ClockFormat| clock_format::set(format);
+    let selected = Signal::derive(move || style(current()));
+    let sample = Signal::derive(move || current().time(21, 30));
 
     view! {
-        <nodus_view::components::panel::Panel
-            title="Clock"
-            description="Times in the composer and the schedule panel follow this. Nothing is sent to the instance either way."
-        >
-                <div class="flex gap-2">
-                    <button
-                        type="button"
-                        class="btn btn-sm"
-                        class:btn-primary=move || current() == ClockFormat::TwentyFour
-                        class:btn-outline=move || current() != ClockFormat::TwentyFour
-                        on:click=move |_| pick(ClockFormat::TwentyFour)
-                    >
-                        "24-hour"
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-sm"
-                        class:btn-primary=move || current() == ClockFormat::Twelve
-                        class:btn-outline=move || current() != ClockFormat::Twelve
-                        on:click=move |_| pick(ClockFormat::Twelve)
-                    >
-                        "AM / PM"
-                    </button>
-                    <span class="ml-auto self-center text-xs opacity-60 tabular-nums">
-                        {move || current().time(21, 30)}
-                    </span>
-                </div>
-        </nodus_view::components::panel::Panel>
+        <SharedClockCard
+            selected=selected
+            sample=sample
+            on_select=Some(Callback::new(move |style: ClockStyle| {
+                clock_format::set(match style {
+                    ClockStyle::TwentyFour => ClockFormat::TwentyFour,
+                    ClockStyle::Twelve => ClockFormat::Twelve,
+                });
+            }))
+        />
+    }
+}
+
+fn style(format: ClockFormat) -> ClockStyle {
+    match format {
+        ClockFormat::TwentyFour => ClockStyle::TwentyFour,
+        ClockFormat::Twelve => ClockStyle::Twelve,
     }
 }

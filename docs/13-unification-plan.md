@@ -175,3 +175,66 @@ The three traps that cost the most compile cycles, now encoded in the code's com
 inside `<For>` must be `StoredValue::new(arc)` read with `with_value`, or the closure is `FnOnce`
 (`error[E0525]`); and a component that forwards a caller's optional verb passes it straight through
 — unwrapping at the call site with a no-op `Callback` is what breaks the chain.
+
+## State (2026-11-09, final pass)
+
+Every CSR screen is now a `nodus_view` page or component. `crates/web-client/src` holds no raw
+HTML element tags: its remaining `view!` calls compose shared components, hold signals, and pass
+callbacks. The last markup moved out was:
+
+- the schedule panel and its month grid (`pages::compose::inline::schedule`, with the client still
+  supplying the clock, the quick answers and the grid's cells);
+- the emoji hint list (`pages::compose::inline::hints`), the poll editor, the language picker,
+  the media lightbox, and the composer's popover/anchor/field boxes;
+- the settings cards (`pages::settings::{SessionCard, AccountsCard, FeedsCard, FiltersCard,
+  FeaturedTagsCard, ClockCard, SensitiveCard, InstanceCard}`) and the settings shell
+  (`SettingsPage`, `SettingsSection`, `SettingsTabs`);
+- sign-in (`pages::sign_in::SignInPage`), the landing body, the timeline header placeholder, and
+  the shell's error body.
+
+The server no longer builds page markup by hand either. `crates/web-server/src/document.rs` keeps
+only the document envelope (doctype, assets, island, `<div id="app">`), the rail's extra staff
+doors (through `RailEntry`), and status bodies (sanitized instance HTML). The signed-out shell
+mounts the real `SignInPage` with every verb absent; an unknown route mounts `ShellPage`; a failed
+timeline read mounts `TimelineError`; a painted timeline wraps its shared cards in `StatusColumn`.
+`content.rs` still writes the `<img>` for a custom emoji because that is a rewrite of instance
+content, not a view.
+
+Verification: `cargo check -p nodus-view -p nodus-web-server`, `cargo check -p nodus-web-client
+--target wasm32-unknown-unknown`, `cargo test -p nodus-view -p nodus-web-server` (25 tests), and
+clippy on the same targets are clean.
+
+## Route renderer (2026-11-09, in progress)
+
+Parity is not the same as sharing components. Two screens can be made of the same widgets and
+still disagree about which widgets a route has, which state it starts in, and whether a verb is
+present. The route layer is the next shared boundary:
+
+- `nodus_view::route::Runtime` is the platform contract. Reads are synchronous snapshots
+  (`Runtime::timeline`), loads report completion through a `Callback`, and a stateless paint
+  answers `TimelineReply::unavailable()` for a page it did not prefetch. The browser answers from
+  the SDK store; the server answers from the page it already fetched.
+- Callbacks are **always present**. `nodus_view::route::noop()` supplies the server's verbs, so a
+  button keeps its markup and loses only its effect. A missing callback is no longer used to mean
+  "the server painted this".
+- `nodus_view::route::RouteView` is the router both paints call. It currently dispatches the three
+  primary timelines (`Home`, `Local`, `Federated`) through a shared `TimelineScreen`; the client
+  supplies its rich composer and card slots, the server supplies the same page with a
+  `StaticRuntime` and no-op navigation. `TimelinePage` is now reached through this layer on both
+  sides instead of the client wrapper and the server's `StatusColumn` taking different paths.
+
+Dispatched today: the three primary timelines, notifications (including follow requests),
+messages, saved shelves, directory, scheduled, search, thread, account (posts, followers,
+following, follow/mute/block), mutes, blocks, and lists (picker, members, add-by-search, list
+timeline). The client wrappers for those routes are gone; the server paints every one of them
+through `RouteView` with a prefetched `StaticRuntime`, and unknown pages fall back to the same
+"Not available" screen. The server's `profile_page` and `thread_page` builders are gone.
+
+Still client-only by nature, not by omission: the algorithmic feed (`/feed` reads the local
+recommender and records impressions; the server has no feed), compose (ProseMirror mount, uploads,
+drafts, local clock), settings (per-card local state and localStorage), moderation/admin (the
+server has no admin token), and the anonymous `/s/{host}/{id}` public thread (its host travels in
+the URL and is read anonymously). These routes keep their client handlers until the platform
+contract grows a snapshot for their reads; they are the remaining difference between an SSR paint
+and a mounted paint. The shared `StatusCard` now receives no-op callbacks on the server instead of
+absent ones, so its verbs keep their markup on both paints.

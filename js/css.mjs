@@ -1,4 +1,4 @@
-//! Compiles `crates/web/style/app.css` into the stylesheet `index.html` links.
+//! Compiles `crates/web-shared/style/app.css` into the stylesheet `index.html` links.
 //!
 //! Tailwind and daisyUI are the npm packages in this directory, so their versions are
 //! pinned by `package-lock.json` rather than by a vendored copy or a standalone binary.
@@ -21,7 +21,7 @@ if (!existsSync(cli)) {
 
 execFileSync(
   cli,
-  ["-i", "crates/web/style/app.css", "-o", out, "--minify"],
+  ["-i", "crates/web-shared/style/app.css", "-o", out, "--minify"],
   { stdio: "inherit" },
 );
 

@@ -17,8 +17,8 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use nodus_instance::model::Conversation;
 
-use crate::chrome::more_button::{MoreButton, MoreButtonProps};
 use crate::chrome::Skeleton;
+use crate::chrome::more_button::{MoreButton, MoreButtonProps};
 use crate::lists::conversation_row::{ConversationRow, ConversationRowProps};
 use crate::{PageHeader, Screen};
 

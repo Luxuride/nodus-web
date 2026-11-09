@@ -11,8 +11,10 @@
 //! arrives as an absent callback rather than as different markup.
 
 pub mod button_tabs;
+pub mod footer;
 pub mod load_more;
 pub mod more_button;
+pub mod note;
 pub mod section_strip;
 pub mod skeleton;
 pub mod staff_gate;
@@ -20,8 +22,10 @@ pub mod tab_list;
 pub mod timeline_header;
 
 pub use button_tabs::ButtonTabList;
+pub use footer::AppFooter;
 pub use load_more::LoadMore;
 pub use more_button::MoreButton;
+pub use note::Note;
 pub use section_strip::{SectionStrip, SectionTab};
 pub use skeleton::Skeleton;
 pub use staff_gate::{StaffGate, StaffStanding};

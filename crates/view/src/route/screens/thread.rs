@@ -1,0 +1,165 @@
+//! One status and its conversation.
+
+use std::sync::Arc;
+
+use leptos::prelude::*;
+use nodus_instance::model::{Context, Status};
+
+use crate::components::CardRenderer;
+use crate::pages::reply_card::ReplyCard;
+use crate::relative_age;
+
+use super::super::{Action, ActionResult, Runtime};
+
+#[component]
+pub fn ThreadScreen(runtime: Arc<dyn Runtime>, id: String, card: CardRenderer) -> impl IntoView {
+    let status = RwSignal::new(runtime.status(&id));
+    let ancestors = RwSignal::new(
+        runtime
+            .context(&id)
+            .map(|context| context.ancestors)
+            .unwrap_or_default(),
+    );
+    let replies = RwSignal::new(
+        runtime
+            .context(&id)
+            .map(|context| context.descendants)
+            .unwrap_or_default(),
+    );
+    let error = RwSignal::new(None::<String>);
+    let alive = crate::Alive::new();
+
+    let load_id = id.clone();
+    let load_status = {
+        let runtime = Arc::clone(&runtime);
+        Callback::new(move |()| {
+            if status.get_untracked().is_some() {
+                return;
+            }
+            let runtime = Arc::clone(&runtime);
+            let status_done = Callback::new(move |result: Result<Status, String>| {
+                alive.if_alive(|| match result {
+                    Ok(found) => status.set(Some(found)),
+                    Err(message) => error.set(Some(message)),
+                });
+            });
+            let context_done = Callback::new(move |result: Result<Context, String>| {
+                alive.if_alive(|| match result {
+                    Ok(context) => {
+                        ancestors.set(context.ancestors);
+                        replies.set(context.descendants);
+                    }
+                    Err(message) => error.set(Some(message)),
+                });
+            });
+            runtime.load_thread(load_id.clone(), status_done, context_done);
+        })
+    };
+    Effect::new(move |_| load_status.run(()));
+
+    let age_of = Callback::new({
+        let runtime = Arc::clone(&runtime);
+        move |created: String| relative_age(&created, runtime.now_millis())
+    });
+    let reply_slot: ChildrenFn = Arc::new({
+        let runtime = Arc::clone(&runtime);
+        let parent = id.clone();
+        move || {
+            view! {
+                <ReplyComposer runtime=Arc::clone(&runtime) parent=parent.clone() replies=replies />
+            }
+            .into_any()
+        }
+    });
+    let card = StoredValue::new(card);
+    let reply_slot = StoredValue::new(reply_slot);
+    let age_of = StoredValue::new(age_of);
+
+    view! {
+        <Show
+            when=move || status.get().is_some()
+            fallback=move || {
+                view! {
+                    <crate::Screen>
+                        <Show when=move || error.get().is_some()>
+                            <crate::Note class="text-error text-xs">
+                                {move || error.get().unwrap_or_default()}
+                            </crate::Note>
+                        </Show>
+                    </crate::Screen>
+                }
+                .into_any()
+            }
+        >
+            {move || {
+                let card = card.get_value();
+                let reply_slot = reply_slot.get_value();
+                let age_of = age_of.get_value();
+                status.get().map(|focused| {
+                    view! {
+                        <crate::thread::ThreadPage
+                            ancestors=ancestors.get()
+                            focused=focused
+                            replies=replies
+                            card=card.clone()
+                            age_of=age_of
+                            reply_slot=reply_slot.clone()
+                        />
+                    }
+                })
+            }}
+        </Show>
+    }
+}
+
+#[component]
+fn ReplyComposer(
+    runtime: Arc<dyn Runtime>,
+    parent: String,
+    replies: RwSignal<Vec<Status>>,
+) -> impl IntoView {
+    let text = RwSignal::new(String::new());
+    let busy = RwSignal::new(false);
+    let error = RwSignal::new(None::<String>);
+
+    let submit = Callback::new(move |()| {
+        let draft = text.get_untracked().trim().to_owned();
+        if draft.is_empty() {
+            return;
+        }
+        busy.set(true);
+        error.set(None);
+        let done = Callback::new(move |result: Result<ActionResult, String>| {
+            busy.set(false);
+            match result {
+                Ok(ActionResult::Status(reply)) => {
+                    text.set(String::new());
+                    replies.update(|replies| replies.push(reply));
+                }
+                Ok(_) => {}
+                Err(message) => error.set(Some(message)),
+            }
+        });
+        runtime.action(
+            Action::Reply {
+                parent: parent.clone(),
+                text: draft,
+            },
+            done,
+        );
+    });
+
+    view! {
+        <ReplyCard
+            text=text.get()
+            busy=busy.get()
+            on_input=Callback::new(move |draft: String| text.set(draft))
+            on_submit=submit
+        />
+        <Show when=move || error.get().is_some()>
+            <crate::Note class="text-error text-xs">
+                {move || error.get().unwrap_or_default()}
+            </crate::Note>
+        </Show>
+    }
+}

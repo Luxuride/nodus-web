@@ -113,7 +113,7 @@ pub fn InlineComposer(
                 insert=emoji_insert
             />
             <DraftsPanel open=draft_token insert=resume/>
-            <div class="relative">
+            <nodus_view::Relative>
                 <crate::ui::editor::RichEditor
                     text=draft.text.read_only()
                     set_text=draft.text.write_only()
@@ -123,7 +123,7 @@ pub fn InlineComposer(
                     query=draft.emoji_query
                 />
                 <EmojiHints query=draft.emoji_query.read_only()/>
-            </div>
+            </nodus_view::Relative>
         }
         .into_any()
     }) as ChildrenFn;
@@ -158,6 +158,7 @@ pub fn InlineComposer(
                 expires_in=draft.expires_in
                 multiple=draft.multiple
                 hide_totals=draft.hide_totals
+                on_add=Some(Callback::new(super::inline::poll::focus_option))
             />
 
             <Attachments media=draft.media set_error=draft.error.write_only()/>
@@ -313,7 +314,7 @@ impl Draft {
             // A poll is optional and off by default: most posts are not questions.
             poll_open: RwSignal::new(false),
             options: RwSignal::new(vec![String::new(), String::new()]),
-            expires_in: RwSignal::new(poll::DURATIONS[0].0),
+            expires_in: RwSignal::new(nodus_view::pages::compose::inline::poll::DURATIONS[0].0),
             multiple: RwSignal::new(false),
             hide_totals: RwSignal::new(false),
             language: RwSignal::new(String::new()),
@@ -526,77 +527,16 @@ fn focus_textarea() {
 /// The hints for the token being typed, anchored at the caret by the editor.
 ///
 /// Keyboard handling lives in the editor (Enter and Tab take the first match, Escape
-/// dismisses); this list exists so the writer can see *what* will be taken, and can click a
-/// row instead. Rows draw the emoji itself — an instance picture or the character — because
-/// a list of codes is a list the writer has to decode.
+/// dismisses); the list and its rows are shared, because the inline box and the full
+/// composer show the same hints.
 #[component]
 fn EmojiHints(query: ReadSignal<Option<crate::ui::editor::EmojiQuery>>) -> impl IntoView {
     view! {
-        <Show when=move || query.get().is_some()>
-            {move || {
-                let hints = query.get()?;
-                let style = format!(
-                    "left: min({}px, calc(100% - 16rem)); top: {}px;",
-                    hints.left, hints.top
-                );
-                Some(view! {
-                    <ul
-                        class="absolute z-40 max-h-48 w-64 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-xl"
-                        style=style
-                        data-emoji-hints=""
-                        role="listbox"
-                        aria-label="Emoji matching the typed code"
-                    >
-                        {hints
-                            .options
-                            .into_iter()
-                            .enumerate()
-                            .map(|(row, hint)| {
-                                let code = hint.code.clone();
-                                let preview = hint.preview.clone();
-                                let label = format!(":{code}:");
-                                // One element or the other, decided before the view so the
-                                // markup holds no `Show` closure to satisfy.
-                                let face = if preview.starts_with("http") {
-                                    view! { <img class="h-5 w-5 object-contain" src=preview alt=""/> }
-                                        .into_any()
-                                } else {
-                                    view! { <span class="text-base">{preview}</span> }.into_any()
-                                };
-                                // The highlighted row is the one Enter and Tab take, and the
-                                // arrows move it, so it has to be visible from the keyboard.
-                                let picked = row == hints.active;
-                                let tone = if picked {
-                                    "flex w-full items-center gap-2 rounded bg-base-200 px-2 py-1 text-left text-sm"
-                                } else {
-                                    "flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-base-200"
-                                };
-                                view! {
-                                    <li
-                                        role="option"
-                                        class="flex items-center gap-2"
-                                        aria-selected=picked.to_string()
-                                        data-active=picked.to_string()
-                                    >
-                                        <button
-                                            type="button"
-                                            class=tone
-                                            on:mousedown=move |event: web_sys::MouseEvent| {
-                                                event.prevent_default();
-                                                let code = code.clone();
-                                                let _ = crate::ui::editor::accept_active(&code);
-                                            }
-                                        >
-                                            {face}
-                                            <span class="truncate">{label}</span>
-                                        </button>
-                                    </li>
-                                }
-                            })
-                            .collect_view()}
-                    </ul>
-                })
-            }}
-        </Show>
+        <nodus_view::pages::compose::inline::hints::EmojiHints
+            value=Signal::derive(move || query.get())
+            on_accept=Some(Callback::new(move |code: String| {
+                let _ = crate::ui::editor::accept_active(&code);
+            }))
+        />
     }
 }

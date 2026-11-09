@@ -23,7 +23,7 @@ pub(super) fn ShareButton(
     let alive = Alive::new();
     let (copied, set_copied) = signal(false);
 
-    let copy = move |_| {
+    let copy = move || {
         let id = shown.get_untracked().id;
         // The host is what makes the link work for a reader who is not signed in: the post
         // is fetched from *that* instance, by them.
@@ -44,8 +44,9 @@ pub(super) fn ShareButton(
     };
 
     view! {
-        <button class="btn btn-ghost btn-sm" on:click=copy>
-            {move || if copied.get() { "Copied" } else { "Link" }}
-        </button>
+        <nodus_view::status_share::ShareButton
+            copied=Signal::derive(move || copied.get())
+            on_copy=Callback::new(move |()| copy())
+        />
     }
 }

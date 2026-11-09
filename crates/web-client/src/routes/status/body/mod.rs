@@ -45,7 +45,9 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
         // The poll's own error state covers an empty pick; a refused vote arrives from the
         // transport, which the shared crate cannot reach, so it is drawn here.
         <Show when=move || error.get().is_some()>
-            <p class="text-error mt-1 text-xs">{move || error.get().unwrap_or_default()}</p>
+            <nodus_view::Note class="text-error mt-1 text-xs">
+                {move || error.get().unwrap_or_default()}
+            </nodus_view::Note>
         </Show>
     }
 }

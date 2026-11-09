@@ -13,9 +13,11 @@ use crate::components::panel::Panel;
 #[component]
 pub fn SigningIn(
     /// The failure message, or `None` while the handshake is still in flight.
-    #[prop(optional_no_strip)] error: Option<String>,
+    #[prop(optional_no_strip)]
+    error: Option<String>,
     /// Where "Back to sign-in" points. Absent when nobody can navigate (the server).
-    #[prop(optional_no_strip)] back: Option<String>,
+    #[prop(optional_no_strip)]
+    back: Option<String>,
     #[prop(optional)] on_back: Option<Callback<()>>,
 ) -> impl IntoView {
     let error = StoredValue::new(error);

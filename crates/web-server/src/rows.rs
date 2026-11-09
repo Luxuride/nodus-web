@@ -7,7 +7,6 @@
 use leptos::prelude::*;
 use nodus_instance::model::Status;
 
-
 /// One status as markup: who, what, and what can be done with it.
 ///
 /// The whole card comes from `nodus-view`, the component the client mounts, so the first
@@ -34,29 +33,23 @@ pub fn status_card(status: &Status) -> String {
             age,
             author_path,
             thread_path,
-            on_navigate: None,
-            on_open: None,
-            on_boost: None,
-            on_favourite: None,
-            on_bookmark: None,
-            on_reply: None,
+            on_navigate: Some(nodus_view::route::noop()),
+            on_open: Some(nodus_view::route::noop()),
+            on_boost: Some(nodus_view::route::noop()),
+            on_favourite: Some(nodus_view::route::noop()),
+            on_bookmark: Some(nodus_view::route::noop()),
+            on_reply: Some(nodus_view::route::noop()),
             before_verbs: None,
             after_verbs: None,
-            on_open_media: None,
-            on_vote: None,
-            interactive: false,
+            on_open_media: Some(nodus_view::route::noop()),
+            on_vote: Some(nodus_view::route::noop()),
+            interactive: true,
             body: None,
             extra: None,
         })
         .to_html()
     })
 }
-
-
-
-
-
-
 
 /// Milliseconds since the Unix epoch, by this host's clock.
 pub(crate) fn now_millis() -> f64 {

@@ -23,7 +23,7 @@ pub fn StatusMenu(
         actions::viewer_id().is_some_and(|id| id == status.account.id)
     };
 
-    let remove = move |_| {
+    let remove = move || {
         let status = shown.get_untracked();
         if !web_sys::window()
             .and_then(|window| window.confirm_with_message("Delete this status?").ok())
@@ -44,23 +44,17 @@ pub fn StatusMenu(
         <Show when=mine>
             {move || {
                 let id = shown.get().id;
-                let for_link = id.clone();
-                let href = format!("/compose/{id}");
+                let for_edit = id.clone();
                 view! {
-                    <a
-                        class="btn btn-ghost btn-xs"
-                        href=href
-                        on:click=move |event| {
-                            router::link(event, Route::ComposeEdit(for_link.clone()));
-                        }
-                    >
-                        "Edit"
-                    </a>
+                    <nodus_view::status_menu::StatusMenu
+                        id=id
+                        on_edit=Callback::new(move |()| {
+                            router::navigate(Route::ComposeEdit(for_edit.clone()));
+                        })
+                        on_delete=Callback::new(move |()| remove())
+                    />
                 }
             }}
-            <button class="btn btn-ghost btn-xs text-error" on:click=remove>
-                "Delete"
-            </button>
         </Show>
     }
 }

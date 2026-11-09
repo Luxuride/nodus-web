@@ -19,6 +19,8 @@ use crate::components::CardRenderer;
 use crate::status_card::StatusCard;
 use crate::Screen;
 
+pub mod public;
+
 /// The card a row is painted with, for as long as the page is choosing it.
 type Paint = dyn Fn(Status) -> AnyView + Send + Sync;
 

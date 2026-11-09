@@ -158,6 +158,19 @@ async fn ensure_requested(
                 .await
         }
         (Timeline::List(id), _) => {
+            // The list loader is the one path `ensure_timeline` cannot cover (its arm
+            // would fall through to the home stream), so the freshness question is
+            // answered here — otherwise every visit to `/lists` refetched what the
+            // server had just painted.
+            if cursor.is_none() {
+                let now = js_sys::Date::now() as i64;
+                let fresh = sdk
+                    .timeline_fetched_at(&TimelineRequest::List(&id))
+                    .is_some_and(|at| now.saturating_sub(at) < ttl_ms);
+                if fresh {
+                    return Ok(false);
+                }
+            }
             // Lists have their own loader: reading one needs the `Browse` port, which the
             // SDK keeps out of the bound every caller of `ensure_timeline` would pay.
             return sdk

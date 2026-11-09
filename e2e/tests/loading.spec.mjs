@@ -8,7 +8,10 @@ import { expect, test } from '@playwright/test'
 
 import { signedIn, stubApi, hydrated } from '../fixtures.mjs'
 
-// FIXME: measured on the deployed build — `/api/v1/timelines/home?limit=20&` is requested
+// FIXME (2026-11-09, re-measured): both requests happen at boot, before any tab is
+// touched, and the revisit half of this test passes — so freshness and the in-flight claim
+// work, and the duplicate is a second *boot-time* caller rather than a second mount of the
+// screen after data lands. Earlier note kept for history: measured on the deployed build — `/api/v1/timelines/home?limit=20&` is requested
 // twice, sequentially, before the first tab switch. The island adoption carries a timestamp
 // (`Sdk::adopt_page` dispatches `TimelineLoaded { fetched_at: Some(now) }`) and `timeline::ensure`
 // claims in-flight keys, so neither is the cause; the second call comes from a second mount of

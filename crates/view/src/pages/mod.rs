@@ -18,9 +18,9 @@ pub use account as accounts;
 pub mod directory;
 pub mod lists;
 pub mod messages;
-pub mod notifications;
 #[path = "moderation/[section]/mod.rs"]
 pub mod moderation;
+pub mod notifications;
 pub use moderation as people;
 #[path = "saved/[shelf]/mod.rs"]
 pub mod saved_shelf;

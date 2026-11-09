@@ -7,22 +7,25 @@
 //! router — so it compiles for `wasm32` and for the server, and `leptos::ssr` can turn it
 //! into the first paint while the client turns the same tree into the live one.
 
-pub mod chrome;
 pub mod components;
-pub mod icons;
-pub mod lists;
-pub mod media;
-pub mod media_grid;
+
+// The names the two paints already call: components moved under `components/`, and these
+// aliases keep every `nodus_view::status_body::StatusBody` spelling working.
+pub use components::chrome;
+pub use components::icons;
+pub use components::lists;
+pub use components::media::grid as media_grid;
+pub use components::media::rules as media;
+pub use components::status::body as status_body;
+pub use components::status::card as status_card;
+pub use components::status::footer as status_footer;
+pub use components::status::header as status_header;
 pub mod pages;
 
 /// The account page, at `crate::pages::accounts`.
 pub use pages::accounts as profile;
 /// The thread page, at `crate::pages::status`.
 pub use pages::status as thread;
-pub mod status_body;
-pub mod status_card;
-pub mod status_footer;
-pub mod status_header;
 
 use icons::Icon;
 use leptos::prelude::*;

@@ -5,5 +5,10 @@
 //! reads state, a clock, storage or the router — those arrive from the screen that owns them.
 
 pub mod card_renderer;
+pub mod chrome;
+pub mod icons;
+pub mod lists;
+pub mod media;
+pub mod status;
 
 pub use card_renderer::CardRenderer;

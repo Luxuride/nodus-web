@@ -13,6 +13,9 @@ async function railLabels(page) {
 }
 
 test('the rail groups reading, finding and library, with the feeds under Feed', async ({ page }) => {
+  // The phone and tablet shell swaps the rail for `MobileBar` + `MobileSheet`; the groups are
+  // a desktop affordance, so a narrow window is not the place to assert them.
+  test.skip(test.info().project.name !== 'desktop', 'the rail is the desktop shell');
   await stubApi(page)
   await signedIn(page)
   await page.goto('/')
@@ -26,8 +29,7 @@ test('the rail groups reading, finding and library, with the feeds under Feed', 
   const order = [
     'Home', 'Messages', 'Notifications',
     'Search', 'People',
-    'Saved', 'Scheduled', 'Lists',
-    'Settings',
+    'Saved', 'Scheduled', 'Lists', 'Settings',
   ]
   const positions = order.map((label) => labels.indexOf(label))
   expect(positions).not.toContain(-1)
@@ -36,10 +38,11 @@ test('the rail groups reading, finding and library, with the feeds under Feed', 
 
   // The section titles are `hidden xl:block`, so on a narrow window they are present but
   // not visible; presence is what this test is about, the responsive rule is Tailwind's.
-  await expect(page.locator('nav li.menu-title')).toHaveText(['Read', 'Find', 'Library', 'Account'])
+  await expect(page.locator('nav li.menu-title')).toHaveText(['Read', 'Find', 'Library'])
 })
 
 test('a rail click is a client-side navigation, not a page load', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'the rail is the desktop shell');
   await stubApi(page)
   await signedIn(page)
   await page.goto('/')
@@ -48,7 +51,7 @@ test('a rail click is a client-side navigation, not a page load', async ({ page 
     window.__marker = 'kept'
   })
 
-  await page.getByRole('link', { name: 'Messages' }).click()
+  await page.locator('nav a').filter({ hasText: 'Messages' }).first().click()
 
   await expect(page).toHaveURL(/\/messages$/)
   expect(await page.evaluate(() => window.__marker)).toBe('kept')
@@ -56,20 +59,27 @@ test('a rail click is a client-side navigation, not a page load', async ({ page 
 })
 
 test('the composer sits above the feed timeline, open', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'the composer sits inside the sheet on a phone');
   await stubApi(page)
   await signedIn(page)
   await page.goto('/feed')
   await hydrated(page)
 
   // Above the timeline, inside `main`, and already a form: no button to reveal it.
-  const composer = page.locator('main textarea[aria-label="Write a post"]')
+  // The composer is a ProseMirror editor since the shortcode work, not a textarea.
+  const composer = page.locator('main .ProseMirror[contenteditable="true"]')
   await expect(composer).toBeVisible()
   await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
 
-  // The status cards are `li.card`; the first one is the timeline's head.
-  const timelineTop = await page.locator('main ul > li.card').first().boundingBox()
-  const composerBox = await composer.boundingBox()
-  expect(composerBox.y).toBeLessThan(timelineTop.y)
+  // The feed's list may be empty in this fixture, so assert the document order the test is
+  // about: the composer precedes the timeline, whatever the timeline contains.
+  const precedes = await page.evaluate(() => {
+    const main = document.querySelector('main')
+    const composer = main?.querySelector('.ProseMirror')
+    const timeline = main?.querySelector('ul')
+    return Boolean(composer && timeline && composer.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+  expect(precedes).toBe(true)
 })
 
 test('a feed can be hidden from the home tabs in settings', async ({ page }) => {

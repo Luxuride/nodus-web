@@ -6,7 +6,7 @@
 
 use leptos::prelude::*;
 
-use nodus_view::pages::settings::sync::SyncIntent;
+use nodus_pages::pages::settings::sync::SyncIntent;
 
 use super::authorize;
 use crate::state::alive::Alive;

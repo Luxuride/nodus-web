@@ -7,7 +7,7 @@ mod banner;
 
 use leptos::prelude::*;
 use nodus_sdk::Timeline;
-use nodus_view::route::RouteView;
+use nodus_route::route::RouteView;
 
 mod tabs;
 
@@ -29,7 +29,7 @@ pub fn Home(which: Timeline) -> impl IntoView {
 
     let header: ChildrenFn = std::sync::Arc::new(|| view! { <TimelineHeader/> }.into_any());
     let banner: ChildrenFn = std::sync::Arc::new(|| view! { <Banner/> }.into_any());
-    let card: nodus_view::components::card_renderer::CardRenderer = std::sync::Arc::new(|status| {
+    let card: nodus_ui::components::card_renderer::CardRenderer = std::sync::Arc::new(|status| {
         use leptos::prelude::IntoAny;
         view! { <crate::routes::status::StatusCard status=status/> }.into_any()
     });

@@ -7,8 +7,8 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
-use nodus_view::media_grid::Picture;
-use nodus_view::status_body::StatusBody as SharedBody;
+use nodus_ui::media_grid::Picture;
+use nodus_ui::status_body::StatusBody as SharedBody;
 
 use super::sensitive;
 use crate::media;
@@ -45,9 +45,9 @@ pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> 
         // The poll's own error state covers an empty pick; a refused vote arrives from the
         // transport, which the shared crate cannot reach, so it is drawn here.
         <Show when=move || error.get().is_some()>
-            <nodus_view::Note class="text-error mt-1 text-xs">
+            <nodus_ui::Note class="text-error mt-1 text-xs">
                 {move || error.get().unwrap_or_default()}
-            </nodus_view::Note>
+            </nodus_ui::Note>
         </Show>
     }
 }

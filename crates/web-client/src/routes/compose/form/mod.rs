@@ -9,7 +9,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{MediaAttachment, Status};
-use nodus_view::pages::compose::form::{ComposeForm as Form, ComposeFormProps as FormProps};
+use nodus_pages::pages::compose::form::{ComposeForm as Form, ComposeFormProps as FormProps};
 
 use self::buttons::ComposerActions;
 use self::initial::Initial;
@@ -198,7 +198,7 @@ fn Body(
     query: RwSignal<Option<crate::ui::editor::EmojiQuery>>,
 ) -> impl IntoView {
     view! {
-        <nodus_view::FieldBox>
+        <nodus_ui::FieldBox>
             <crate::ui::editor::RichEditor
                 text=text
                 set_text=set_text
@@ -206,6 +206,6 @@ fn Body(
                 on_submit=submit
                 query=query
             />
-        </nodus_view::FieldBox>
+        </nodus_ui::FieldBox>
     }
 }

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use nodus_instance::model::{Account, Context, List, Relationship, Status};
 use nodus_state::page::{PageEntry, PageKind};
-use nodus_view::route::{Runtime, SessionView, TimelineKind, TimelineReply};
+use nodus_route::route::{Runtime, SessionView, TimelineKind, TimelineReply};
 
 /// One prefetched timeline page.
 pub struct StaticRuntime {

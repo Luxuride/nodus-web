@@ -10,8 +10,8 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{MediaAttachment, Visibility};
-use nodus_view::pages::compose::inline::Posted;
-use nodus_view::pages::compose::inline::{
+use nodus_pages::pages::compose::inline::Posted;
+use nodus_pages::pages::compose::inline::{
     InlineComposer as InlineCard, InlineComposerProps as InlineCardProps,
 };
 use wasm_bindgen::JsCast as _;
@@ -113,7 +113,7 @@ pub fn InlineComposer(
                 insert=emoji_insert
             />
             <DraftsPanel open=draft_token insert=resume/>
-            <nodus_view::Relative>
+            <nodus_ui::Relative>
                 <crate::ui::editor::RichEditor
                     text=draft.text.read_only()
                     set_text=draft.text.write_only()
@@ -123,7 +123,7 @@ pub fn InlineComposer(
                     query=draft.emoji_query
                 />
                 <EmojiHints query=draft.emoji_query.read_only()/>
-            </nodus_view::Relative>
+            </nodus_ui::Relative>
         }
         .into_any()
     }) as ChildrenFn;
@@ -314,7 +314,7 @@ impl Draft {
             // A poll is optional and off by default: most posts are not questions.
             poll_open: RwSignal::new(false),
             options: RwSignal::new(vec![String::new(), String::new()]),
-            expires_in: RwSignal::new(nodus_view::pages::compose::inline::poll::DURATIONS[0].0),
+            expires_in: RwSignal::new(nodus_pages::pages::compose::inline::poll::DURATIONS[0].0),
             multiple: RwSignal::new(false),
             hide_totals: RwSignal::new(false),
             language: RwSignal::new(String::new()),
@@ -532,7 +532,7 @@ fn focus_textarea() {
 #[component]
 fn EmojiHints(query: ReadSignal<Option<crate::ui::editor::EmojiQuery>>) -> impl IntoView {
     view! {
-        <nodus_view::pages::compose::inline::hints::EmojiHints
+        <nodus_pages::pages::compose::inline::hints::EmojiHints
             value=Signal::derive(move || query.get())
             on_accept=Some(Callback::new(move |code: String| {
                 let _ = crate::ui::editor::accept_active(&code);

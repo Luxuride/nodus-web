@@ -19,7 +19,7 @@ use crate::state::bridge::actions;
 use leptos::prelude::*;
 use nodus_instance::model::CustomEmoji;
 
-pub use nodus_view::pages::compose::inline::emoji::Suggestions;
+pub use nodus_pages::pages::compose::inline::emoji::Suggestions;
 
 /// The `:shortcode` being typed at the end of `text`, with the byte index of its colon.
 ///

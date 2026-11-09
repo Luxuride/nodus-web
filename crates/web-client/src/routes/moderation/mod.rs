@@ -11,8 +11,8 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
-use nodus_view::chrome::StaffStanding;
-use nodus_view::pages::moderation::{ModerationPage, Section};
+use nodus_ui::chrome::StaffStanding;
+use nodus_pages::pages::moderation::{ModerationPage, Section};
 
 use crate::router::{self, Route};
 use crate::state::alive::Alive;

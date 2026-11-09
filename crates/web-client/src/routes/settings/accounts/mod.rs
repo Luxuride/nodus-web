@@ -8,7 +8,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_view::pages::settings::account::{AccountItem, AccountsCard as SharedAccountsCard};
+use nodus_pages::pages::settings::account::{AccountItem, AccountsCard as SharedAccountsCard};
 
 use crate::state::bridge;
 

@@ -11,7 +11,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::DomainAllow;
-use nodus_view::pages::admin::domains::DomainsPage;
+use nodus_pages::pages::admin::domains::DomainsPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{admin, revision};

@@ -23,26 +23,26 @@ pub fn status_card(status: &Status) -> String {
         None => painted.content = crate::content::prepared(&painted.content, &painted.emojis),
     }
     let inner = painted.reblog.as_deref().map_or(&painted, |inner| inner);
-    let age = nodus_view::relative_age(&inner.created_at, now_millis());
+    let age = nodus_ui::relative_age(&inner.created_at, now_millis());
     let author_path = format!("/accounts/{}", inner.account.id);
     let thread_path = format!("/status/{}", inner.id);
 
     Owner::new().with(|| {
-        nodus_view::status_card::StatusCard(nodus_view::status_card::StatusCardProps {
+        nodus_ui::status_card::StatusCard(nodus_ui::status_card::StatusCardProps {
             status: painted,
             age,
             author_path,
             thread_path,
-            on_navigate: Some(nodus_view::route::noop()),
-            on_open: Some(nodus_view::route::noop()),
-            on_boost: Some(nodus_view::route::noop()),
-            on_favourite: Some(nodus_view::route::noop()),
-            on_bookmark: Some(nodus_view::route::noop()),
-            on_reply: Some(nodus_view::route::noop()),
+            on_navigate: Some(nodus_route::route::noop()),
+            on_open: Some(nodus_route::route::noop()),
+            on_boost: Some(nodus_route::route::noop()),
+            on_favourite: Some(nodus_route::route::noop()),
+            on_bookmark: Some(nodus_route::route::noop()),
+            on_reply: Some(nodus_route::route::noop()),
             before_verbs: None,
             after_verbs: None,
-            on_open_media: Some(nodus_view::route::noop()),
-            on_vote: Some(nodus_view::route::noop()),
+            on_open_media: Some(nodus_route::route::noop()),
+            on_vote: Some(nodus_route::route::noop()),
             interactive: true,
             body: None,
             extra: None,

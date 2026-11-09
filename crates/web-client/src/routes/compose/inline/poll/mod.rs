@@ -40,7 +40,7 @@ pub(super) fn as_draft(
     )
 }
 
-pub(super) use nodus_view::pages::compose::inline::poll::PollEditor;
+pub(super) use nodus_pages::pages::compose::inline::poll::PollEditor;
 
 /// Puts the caret in the option that was just added.
 ///

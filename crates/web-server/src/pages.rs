@@ -14,7 +14,7 @@ use crate::mastodon::Client;
 use crate::{PAGE, document, runtime::StaticRuntime};
 
 /// The server's card painter: it has a status and needs the component's HTML.
-fn card() -> nodus_view::components::card_renderer::CardRenderer {
+fn card() -> nodus_ui::components::card_renderer::CardRenderer {
     std::sync::Arc::new(|status: nodus_instance::model::Status| card_view_for(&status))
 }
 
@@ -54,7 +54,7 @@ fn render_route(
 ) -> String {
     let runtime = StaticRuntime::pages([(kind, entry)]);
     let inner = painted(|| {
-        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
             runtime,
             route,
             card: card(),
@@ -74,7 +74,7 @@ pub(crate) fn render_thread(
     let path = format!("/status/{}", status.id);
     let runtime = StaticRuntime::thread(status.clone(), context.clone());
     let inner = painted(|| {
-        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
             runtime,
             route: Route::Thread {
                 host: String::new(),
@@ -147,7 +147,7 @@ pub(crate) async fn read_page(
             .map(|items| {
                 let runtime = StaticRuntime::lists(items.clone());
                 let inner = painted(|| {
-                    nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+                    nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
                         runtime,
                         route: Route::Lists,
                         card: card(),
@@ -236,7 +236,7 @@ pub fn render_account(
         cursor.map(std::borrow::ToOwned::to_owned),
     );
     let painted = painted(|| {
-        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
             runtime,
             route: Route::Account(account.id.clone()),
             card: card(),
@@ -284,7 +284,7 @@ pub(crate) async fn read_saved(
     path: &str,
     bookmarks: bool,
 ) -> Option<String> {
-    use nodus_view::pages::saved::shelf::Shelf;
+    use nodus_pages::pages::saved::shelf::Shelf;
 
     let (statuses, cursor) = client.saved(bookmarks, PAGE).await.ok()?;
     let shelf = if bookmarks {
@@ -349,7 +349,7 @@ pub(crate) async fn read_search(
         [("q".to_owned(), query.clone())],
     );
     let inner = painted(|| {
-        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
             runtime,
             route: Route::Search,
             card: card(),
@@ -413,7 +413,7 @@ pub fn render_unclaimed(assets: &document::Assets, acct: &str, path: &str) -> St
         .map(|screen| screen.title.to_owned())
         .unwrap_or_else(|| "Nodus".to_owned());
     let inner = painted(|| {
-        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
             runtime: StaticRuntime::signed_in(acct),
             route,
             card: card(),

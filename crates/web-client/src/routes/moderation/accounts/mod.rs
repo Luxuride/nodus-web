@@ -3,7 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{AdminAccount, ModerationAction};
-use nodus_view::pages::moderation::accounts::AccountsPage;
+use nodus_pages::pages::moderation::accounts::AccountsPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::admin;

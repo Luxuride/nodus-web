@@ -11,8 +11,8 @@ use nodus_instance::model::{Account, Context, Relationship, Status};
 use nodus_sdk::page::{PageEntry, PageKind};
 use nodus_sdk::{Command, Timeline};
 use nodus_shared::{AccountItem, PostItem};
-use nodus_view::pages::settings::nav::SettingsSection;
-use nodus_view::route::{
+use nodus_pages::pages::settings::nav::SettingsSection;
+use nodus_route::route::{
     Action, ActionResult, FeedKind, FeedPeopleView, FeedPostsView, Runtime, SessionView,
     TimelineKind, TimelineReply,
 };

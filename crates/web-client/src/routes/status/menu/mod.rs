@@ -46,7 +46,7 @@ pub fn StatusMenu(
                 let id = shown.get().id;
                 let for_edit = id.clone();
                 view! {
-                    <nodus_view::status_menu::StatusMenu
+                    <nodus_ui::status_menu::StatusMenu
                         id=id
                         on_edit=Callback::new(move |()| {
                             router::navigate(Route::ComposeEdit(for_edit.clone()));

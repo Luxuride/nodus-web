@@ -402,7 +402,7 @@ pub fn EmojiPanel(
     });
 
     view! {
-        <nodus_view::Popover
+        <nodus_ui::Popover
             open=Signal::derive(move || open.get())
             host=host
             class="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-1rem)] rounded-box border border-base-300 bg-base-100 p-2 shadow-xl".to_owned()
@@ -410,7 +410,7 @@ pub fn EmojiPanel(
     }
 }
 
-pub use nodus_view::pages::compose::inline::hints::{EmojiHint, EmojiHintsValue};
+pub use nodus_pages::pages::compose::inline::hints::{EmojiHint, EmojiHintsValue};
 
 /// The JS callback that carries the pending `:token` and the caret's place in the box.
 ///

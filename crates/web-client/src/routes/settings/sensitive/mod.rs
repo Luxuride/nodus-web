@@ -5,7 +5,7 @@
 //! exactly what a reader who has already decided does not want.
 
 use leptos::prelude::*;
-use nodus_view::pages::settings::profile::SensitiveCard as SharedSensitiveCard;
+use nodus_pages::pages::settings::profile::SensitiveCard as SharedSensitiveCard;
 
 use super::super::status::sensitive;
 

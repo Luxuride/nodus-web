@@ -1,6 +1,6 @@
 //! One recommended post, drawn by the shared card.
 //!
-//! The card itself lives in `nodus_view::pages::feed::posts`; what stays here is the
+//! The card itself lives in `nodus_pages::pages::feed::posts`; what stays here is the
 //! part that is the browser's: reading the recommendation's HTML body as text, and
 //! writing the impression when the card leaves the screen (D36).
 
@@ -20,7 +20,7 @@ pub fn PostCard(item: PostItem) -> impl IntoView {
     let left = Callback::new(finish_impression);
 
     view! {
-        <nodus_view::pages::feed::posts::PostCard
+        <nodus_pages::pages::feed::posts::PostCard
             item=item
             body=body
             age=age

@@ -5,7 +5,7 @@
 //! screens.
 
 use leptos::prelude::*;
-use nodus_view::pages::settings::account::ModerationLinks as SharedModerationLinks;
+use nodus_pages::pages::settings::account::ModerationLinks as SharedModerationLinks;
 
 use crate::router::{self, Route};
 

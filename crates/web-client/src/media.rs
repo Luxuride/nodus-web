@@ -15,7 +15,7 @@ thread_local! {
     static OPEN: RefCell<Option<RwSignal<Option<Gallery>>>> = const { RefCell::new(None) };
 }
 
-pub use nodus_view::media_grid::Picture;
+pub use nodus_ui::media_grid::Picture;
 
 /// Everything the viewer is looking at, and where in it they are.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -169,7 +169,7 @@ pub fn ImageModal() -> impl IntoView {
     };
 
     view! {
-        <nodus_view::Lightbox
+        <nodus_ui::Lightbox
             open=Signal::derive(move || gallery().is_some())
             url=Signal::derive(url)
             alt=Signal::derive(alt)

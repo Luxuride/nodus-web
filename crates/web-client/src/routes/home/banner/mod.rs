@@ -50,11 +50,11 @@ pub fn Banner() -> impl IntoView {
     };
 
     view! {
-        <nodus_view::pages::timeline::banner::TimelineBanner
+        <nodus_pages::pages::timeline::banner::TimelineBanner
             current=Signal::derive(move || {
                 current
                     .get()
-                    .map(|announcement| nodus_view::pages::timeline::banner::Announcement {
+                    .map(|announcement| nodus_pages::pages::timeline::banner::Announcement {
                         id: announcement.id,
                         text: plain_text(&announcement.content),
                     })

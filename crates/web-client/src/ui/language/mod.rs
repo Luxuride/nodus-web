@@ -136,7 +136,7 @@ pub fn LanguagePicker(
     view! {
         // Same footprint as the visibility select next to it, so the bar reads as one row of
         // controls rather than a select plus a stray button.
-        <nodus_view::LanguagePicker
+        <nodus_ui::LanguagePicker
             selected=Signal::derive(move || selected.get())
             name=Signal::derive(move || name_of(&language.get()))
             open=Signal::derive(move || open.get())

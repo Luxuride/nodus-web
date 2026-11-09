@@ -11,7 +11,7 @@
 //! that are already display-ready.
 
 use leptos::prelude::*;
-use nodus_view::pages::compose::inline::drafts_panel::{Draft, DraftsPanel as Panel};
+use nodus_pages::pages::compose::inline::drafts_panel::{Draft, DraftsPanel as Panel};
 
 use crate::ui::drafts::{self, Saved};
 

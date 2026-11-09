@@ -2,7 +2,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_view::pages::settings::form::FeaturedTagField;
+use nodus_pages::pages::settings::form::FeaturedTagField;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;

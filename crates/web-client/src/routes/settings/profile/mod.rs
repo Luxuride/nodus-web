@@ -2,7 +2,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_view::pages::settings::form::ProfileFields;
+use nodus_pages::pages::settings::form::ProfileFields;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{actions, revision, with_sdk};
@@ -71,7 +71,7 @@ pub(crate) fn ProfileCard() -> impl IntoView {
     };
 
     view! {
-        <nodus_view::components::panel::Panel title="Profile">
+        <nodus_ui::components::panel::Panel title="Profile">
             <ProfileFields
                 display_name=Signal::derive(move || display_name.get())
                 note=Signal::derive(move || note.get())
@@ -82,6 +82,6 @@ pub(crate) fn ProfileCard() -> impl IntoView {
                 on_note=Some(Callback::new(move |value: String| set_note.set(value)))
                 on_save=Some(Callback::new(move |()| save()))
             />
-        </nodus_view::components::panel::Panel>
+        </nodus_ui::components::panel::Panel>
     }
 }

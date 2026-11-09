@@ -19,7 +19,6 @@ pub mod notification_card;
 pub mod page_header;
 pub mod panel;
 pub mod popover;
-pub mod props;
 pub mod rail;
 pub mod screen;
 pub mod shell;

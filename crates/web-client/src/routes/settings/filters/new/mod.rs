@@ -3,7 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{FilterAction, FilterDraft};
-use nodus_view::pages::settings::form::FilterFields;
+use nodus_pages::pages::settings::form::FilterFields;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;

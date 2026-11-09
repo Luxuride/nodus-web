@@ -1,11 +1,11 @@
 //! The timelines this reader can read, under the composer.
 //!
-//! The strip itself is shared (`nodus_view::components::timeline_tabs`) so the server
+//! The strip itself is shared (`nodus_ui::components::timeline_tabs`) so the server
 //! paints the same links the client offers; what stays here is which timelines this
 //! reader turned on, and that a click is a client-side navigation.
 
 use leptos::prelude::*;
-use nodus_view::components::timeline_tabs::{TimelineLink, TimelineTabs};
+use nodus_ui::components::timeline_tabs::{TimelineLink, TimelineTabs};
 
 use crate::router::{self, Route};
 use crate::state::feeds;

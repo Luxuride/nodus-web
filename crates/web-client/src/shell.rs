@@ -1,13 +1,13 @@
 //! The phone shell's destinations, as data.
 //!
-//! The drawing is `nodus_view::components::shell`; this file only says *which* destinations a
+//! The drawing is `nodus_ui::components::shell`; this file only says *which* destinations a
 //! phone gets and where they point, so the addresses stay in the router and the markup stays in
 //! the view crate. Two rules survive from when this was markup: five cells, because five fit a
 //! 320 px screen, and the rest behind the sheet because the rail does not fit under a thumb.
 
 use leptos::prelude::*;
-use nodus_view::components::icons::Icon;
-use nodus_view::components::shell::{BarTab, SheetGroup};
+use nodus_ui::components::icons::Icon;
+use nodus_ui::components::shell::{BarTab, SheetGroup};
 
 use crate::router::{self, Route, SECTION_DEFAULT, SHELF_DEFAULT};
 
@@ -72,7 +72,7 @@ fn sheet() -> Vec<SheetGroup> {
 pub fn MobileTop() -> impl IntoView {
     let current = router::route();
     view! {
-        <nodus_view::components::shell::MobileTop
+        <nodus_ui::components::shell::MobileTop
             home_path=Route::Home.path()
             on_home=Callback::new(move |()| router::navigate(current.get_untracked().clone()))
         />
@@ -84,7 +84,7 @@ pub fn MobileTop() -> impl IntoView {
 pub fn MobileBar(open: RwSignal<bool>) -> impl IntoView {
     let current = router::route();
     view! {
-        <nodus_view::components::shell::MobileBar
+        <nodus_ui::components::shell::MobileBar
             open=open
             current=Signal::derive(move || current.get().path())
             tabs=bar()
@@ -100,7 +100,7 @@ pub fn MobileBar(open: RwSignal<bool>) -> impl IntoView {
 pub fn MobileSheet(open: RwSignal<bool>) -> impl IntoView {
     let current = router::route();
     view! {
-        <nodus_view::components::shell::MobileSheet
+        <nodus_ui::components::shell::MobileSheet
             open=open
             current=Signal::derive(move || current.get().path())
             groups=sheet()

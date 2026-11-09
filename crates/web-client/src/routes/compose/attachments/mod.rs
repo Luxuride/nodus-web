@@ -13,7 +13,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::MediaAttachment;
-use nodus_view::pages::compose::attachments::{
+use nodus_pages::pages::compose::attachments::{
     Attachments as AttachmentList, AttachmentsProps as AttachmentListProps,
 };
 use wasm_bindgen::JsCast;

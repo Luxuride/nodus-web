@@ -7,11 +7,11 @@
 //! answers, the month grid, and the label the button shows all depend on today's date here.
 
 use leptos::prelude::*;
-use nodus_view::pages::compose::inline::schedule::{QuickTime, SchedulePanel as Panel};
+use nodus_pages::pages::compose::inline::schedule::{QuickTime, SchedulePanel as Panel};
 
 use crate::state::clock_format;
 
-pub(super) use nodus_view::pages::compose::inline::schedule::split;
+pub(super) use nodus_pages::pages::compose::inline::schedule::split;
 
 /// The panel, hung from the caret rather than from a control of its own: the answer
 /// it sets is read by the post button's label, so the two read as one control.

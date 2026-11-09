@@ -45,7 +45,7 @@ pub(super) fn ReplyBox(
     };
 
     view! {
-        <nodus_view::pages::reply_card::ReplyCard
+        <nodus_pages::pages::reply_card::ReplyCard
             text=draft.get()
             busy=posting.get()
             on_input=Callback::new(move |text: String| set_draft.set(text))

@@ -5,7 +5,7 @@
 //! instance — Mastodon has no API for "which timelines this person reads".
 
 use leptos::prelude::*;
-use nodus_view::pages::settings::feeds::{FeedItem, FeedsCard as SharedFeedsCard};
+use nodus_pages::pages::settings::feeds::{FeedItem, FeedsCard as SharedFeedsCard};
 
 use crate::state::feeds::{self as prefs, Feed};
 
@@ -14,7 +14,7 @@ use crate::state::feeds::{self as prefs, Feed};
 pub fn FeedsCard() -> impl IntoView {
     let Some(changed) = prefs::revision() else {
         return view! {
-            <nodus_view::Note>"Preferences are not available."</nodus_view::Note>
+            <nodus_ui::Note>"Preferences are not available."</nodus_ui::Note>
         }
         .into_any();
     };

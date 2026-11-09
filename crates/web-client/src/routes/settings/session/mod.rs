@@ -1,7 +1,7 @@
 //! Who this browser is signed in as, and the way out.
 
 use leptos::prelude::*;
-use nodus_view::pages::settings::account::SessionCard as SharedSessionCard;
+use nodus_pages::pages::settings::account::SessionCard as SharedSessionCard;
 
 use crate::state::bridge::sign_out;
 

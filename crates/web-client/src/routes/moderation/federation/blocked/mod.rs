@@ -3,7 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{DomainBlock, DomainSeverity};
-use nodus_view::pages::moderation::federation::FederationPage;
+use nodus_pages::pages::moderation::federation::FederationPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::admin;

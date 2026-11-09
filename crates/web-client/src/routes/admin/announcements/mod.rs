@@ -11,7 +11,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Announcement;
-use nodus_view::pages::admin::announcements::AnnouncementsPage;
+use nodus_pages::pages::admin::announcements::AnnouncementsPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::notices::announcements;

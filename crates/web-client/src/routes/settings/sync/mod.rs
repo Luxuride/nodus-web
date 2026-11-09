@@ -10,7 +10,7 @@
 //! state and what a confirmed intent does.
 
 use leptos::prelude::*;
-use nodus_view::pages::settings::sync::{ConfirmDialog, SyncIntent, SyncRows};
+use nodus_pages::pages::settings::sync::{ConfirmDialog, SyncIntent, SyncRows};
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{load_sync_consent, revision, with_sdk};
@@ -94,14 +94,14 @@ pub fn SyncCard() -> impl IntoView {
     };
 
     view! {
-        <nodus_view::components::panel::Panel title="Background sync">
+        <nodus_ui::components::panel::Panel title="Background sync">
             <SyncRows
                 state=state
                 busy=Signal::derive(move || busy.get())
                 result=Signal::derive(move || result.get())
                 on_ask=Some(Callback::new(move |()| confirming.set(Some(asked()))))
             />
-        </nodus_view::components::panel::Panel>
+        </nodus_ui::components::panel::Panel>
 
         <ConfirmDialog
             confirming=Signal::derive(move || confirming.get())

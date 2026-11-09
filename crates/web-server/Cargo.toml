@@ -26,7 +26,9 @@ admin = []
 # The URL vocabulary and the route table: the one thing both artifacts must agree on.
 nodus-web = { path = "../web-shared", default-features = false }
 # The components. The server does not have a renderer of its own.
-nodus-view = { path = "../view" }
+nodus-ui = { path = "../ui" }
+nodus-pages = { path = "../pages" }
+nodus-route = { path = "../route" }
 # Rendering to a string, never hydrating.
 leptos = { version = "0.8.23", features = ["ssr"] }
 # The instance client is the SDK's native build: one place knows Mastodon's endpoints.

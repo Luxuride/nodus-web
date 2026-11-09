@@ -9,5 +9,5 @@
 /// the user's, and a wrong-by-seconds age is harmless while a panicking parse is not.
 #[must_use]
 pub fn relative_time(rfc3339: &str) -> String {
-    nodus_view::relative_age(rfc3339, js_sys::Date::now())
+    nodus_ui::relative_age(rfc3339, js_sys::Date::now())
 }

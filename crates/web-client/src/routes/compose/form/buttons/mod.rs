@@ -5,7 +5,7 @@
 //! difference between the two callers is the two verbs.
 
 use leptos::prelude::*;
-use nodus_view::pages::compose::form::buttons::ComposerActions as ActionsRow;
+use nodus_pages::pages::compose::form::buttons::ComposerActions as ActionsRow;
 
 use crate::router::{self, Route};
 

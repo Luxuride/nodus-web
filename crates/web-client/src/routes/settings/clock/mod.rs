@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use nodus_view::pages::settings::profile::{ClockCard as SharedClockCard, ClockStyle};
+use nodus_pages::pages::settings::profile::{ClockCard as SharedClockCard, ClockStyle};
 
 use crate::state::clock_format::{self, ClockFormat};
 

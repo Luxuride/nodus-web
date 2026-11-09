@@ -9,7 +9,7 @@ use super::share::ShareReport;
 use crate::state::alive::Alive;
 use crate::state::bridge::{begin_impression, finish_impression};
 
-use nodus_view::pages::feed::accounts::{Toast, ToastReport};
+use nodus_pages::pages::feed::accounts::{Toast, ToastReport};
 
 /// One ranked account: who it is, why it is here, and the three actions.
 ///
@@ -83,7 +83,7 @@ pub(crate) fn FeedItem(item: AccountItem) -> impl IntoView {
         as leptos::prelude::ChildrenFn;
 
     view! {
-        <nodus_view::pages::feed::accounts::AccountCard
+        <nodus_pages::pages::feed::accounts::AccountCard
             display_name=display_name.clone()
             acct=acct.clone()
             avatar_url=avatar_url.clone()

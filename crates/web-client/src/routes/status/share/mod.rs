@@ -44,7 +44,7 @@ pub(super) fn ShareButton(
     };
 
     view! {
-        <nodus_view::status_share::ShareButton
+        <nodus_ui::status_share::ShareButton
             copied=Signal::derive(move || copied.get())
             on_copy=Callback::new(move |()| copy())
         />

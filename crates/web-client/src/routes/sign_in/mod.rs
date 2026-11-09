@@ -72,7 +72,7 @@ pub fn SignIn(#[prop(optional)] note: Option<&'static str>) -> impl IntoView {
     };
 
     view! {
-        <nodus_view::pages::sign_in::SignInPage
+        <nodus_pages::pages::sign_in::SignInPage
             note=note.map(str::to_owned)
             host=Signal::derive(move || host.get())
             token=Signal::derive(move || token.get())

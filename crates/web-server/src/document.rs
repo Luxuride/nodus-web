@@ -148,18 +148,18 @@ mod imperative {
     #[must_use]
     pub fn rail_rows() -> AnyView {
         view! {
-            <nodus_view::RailEntry
+            <nodus_ui::RailEntry
                 label="Moderation"
                 href="/moderation"
                 hint="The queue, the accounts and what the server allows"
-                icon=nodus_view::icons::Icon::Shield
+                icon=nodus_ui::icons::Icon::Shield
                 active=Signal::derive(|| false)
             />
-            <nodus_view::RailEntry
+            <nodus_ui::RailEntry
                 label="Administration"
                 href="/admin"
                 hint="What this instance publishes and allows"
-                icon=nodus_view::icons::Icon::Globe
+                icon=nodus_ui::icons::Icon::Globe
                 active=Signal::derive(|| false)
             />
         }
@@ -176,7 +176,7 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
     let inner = inner.to_owned();
     Owner::new().with(|| {
         let body = inner.clone();
-        nodus_view::Frame(nodus_view::FrameProps {
+        nodus_ui::Frame(nodus_ui::FrameProps {
             signed_in: Signal::derive(move || signed_in),
             path: Signal::derive({
                 let path = path.clone();
@@ -187,7 +187,7 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
             }),
             extra: STAFF
                 .with(std::cell::Cell::get)
-                .then(|| std::sync::Arc::new(staff_doors) as nodus_view::ExtraDoors),
+                .then(|| std::sync::Arc::new(staff_doors) as nodus_ui::ExtraDoors),
         })
         .to_html()
     })
@@ -203,8 +203,8 @@ fn timeline_header(active: &str) -> String {
 
     let here = active.to_owned();
     Owner::new().with(|| {
-        nodus_view::pages::compose::inline::ComposerPreview(
-            nodus_view::pages::compose::inline::preview::ComposerPreviewProps {
+        nodus_pages::pages::compose::inline::ComposerPreview(
+            nodus_pages::pages::compose::inline::preview::ComposerPreviewProps {
                 active: Signal::derive(move || here.clone()),
             },
         )
@@ -243,7 +243,7 @@ pub fn feed(
             "federated" => nodus_web::shared::router::Route::Federated,
             _ => nodus_web::shared::router::Route::Home,
         };
-        let card: nodus_view::components::card_renderer::CardRenderer =
+        let card: nodus_ui::components::card_renderer::CardRenderer =
             std::sync::Arc::new(|status| {
                 leptos::html::div()
                     .inner_html(status_card(&status))
@@ -254,7 +254,7 @@ pub fn feed(
             let heading = timeline_header(active);
             std::sync::Arc::new(move || leptos::html::div().inner_html(heading.clone()).into_any())
         };
-        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
             runtime: crate::runtime::StaticRuntime::page(
                 statuses.to_vec(),
                 cursor.map(str::to_owned),
@@ -318,7 +318,7 @@ pub fn page_of(
 
 /// The signed-out page, and the shell a signed-in reader gets before their data arrives.
 pub fn landing(assets: &Assets) -> String {
-    let inner = Owner::new().with(|| nodus_view::pages::landing::LandingPage().to_html());
+    let inner = Owner::new().with(|| nodus_pages::pages::landing::LandingPage().to_html());
     page(assets, "Nodus", &chrome(false, "/", &inner), None)
 }
 
@@ -337,7 +337,7 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
         // The client's gate, painted: a signed-out reader gets the form the client mounts,
         // with every verb absent until wasm arrives.
         let inner = Owner::new().with(|| {
-            nodus_view::pages::sign_in::SignInPage(nodus_view::pages::sign_in::SignInPageProps {
+            nodus_pages::pages::sign_in::SignInPage(nodus_pages::pages::sign_in::SignInPageProps {
                 note: None,
                 host: Signal::derive(String::new),
                 token: Signal::derive(String::new),
@@ -366,7 +366,7 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
 
 pub fn error(assets: &Assets, message: &str) -> String {
     let inner = Owner::new().with(|| {
-        nodus_view::pages::shell::TimelineError(nodus_view::pages::shell::TimelineErrorProps {
+        nodus_pages::pages::shell::TimelineError(nodus_pages::pages::shell::TimelineErrorProps {
             message: message.to_owned(),
         })
         .to_html()

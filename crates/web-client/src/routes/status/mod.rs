@@ -97,9 +97,9 @@ pub fn StatusCard(status: Status) -> impl IntoView {
     let extra: ChildrenFn = Arc::new(move || {
         view! {
             <Show when=move || error.get().is_some()>
-                <nodus_view::Note class="text-error text-xs">
+                <nodus_ui::Note class="text-error text-xs">
                     {move || error.get().unwrap_or_default()}
-                </nodus_view::Note>
+                </nodus_ui::Note>
             </Show>
         }
         .into_any()
@@ -121,7 +121,7 @@ pub fn StatusCard(status: Status) -> impl IntoView {
 
     view! {
         {move || view! {
-            <nodus_view::status_card::StatusCard
+            <nodus_ui::status_card::StatusCard
                 status=painted()
                 age=age.clone()
                 author_path=author_path.clone()

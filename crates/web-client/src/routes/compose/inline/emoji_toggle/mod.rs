@@ -6,7 +6,7 @@
 //! listener needs the wrapper as its "inside" test — pressing the panel must not close it.
 
 use leptos::prelude::*;
-use nodus_view::pages::compose::inline::emoji_toggle::EmojiToggleButton;
+use nodus_pages::pages::compose::inline::emoji_toggle::EmojiToggleButton;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 
@@ -80,7 +80,7 @@ pub(super) fn EmojiToggle(
     view! {
         // The emoticon sits with the counter, not with the compose-your-post row: it edits
         // the body, and the left group is about what kind of post this is.
-        <nodus_view::Anchor host=host>
+        <nodus_ui::Anchor host=host>
             <EmojiToggleButton
                 open=open
                 busy=busy
@@ -89,6 +89,6 @@ pub(super) fn EmojiToggle(
             // Absolutely positioned so opening the picker does not push the bar taller and
             // move the button the writer just pressed.
             <crate::ui::editor::EmojiPanel open=open/>
-        </nodus_view::Anchor>
+        </nodus_ui::Anchor>
     }
 }

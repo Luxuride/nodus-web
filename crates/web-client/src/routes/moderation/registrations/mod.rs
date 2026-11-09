@@ -10,7 +10,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::AdminAccount;
-use nodus_view::pages::moderation::registrations::RegistrationsPage;
+use nodus_pages::pages::moderation::registrations::RegistrationsPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::admin;

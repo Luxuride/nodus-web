@@ -7,7 +7,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
-use nodus_view::pages::compose::ComposeLoading;
+use nodus_pages::pages::compose::ComposeLoading;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;

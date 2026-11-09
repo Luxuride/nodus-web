@@ -16,10 +16,10 @@ use leptos::prelude::*;
 #[cfg(feature = "admin")]
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
-use nodus_view::components::CardRenderer;
+use nodus_ui::components::CardRenderer;
 #[cfg(feature = "admin")]
-use nodus_view::icons::Icon;
-use nodus_view::route::RouteView;
+use nodus_ui::icons::Icon;
+use nodus_route::route::RouteView;
 
 /// Application shell: the rail, and the screen the address bar asks for.
 #[component]
@@ -53,7 +53,7 @@ pub(crate) fn App() -> impl IntoView {
     });
 
     view! {
-        <nodus_view::Frame
+        <nodus_ui::Frame
             signed_in=Signal::derive(move || signed_in.get())
             path=Signal::derive(move || router::route().get().path())
             extra=extra_doors()
@@ -69,7 +69,7 @@ pub(crate) fn App() -> impl IntoView {
                         match route.get() {
                             Route::OauthCallback => view! { <Callback/> }.into_any(),
                             Route::Feed if signed_in => view! {
-                                <nodus_view::route::RouteView
+                                <nodus_route::route::RouteView
                                     runtime=crate::state::runtime::runtime()
                                     route=Route::Feed
                                     card=card.clone()
@@ -170,9 +170,9 @@ pub(crate) fn App() -> impl IntoView {
                                 {
                                     let _ = &section;
                                     view! {
-                                        <nodus_view::Note>
+                                        <nodus_ui::Note>
                                             "This build has no moderation screens."
-                                        </nodus_view::Note>
+                                        </nodus_ui::Note>
                                     }
                                     .into_any()
                                 }
@@ -186,17 +186,17 @@ pub(crate) fn App() -> impl IntoView {
                                 {
                                     let _ = &section;
                                     view! {
-                                        <nodus_view::Note>
+                                        <nodus_ui::Note>
                                             "This build has no moderation screens. A moderator build "
                                             "is " <code>"trunk build --release --features admin"</code>
                                             "."
-                                        </nodus_view::Note>
+                                        </nodus_ui::Note>
                                     }
                                     .into_any()
                                 }
                             }
                             Route::Settings(section) if signed_in => view! {
-                                <nodus_view::route::RouteView
+                                <nodus_route::route::RouteView
                                     runtime=crate::state::runtime::runtime()
                                     route=Route::Settings(section)
                                     card=card.clone()
@@ -286,7 +286,7 @@ pub(crate) fn App() -> impl IntoView {
                                     host
                                 };
                                 view! {
-                                    <nodus_view::route::RouteView
+                                    <nodus_route::route::RouteView
                                         runtime=crate::state::runtime::runtime()
                                         route=Route::Thread { host, id }
                                         card=card.clone()
@@ -303,7 +303,7 @@ pub(crate) fn App() -> impl IntoView {
             <shell::MobileSheet open=sheet/>
         </Show>
         <crate::media::ImageModal/>
-        <nodus_view::AppFooter host=Signal::derive(move || {
+        <nodus_ui::AppFooter host=Signal::derive(move || {
             with_sdk(|sdk| sdk.state().session.get().map(|session| session.host))
         })/>
     }
@@ -315,17 +315,17 @@ pub(crate) fn App() -> impl IntoView {
     clippy::unnecessary_wraps,
     reason = "the lean build returns nothing, and one call site serves both"
 )]
-fn extra_doors() -> Option<nodus_view::ExtraDoors> {
+fn extra_doors() -> Option<nodus_ui::ExtraDoors> {
     Some(std::sync::Arc::new(|| staff_rail_items().into_any()))
 }
 
 /// The lean build has no moderation screens, so the rail has no extra doors.
 #[cfg(not(feature = "admin"))]
-fn extra_doors() -> Option<nodus_view::ExtraDoors> {
+fn extra_doors() -> Option<nodus_ui::ExtraDoors> {
     None
 }
 
-/// The foot of every screen now lives in `nodus_view`, so the server paints it too.
+/// The foot of every screen now lives in `nodus_ui`, so the server paints it too.
 
 /// One entry in the rail: the class that marks the current screen, and a click that
 /// keeps the address bar in step without a full page load.
@@ -342,7 +342,7 @@ fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -
     let path = target.path();
 
     view! {
-        <nodus_view::RailEntry
+        <nodus_ui::RailEntry
             label=label
             hint=hint
             href=path

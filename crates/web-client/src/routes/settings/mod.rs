@@ -6,7 +6,7 @@
 //! where two unrelated questions are answered.
 
 use leptos::prelude::*;
-use nodus_view::pages::settings::nav::SettingsSection;
+use nodus_pages::pages::settings::nav::SettingsSection;
 
 use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, with_sdk};

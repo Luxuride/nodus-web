@@ -6,7 +6,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::FilterAction;
 use nodus_sdk::page::{PageItems, PageKind};
-use nodus_view::pages::settings::lists::{FilterItem, FiltersCard as SharedFiltersCard};
+use nodus_pages::pages::settings::lists::{FilterItem, FiltersCard as SharedFiltersCard};
 
 mod new;
 

@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use nodus_instance::model::Visibility;
-use nodus_view::pages::compose::inline::bar::{
+use nodus_pages::pages::compose::inline::bar::{
     ComposerBar as Bar, ComposerBarProps as BarProps,
 };
 

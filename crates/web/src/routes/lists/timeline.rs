@@ -1,12 +1,15 @@
 //! The selected list's timeline.
 //!
-//! Same shape as the home timeline: one page, a cursor, "Load more". The only difference
-//! is where the page comes from, which is why this panel does not reuse `Home` — that one
-//! owns a tab that switches between three endpoints.
+//! The panel is `nodus_view::pages::lists::ListTimeline`: the list of posts, the empty
+//! sentence, the paging control and the error line. What stays here is the page store read
+//! and the request that pages it; the card is this crate's, because a mounted post opens a
+//! thread and offers verbs.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use nodus_instance::model::Status;
 use nodus_sdk::Timeline;
+use nodus_view::pages::lists::ListTimeline as ListTimelinePanel;
 
 use super::super::status::StatusCard;
 use crate::state::alive::Alive;
@@ -14,7 +17,7 @@ use crate::state::bridge::{revision, timeline};
 
 /// A list timeline, or nothing when no list is selected.
 #[component]
-pub fn ListTimeline(list_id: ReadSignal<Option<String>>) -> impl IntoView {
+pub fn ListTimeline(list_id: Signal<Option<String>>) -> impl IntoView {
     let changed = revision();
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
@@ -54,39 +57,24 @@ pub fn ListTimeline(list_id: ReadSignal<Option<String>>) -> impl IntoView {
         }
     });
 
-    let more = move || {
+    let more = Callback::new(move |()| {
         if let (Some(id), Some(after)) = (list_id.get_untracked(), cursor()) {
             load(id, Some(after));
         }
-    };
+    });
+
+    let card =
+        Callback::new(move |status: Status| view! { <StatusCard status=status/> }.into_any());
 
     view! {
-        <Show when=move || list_id.get().is_some()>
-            <ul class="flex flex-col gap-3">
-                <For each=move || statuses() key=|status| status.id.clone() let:status>
-                    <StatusCard status=status/>
-                </For>
-            </ul>
-
-            <Show when=move || {
-                !loading.get() && statuses().is_empty() && error.get().is_none()
-            }>
-                <p class="text-sm opacity-60">"Nobody on this list has posted yet."</p>
-            </Show>
-
-            <Show when=move || cursor().is_some()>
-                <button
-                    class="btn btn-ghost btn-sm w-full"
-                    disabled=move || loading.get()
-                    on:click=move |_| more()
-                >
-                    "Load more"
-                </button>
-            </Show>
-
-            <Show when=move || error.get().is_some()>
-                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-            </Show>
-        </Show>
+        <ListTimelinePanel
+            list_id=list_id
+            statuses=Signal::derive(statuses)
+            cursor=Signal::derive(cursor)
+            loading=loading.into()
+            error=error.into()
+            on_more=more
+            card=Some(card)
+        />
     }
 }

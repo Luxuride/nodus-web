@@ -1,15 +1,20 @@
 //! Lists: hand-picked sets of accounts with a timeline each.
 //!
-//! Three panels — the lists themselves, the members of the selected one, and its
-//! timeline — because a list is only useful if you can see who is on it. The selection is
-//! one signal shared by the panels, so selecting a list reloads both without either panel
-//! knowing about the other.
+//! The screen is `nodus_view::pages::lists`: the heading, the create form, the picker and the
+//! two panels of the selected list. What stays here is what that crate may not hold — the
+//! read of every list, the selection the panels share, and the transports behind create,
+//! rename, delete, add and paging.
+//!
+//! The roster and the timeline are slots rather than props: each holds reads of its own, and
+//! both are keyed to the same selection signal, so picking another list is what makes them
+//! stale.
+
+use std::sync::Arc;
 
 use leptos::prelude::*;
-
-use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_instance::model::List;
+use nodus_view::pages::lists::ListsPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
@@ -82,81 +87,46 @@ pub fn Lists() -> impl IntoView {
         });
     };
 
-    view! {
-        <nodus_view::Screen>
-            <PageHeader title="Lists" description="Hand-picked accounts, each with a timeline of its own."/>
-            <NewListForm
-                title=title
-                set_title=set_title
-                busy=busy
-                create=Callback::new(move |()| create(()))
+    let on_title = Callback::new(move |text: String| set_title.set(text));
+    let on_create = Callback::new(move |()| create(()));
+
+    // The row's two edits are the screen's, so the picker asks for a whole row rather than
+    // drawing one it cannot make editable.
+    let row = Callback::new(move |list: List| {
+        view! {
+            <ListRow
+                list=list
+                selected=selected.into()
+                busy=busy.into()
+                set_selected=set_selected
+                set_error=set_error
+                reload=Callback::new(move |()| {
+                    set_busy.set(true);
+                    reload();
+                    set_busy.set(false);
+                })
             />
+        }
+        .into_any()
+    });
 
-            <Show when=move || !lists.get().is_empty()>
-                <ul class="flex flex-wrap gap-2">
-                    <For each=move || lists.get() key=|list| list.id.clone() let:list>
-                        <ListRow
-                            list=list
-                            selected=selected
-                            set_selected=set_selected
-                            busy=busy
-                            set_error=set_error
-                            reload=Callback::new(move |()| {
-                                set_busy.set(true);
-                                reload();
-                                set_busy.set(false);
-                            })
-                        />
-                    </For>
-                </ul>
-            </Show>
+    let members: ChildrenFn =
+        Arc::new(move || view! { <Members list_id=selected.into()/> }.into_any());
+    let timeline: ChildrenFn =
+        Arc::new(move || view! { <ListTimeline list_id=selected.into()/> }.into_any());
 
-            <Show when=move || { !busy.get() && lists.get().is_empty() && error.get().is_none() }>
-                <p class="text-sm opacity-60">"No lists yet. A list keeps a timeline of its own."</p>
-            </Show>
-
-            <Members list_id=selected/>
-            <ListTimeline list_id=selected/>
-
-            <Show when=move || error.get().is_some()>
-                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-            </Show>
-        </nodus_view::Screen>
-    }
-}
-
-/// The create form, split out so `Lists` reads as a layout rather than a form handler.
-#[component]
-fn NewListForm(
-    title: ReadSignal<String>,
-    set_title: WriteSignal<String>,
-    busy: ReadSignal<bool>,
-    create: Callback<()>,
-) -> impl IntoView {
     view! {
-            <form
-                class="flex items-end gap-2"
-                on:submit=move |event| {
-                    event.prevent_default();
-                    create.run(());
-                }
-            >
-                <label class="form-control w-full">
-                    <span class="label-text text-xs opacity-60">"New list"</span>
-                    <input
-                        class="input input-bordered input-sm w-full"
-                        placeholder="A name nobody else sees"
-                        prop:value=move || title.get()
-                        on:input=move |event| set_title.set(event_target_value(&event))
-                    />
-                </label>
-                <button
-                    class="btn btn-primary btn-sm"
-                    type="submit"
-                    disabled=move || busy.get() || title.get().trim().is_empty()
-                >
-                    "Create"
-                </button>
-            </form>
+        <ListsPage
+            lists=lists.into()
+            selected=selected.into()
+            title=title.into()
+            busy=busy.into()
+            error=error.into()
+            on_title=on_title
+            on_create=on_create
+            row=row
+            members=members
+            timeline=timeline
+        />
     }
 }

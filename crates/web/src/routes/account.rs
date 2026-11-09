@@ -151,7 +151,14 @@ pub fn AccountView(id: String) -> impl IntoView {
 
     // A verb pressed while another is in flight is ignored rather than disabled: the shared
     // page decides `disabled` from the relationship alone, and the labels do not flicker.
-    let verbs = verbs(alive, busy, relationship, set_relationship, set_busy, set_error);
+    let verbs = verbs(
+        alive,
+        busy,
+        relationship,
+        set_relationship,
+        set_busy,
+        set_error,
+    );
 
     let on_avatar = Callback::new(|url: String| crate::media::expand_one(url, String::new()));
 

@@ -30,12 +30,14 @@ pub(crate) use crate::rows::*;
 pub struct Assets {
     pub script: String,
     pub wasm: String,
+    /// The stylesheet's path, kept so a deploy that changes only the CSS is visible.
     pub stylesheet: Option<String>,
+    /// The stylesheet's contents, inlined into every page. One request fewer before
+    /// the first paint, and no second asset whose hash can go stale during a deploy.
+    pub stylesheet_css: Option<String>,
 }
 
 impl Assets {
-    /// Find the bundle in a `dist` directory. Falls back to trunk's stable names so a
-    /// misconfigured path produces a page that still works rather than a 404 loop.
     /// Whether the files this build discovered are still the ones on disk.
     ///
     /// `Caddy` serves `/srv/nodus` from the filesystem, so a static deploy replaces both the
@@ -45,13 +47,21 @@ impl Assets {
     /// having replaced CSR.
     #[must_use]
     pub fn stale(&self, dist: &std::path::Path) -> bool {
-        !dist.join(&self.wasm).is_file() || !dist.join(&self.script).is_file()
+        if !dist.join(&self.wasm).is_file() || !dist.join(&self.script).is_file() {
+            return true;
+        }
+        self.stylesheet
+            .as_ref()
+            .is_some_and(|path| !dist.join(path).is_file())
     }
 
+    /// Find the bundle in a `dist` directory. Falls back to trunk's stable names so a
+    /// misconfigured path produces a page that still works rather than a 404 loop.
     pub fn discover(dist: &std::path::Path) -> Self {
         let mut script = None;
         let mut wasm = None;
         let mut stylesheet = None;
+        let mut stylesheet_css = None;
         if let Ok(entries) = std::fs::read_dir(dist) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().into_owned();
@@ -71,6 +81,7 @@ impl Assets {
                     wasm = Some(format!("/{name}"));
                 } else if name.starts_with("tailwind") && is_css {
                     stylesheet = Some(format!("/{name}"));
+                    stylesheet_css = std::fs::read_to_string(entry.path()).ok();
                 }
             }
         }
@@ -78,6 +89,7 @@ impl Assets {
             script: script.unwrap_or_else(|| "/nodus-web.js".to_owned()),
             wasm: wasm.unwrap_or_else(|| "/nodus-web_bg.wasm".to_owned()),
             stylesheet,
+            stylesheet_css,
         }
     }
 }
@@ -489,11 +501,11 @@ pub fn error(assets: &Assets, message: &str) -> String {
 
 /// The shell both pages share: the app's stylesheet, its bundle, and the island.
 fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> String {
-    let stylesheet = assets
-        .stylesheet
-        .as_ref()
-        .map(|href| format!("<link rel=\"stylesheet\" href=\"{}\">", escape(href)))
-        .unwrap_or_default();
+    let stylesheet = match (&assets.stylesheet_css, &assets.stylesheet) {
+        (Some(css), _) => format!("<style>{}</style>", css.replace("</style", "<\\/style")),
+        (None, Some(href)) => format!("<link rel=\"stylesheet\" href=\"{}\">", escape(href)),
+        (None, None) => String::new(),
+    };
     let island = island
         .map(|json| {
             format!(

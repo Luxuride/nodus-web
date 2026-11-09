@@ -91,6 +91,15 @@ pub fn SettingsScreen(runtime: Arc<dyn Runtime>, section: SettingsSection) -> im
     let no_error = Signal::derive(|| None::<String>);
     let idle = Signal::derive(|| false);
 
+    if let Some(body) = runtime.settings_body(section) {
+        return view! {
+            <SettingsPage section=Signal::derive(move || section) on_navigate=None>
+                {let body = body.clone(); move || body()}
+            </SettingsPage>
+        }
+        .into_any();
+    }
+
     view! {
         <SettingsPage section=Signal::derive(move || section) on_navigate=None>
             {move || match section {
@@ -164,4 +173,5 @@ pub fn SettingsScreen(runtime: Arc<dyn Runtime>, section: SettingsSection) -> im
             }}
         </SettingsPage>
     }
+    .into_any()
 }

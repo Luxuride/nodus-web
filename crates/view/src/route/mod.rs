@@ -15,6 +15,7 @@ use nodus_web::shared::router::Route;
 
 use crate::Alive;
 use crate::components::CardRenderer;
+use crate::pages::settings::nav::SettingsSection;
 
 pub mod screens;
 use screens::account::AccountScreen;
@@ -335,6 +336,11 @@ pub trait Runtime: Send + Sync + 'static {
         done.run(Err(
             "This action is not available without the app.".to_owned()
         ));
+    }
+
+    /// The settings sections the browser can build with its own forms.
+    fn settings_body(&self, _section: SettingsSection) -> Option<ChildrenFn> {
+        None
     }
 
     /// The clock both paints use for post ages.

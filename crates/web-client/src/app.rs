@@ -8,7 +8,6 @@ use crate::router::{self, Route};
 use crate::routes::callback::Callback;
 use crate::routes::compose::{Compose, ComposeEdit};
 use crate::routes::home::Home;
-use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
 use crate::shell;
 use crate::state::bridge::{init, revision, with_sdk};
@@ -196,7 +195,13 @@ pub(crate) fn App() -> impl IntoView {
                                     .into_any()
                                 }
                             }
-                            Route::Settings(section) if signed_in => view! { <Settings section=section/> }.into_any(),
+                            Route::Settings(section) if signed_in => view! {
+                                <nodus_view::route::RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Settings(section)
+                                    card=card.clone()
+                                />
+                            }.into_any(),
                             Route::Thread { id, .. } if signed_in => view! {
                                 <RouteView
                                     runtime=crate::state::runtime::runtime()

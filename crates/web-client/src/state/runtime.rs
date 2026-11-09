@@ -11,6 +11,7 @@ use nodus_instance::model::{Account, Context, Relationship, Status};
 use nodus_sdk::page::{PageEntry, PageKind};
 use nodus_sdk::{Command, Timeline};
 use nodus_shared::{AccountItem, PostItem};
+use nodus_view::pages::settings::nav::SettingsSection;
 use nodus_view::route::{
     Action, ActionResult, FeedKind, FeedPeopleView, FeedPostsView, Runtime, SessionView,
     TimelineKind, TimelineReply,
@@ -351,6 +352,12 @@ impl Runtime for ClientRuntime {
             }
             done.run(result);
         });
+    }
+
+    fn settings_body(&self, section: SettingsSection) -> Option<ChildrenFn> {
+        Some(Arc::new(move || {
+            view! { <crate::routes::settings::SettingsBody section/> }.into_any()
+        }))
     }
 
     fn now_millis(&self) -> f64 {

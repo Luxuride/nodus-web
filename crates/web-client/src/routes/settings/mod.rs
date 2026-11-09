@@ -7,7 +7,6 @@
 
 use leptos::prelude::*;
 use nodus_view::pages::settings::nav::SettingsSection;
-use nodus_view::pages::settings::page::SettingsPage;
 
 use crate::routes::settings::sync::SyncCard;
 use crate::state::bridge::{revision, with_sdk};
@@ -41,17 +40,10 @@ use sensitive::SensitiveCard;
 use session::SessionCard;
 use tags::FeaturedTagsCard;
 
-/// The section a `/settings/{slug}` address names.
-/// A Leptos component receives its props by value; the body only reads it.
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "a Leptos component receives its props by value"
-)]
+/// One settings section's body.
 #[component]
-pub fn Settings(section: String) -> impl IntoView {
+pub fn SettingsBody(section: SettingsSection) -> impl IntoView {
     let revision = revision();
-    // The address decides the section: `/settings/privacy` opens Privacy.
-    let (tab, _set_tab) = signal(SettingsSection::of(&section));
 
     let host = move || {
         revision.get();
@@ -73,37 +65,30 @@ pub fn Settings(section: String) -> impl IntoView {
     };
 
     view! {
-        <SettingsPage
-            section=Signal::derive(move || tab.get())
-            on_navigate=Some(Callback::new(move |next: SettingsSection| {
-                crate::router::navigate(crate::router::Route::Settings(next.slug().to_owned()));
-            }))
-        >
-            <Show when=move || tab.get() == SettingsSection::Account>
+            <Show when=move || section == SettingsSection::Account>
                 <SessionCard host=host acct=acct/>
                 <AccountsCard/>
                 <ModerationLinks/>
             </Show>
 
-            <Show when=move || tab.get() == SettingsSection::Profile>
+            <Show when=move || section == SettingsSection::Profile>
                 <ProfileCard/>
                 <ClockCard/>
                 <SensitiveCard/>
             </Show>
 
-            <Show when=move || tab.get() == SettingsSection::Nodus>
+            <Show when=move || section == SettingsSection::Nodus>
                 <SyncCard/>
                 <FeedsCard/>
             </Show>
 
-            <Show when=move || tab.get() == SettingsSection::Filters>
+            <Show when=move || section == SettingsSection::Filters>
                 <FiltersCard/>
                 <FeaturedTagsCard/>
             </Show>
 
-            <Show when=move || tab.get() == SettingsSection::Instance>
+            <Show when=move || section == SettingsSection::Instance>
                 <InstanceCard/>
             </Show>
-        </SettingsPage>
     }
 }

@@ -11,7 +11,7 @@
 //! the paging control and the error line.
 
 #[path = "../shelf/mod.rs"]
-mod shelf;
+pub mod shelf;
 
 pub use shelf::Shelf;
 

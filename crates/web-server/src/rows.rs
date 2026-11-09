@@ -5,10 +5,8 @@
 //! absent verbs.
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, Conversation, List, Notification, ScheduledStatus, Status};
+use nodus_instance::model::Status;
 
-use crate::document::escape;
-use crate::html::body as body_html;
 
 /// One status as markup: who, what, and what can be done with it.
 ///
@@ -54,126 +52,11 @@ pub fn status_card(status: &Status) -> String {
     })
 }
 
-/// A list of rows, or the sentence that says the list is empty.
-pub fn rows(items: &[String], empty: &str) -> String {
-    // The classes come from `nodus_view` so a change lands on both paints at once; the
-    // fragment itself is assembled here because the rows are already-rendered components and
-    // a `ChildrenFn` cannot be built from a list of strings.
-    if items.is_empty() {
-        return format!(
-            "<p class=\"{}\">{}</p>",
-            nodus_view::lists::rows::EMPTY,
-            escape(empty)
-        );
-    }
-    format!(
-        "<ul class=\"{}\">{}</ul>",
-        nodus_view::lists::rows::STACK,
-        items.concat()
-    )
-}
 
-pub fn account_row(account: &Account) -> String {
-    let note = body_html(&account.note);
-    Owner::new().with(|| {
-        nodus_view::lists::account_row::AccountRow(
-            nodus_view::lists::account_row::AccountRowProps {
-                account: account.clone(),
-                note,
-                on_open: None,
-                after: None,
-            },
-        )
-        .to_html()
-    })
-}
 
-pub fn notification_row(notification: &Notification) -> String {
-    use leptos::prelude::*;
 
-    let age = nodus_view::relative_age(&notification.created_at, now_millis());
-    let body = notification.status.as_ref().map(status_card).map(|html| {
-        let body = std::sync::Arc::new(move || {
-            leptos::html::ul()
-                .class("flex flex-col gap-2")
-                .inner_html(html.clone())
-                .into_any()
-        });
-        body as ChildrenFn
-    });
-    let notification = notification.clone();
 
-    Owner::new().with(|| {
-        nodus_view::NotificationCard(nodus_view::NotificationCardProps {
-            notification,
-            age,
-            body,
-            extra: None,
-        })
-        .to_html()
-    })
-}
 
-pub fn conversation_row(conversation: &Conversation) -> String {
-    let age = conversation
-        .last_status
-        .as_ref()
-        .map_or_else(String::new, |status| {
-            nodus_view::relative_age(&status.created_at, now_millis())
-        });
-    let card = conversation
-        .last_status
-        .as_ref()
-        .map(status_card)
-        .unwrap_or_default();
-    let last: Option<std::sync::Arc<dyn Fn() -> leptos::prelude::AnyView + Send + Sync>> =
-        Some(std::sync::Arc::new(move || {
-            // `Fn`, not `FnOnce`: the closure may be called more than once.
-            leptos::html::div().inner_html(card.clone()).into_any()
-        }));
-    Owner::new().with(|| {
-        nodus_view::lists::conversation_row::ConversationRow(
-            nodus_view::lists::conversation_row::ConversationRowProps {
-                conversation: conversation.clone(),
-                age,
-                // The server cannot change a conversation, so it draws the row without the
-                // verbs and without a mute state it would have to guess.
-                muted: false,
-                on_open: None,
-                on_read: None,
-                status: last,
-                after: None,
-            },
-        )
-        .to_html()
-    })
-}
-
-pub fn list_row(list: &List) -> String {
-    Owner::new().with(|| {
-        nodus_view::lists::list_row::ListRow(nodus_view::lists::list_row::ListRowProps {
-            list: list.clone(),
-            selected: false,
-            on_select: None,
-            children: None,
-        })
-        .to_html()
-    })
-}
-
-pub fn scheduled_row(scheduled: &ScheduledStatus) -> String {
-    let age = nodus_view::relative_age(&scheduled.scheduled_at, now_millis());
-    Owner::new().with(|| {
-        nodus_view::lists::scheduled_row::ScheduledRow(
-            nodus_view::lists::scheduled_row::ScheduledRowProps {
-                scheduled: scheduled.clone(),
-                age,
-                on_cancel: None,
-            },
-        )
-        .to_html()
-    })
-}
 
 /// Milliseconds since the Unix epoch, by this host's clock.
 pub(crate) fn now_millis() -> f64 {

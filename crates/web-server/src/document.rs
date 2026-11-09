@@ -383,33 +383,23 @@ pub fn thread_page(assets: &Assets, acct: &str, status: &Status, context: &Conte
     )
 }
 
-/// The "Load more" button the client also draws, or nothing on the last page.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one page: assets, who, where, three pieces of copy, the body and an island"
-)]
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "the island JSON is built once, for one page"
-)]
-pub fn list_page(
+/// Paints a page that is already a rendered component tree.
+///
+/// The client's screens and the server's screens are the same components; this is the seam
+/// where the server's answer becomes a document. `title` is the browser tab's name, `inner`
+/// the component's HTML, and the envelope is [`page`] either way.
+pub fn page_of(
     assets: &Assets,
     acct: &str,
     path: &str,
     title: &str,
-    heading: &str,
-    description: &str,
     inner: &str,
     island: Option<String>,
 ) -> String {
     page(
         assets,
         &format!("{title} · {acct}"),
-        &chrome(
-            true,
-            path,
-            &format!("{}{inner}", page_header(heading, description)),
-        ),
+        &chrome(true, path, inner),
         island.as_deref(),
     )
 }

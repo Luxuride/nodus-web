@@ -5,9 +5,15 @@
 //! is deliberately the *short* path — text, media, visibility, and a link to the full
 //! composer for anything else (scheduling, a content warning, a reply's thread context).
 
+use std::sync::Arc;
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{MediaAttachment, Visibility};
+use nodus_view::pages::compose::inline::Posted;
+use nodus_view::pages::compose::inline::{
+    InlineComposer as InlineCard, InlineComposerProps as InlineCardProps,
+};
 use wasm_bindgen::JsCast as _;
 
 use crate::routes::compose::attachments::{self, Attachments};
@@ -88,90 +94,99 @@ pub fn InlineComposer(
     // line limit, and the resume path is a feature of its own.
     let (draft_token, resume) = draft_controls(&draft);
 
-    view! {
-        <nodus_view::ComposerCard>
-                <h2 class="text-xs font-semibold uppercase tracking-wide opacity-50">"New post"</h2>
-                // The suggestions sit above the box, where the writer is already looking:
-                // a dialog would steal focus and swallow the next keystroke.
-                <Suggestions
-                    query=Signal::derive(move || {
-                        emoji::pending(&draft.text.get())
-                            .map(|(_, query)| query)
-                            .unwrap_or_default()
-                    })
-                    open=emoji_open
-                    catalogue=emoji_catalogue
-                    insert=emoji_insert
-                />
-                <DraftsPanel open=draft_token insert=resume/>
-                <div class="relative">
-                    <crate::ui::editor::RichEditor
-                        text=draft.text.read_only()
-                        set_text=draft.text.write_only()
-                        emoji=emoji_catalogue
-                        placeholder="What's on your mind?"
-                        on_submit=Callback::new(move |()| submit.submit())
-                        query=draft.emoji_query
-                    />
-                    <EmojiHints query=draft.emoji_query.read_only()/>
-                </div>
-
-                <ComposerBar
+    // The card, its heading and the three confirmation lines are the view's. What is not:
+    // the writer itself, the two popups that sit above it, and the bar under it — the editor
+    // owns the contenteditable, the emoji picker owns a document listener, and the bar's
+    // panels read the clock. Those arrive as the two slots the card leaves open.
+    let body = Arc::new(move || {
+        view! {
+            // The suggestions sit above the box, where the writer is already looking:
+            // a dialog would steal focus and swallow the next keystroke.
+            <Suggestions
+                query=Signal::derive(move || {
+                    emoji::pending(&draft.text.get())
+                        .map(|(_, query)| query)
+                        .unwrap_or_default()
+                })
+                open=emoji_open
+                catalogue=emoji_catalogue
+                insert=emoji_insert
+            />
+            <DraftsPanel open=draft_token insert=resume/>
+            <div class="relative">
+                <crate::ui::editor::RichEditor
                     text=draft.text.read_only()
-                    at=draft.custom.read_only()
-                    set_at=draft.custom.write_only()
-                    visibility=draft.visibility.read_only()
-                    set_visibility=draft.visibility.write_only()
-                    busy=draft.busy.read_only()
-                    on_add_media=Callback::new(move |()| attachments::request_pick())
-                    // A toggle, not a latch: with a latch the control is a no-op the moment the
-                    // editor is open, which is what made it read as broken.
-                    emoji_open=picking
-                    set_emoji_open=set_picking
-                    on_add_poll=Callback::new(move |()| {
-                        draft
-                            .poll_open
-                            .update(|open| *open = !*open);
-                    })
-                    language=draft.language.read_only()
-                    set_language=draft.language.write_only()
+                    set_text=draft.text.write_only()
+                    emoji=emoji_catalogue
+                    placeholder="What's on your mind?"
                     on_submit=Callback::new(move |()| submit.submit())
+                    query=draft.emoji_query
                 />
+                <EmojiHints query=draft.emoji_query.read_only()/>
+            </div>
+        }
+        .into_any()
+    }) as ChildrenFn;
 
-                <PollEditor
-                    open=draft.poll_open
-                    options=draft.options
-                    expires_in=draft.expires_in
-                    multiple=draft.multiple
-                    hide_totals=draft.hide_totals
-                />
+    let controls = Arc::new(move || {
+        view! {
+            <ComposerBar
+                text=draft.text.read_only()
+                at=draft.custom.read_only()
+                set_at=draft.custom.write_only()
+                visibility=draft.visibility.read_only()
+                set_visibility=draft.visibility.write_only()
+                busy=draft.busy.read_only()
+                on_add_media=Callback::new(move |()| attachments::request_pick())
+                // A toggle, not a latch: with a latch the control is a no-op the moment the
+                // editor is open, which is what made it read as broken.
+                emoji_open=picking
+                set_emoji_open=set_picking
+                on_add_poll=Callback::new(move |()| {
+                    draft
+                        .poll_open
+                        .update(|open| *open = !*open);
+                })
+                language=draft.language.read_only()
+                set_language=draft.language.write_only()
+                on_submit=Callback::new(move |()| submit.submit())
+            />
 
-                <Attachments media=draft.media set_error=draft.error.write_only()/>
+            <PollEditor
+                open=draft.poll_open
+                options=draft.options
+                expires_in=draft.expires_in
+                multiple=draft.multiple
+                hide_totals=draft.hide_totals
+            />
 
-                {move || draft.error.get().map(|message| view! {
-                    <p class="text-error text-xs" role="alert">{message}</p>
-                })}
+            <Attachments media=draft.media set_error=draft.error.write_only()/>
+        }
+        .into_any()
+    }) as ChildrenFn;
 
-                {move || draft.notice.get().map(|line| view! {
-                    <p class="text-xs text-success">{line}</p>
-                })}
+    // The confirmation reads as the pickers do: the visibility's own word, and the language
+    // the instance would have named, not the code that was sent.
+    let done = Signal::derive(move || {
+        draft.done.get().map(|(visibility, language)| Posted {
+            visibility: visibility.as_str().to_owned(),
+            language: if language.is_empty() {
+                "instance default".to_owned()
+            } else {
+                crate::ui::language::name_of(&language)
+            },
+        })
+    });
 
-                {move || draft.done.get().map(|(visibility, language)| {
-                    let name = if language.is_empty() {
-                        "instance default".to_owned()
-                    } else {
-                        crate::ui::language::name_of(&language)
-                    };
-                    view! {
-                        <p class="flex flex-wrap items-center gap-1 text-xs text-success" role="status">
-                            "Post published as"
-                            <span class="inline-flex items-center rounded-lg border border-base-300 bg-base-100 px-1.5 py-0.5 text-base-content">{visibility.as_str()}</span>
-                            <span class="inline-flex items-center rounded-lg border border-base-300 bg-base-100 px-1.5 py-0.5 text-base-content">{name}</span>
-                        </p>
-                    }
-                })}
-        </nodus_view::ComposerCard>
-    }
+    // The slots are handed over in the props struct: view syntax can pass an affordance but
+    // not the absence of one, and the card needs both slots filled.
+    InlineCard(InlineCardProps {
+        body,
+        controls,
+        error: Some(draft.error.into()),
+        notice: Some(draft.notice.into()),
+        done: Some(done),
+    })
 }
 
 /// True for a body that is only the `:draft` token, which is a command rather than writing.
@@ -491,44 +506,6 @@ impl Snapshot {
                 }
             }
         }
-    }
-}
-
-/// The four visibilities, as a select.
-#[component]
-fn VisibilityPicker(
-    visibility: ReadSignal<Visibility>,
-    set_visibility: WriteSignal<Visibility>,
-) -> impl IntoView {
-    view! {
-        <select
-            class="select select-bordered select-sm w-fit"
-            aria-label="Who can see this post"
-            on:change=move |event| {
-                let value = event_target_value(&event);
-                set_visibility.set(match value.as_str() {
-                    "unlisted" => Visibility::Unlisted,
-                    "private" => Visibility::Private,
-                    "direct" => Visibility::Direct,
-                    _ => Visibility::Public,
-                });
-            }
-        >
-            <For
-                each=|| [
-                    (Visibility::Public, "Public"),
-                    (Visibility::Unlisted, "Unlisted"),
-                    (Visibility::Private, "Followers"),
-                    (Visibility::Direct, "Direct"),
-                ]
-                key=|(visibility, _)| format!("{visibility:?}")
-                let:entry
-            >
-                <option value=entry.0.as_str() selected=move || visibility.get() == entry.0>
-                    {entry.1}
-                </option>
-            </For>
-        </select>
     }
 }
 

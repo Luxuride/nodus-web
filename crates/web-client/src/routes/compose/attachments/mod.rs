@@ -3,10 +3,19 @@
 //! The file is read and uploaded as soon as it is picked, so the write on submit only has
 //! to reference ids the instance already accepted. That is also why a failed upload never
 //! blocks the text: the attachment list is what says whether the post is ready.
+//!
+//! The row of thumbnails is the view's; the file input is not, and neither is the transfer
+//! behind it — both are browser objects (`File`, `XmlHttpRequest` progress), so the input
+//! arrives at the row as a slot and the tile's two verbs arrive as callbacks.
+
+use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{MediaAttachment, MediaKind};
+use nodus_instance::model::MediaAttachment;
+use nodus_view::pages::compose::attachments::{
+    Attachments as AttachmentList, AttachmentsProps as AttachmentListProps,
+};
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
@@ -36,6 +45,78 @@ pub fn request_pick() {
     }
 }
 
+/// The change handler of the hidden input: uploads every picked file, one at a time.
+///
+/// A free function rather than a closure: the input lives inside a slot, and the slot is
+/// called more than once, so the handler cannot be a `FnOnce` that consumes the upload
+/// signals.
+fn pick(
+    event: leptos::ev::Event,
+    set_uploading: WriteSignal<bool>,
+    set_percent: WriteSignal<Option<u8>>,
+    media: RwSignal<Vec<MediaAttachment>>,
+    set_error: WriteSignal<Option<String>>,
+) {
+    let Some(input) = event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::HtmlInputElement>().ok())
+    else {
+        return;
+    };
+    let Some(files) = input.files() else {
+        return;
+    };
+    let picked: Vec<web_sys::File> = (0..files.length())
+        .filter_map(|index| files.get(index))
+        .collect();
+    // Clearing the input is what lets the same file be picked twice in a row.
+    input.set_value("");
+    if picked.is_empty() {
+        return;
+    }
+    let alive = Alive::new();
+    set_uploading.set(true);
+    set_error.set(None);
+    spawn_local(async move {
+        for file in picked {
+            let name = file.name();
+            match read(file).await {
+                Ok((bytes, mime)) => {
+                    let mime = if mime.is_empty() {
+                        "application/octet-stream".to_owned()
+                    } else {
+                        mime
+                    };
+                    // The bar has to move while the bytes leave the browser, so the
+                    // upload reports each chunk it has sent.
+                    alive.if_alive(|| set_percent.set(Some(0)));
+                    let progress = {
+                        let alive = alive;
+                        move |percent: u8| {
+                            alive.if_alive(|| {
+                                set_percent.set(Some(percent));
+                            });
+                        }
+                    };
+                    match actions::upload_media_with_progress(bytes, &mime, Some(&name), progress)
+                        .await
+                    {
+                        Ok(attachment) => {
+                            alive.if_alive(|| media.update(|list| list.push(attachment)));
+                        }
+                        Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+                    }
+                }
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            }
+        }
+        alive.if_alive(|| {
+            set_uploading.set(false);
+            set_percent.set(None);
+        });
+    });
+}
+
 /// The hidden file input and the thumbnails of what has been uploaded.
 #[component]
 pub fn Attachments(
@@ -45,75 +126,10 @@ pub fn Attachments(
     let (uploading, set_uploading) = signal(false);
     let (percent, set_percent) = signal(None::<u8>);
 
-    let pick = move |event: leptos::ev::Event| {
-        let Some(input) = event
-            .target()
-            .and_then(|target| target.dyn_into::<web_sys::HtmlInputElement>().ok())
-        else {
-            return;
-        };
-        let Some(files) = input.files() else {
-            return;
-        };
-        let picked: Vec<web_sys::File> = (0..files.length())
-            .filter_map(|index| files.get(index))
-            .collect();
-        // Clearing the input is what lets the same file be picked twice in a row.
-        input.set_value("");
-        if picked.is_empty() {
-            return;
-        }
-        let alive = Alive::new();
-        set_uploading.set(true);
-        set_error.set(None);
-        spawn_local(async move {
-            for file in picked {
-                let name = file.name();
-                match read(file).await {
-                    Ok((bytes, mime)) => {
-                        let mime = if mime.is_empty() {
-                            "application/octet-stream".to_owned()
-                        } else {
-                            mime
-                        };
-                        // The bar has to move while the bytes leave the browser, so the
-                        // upload reports each chunk it has sent.
-                        alive.if_alive(|| set_percent.set(Some(0)));
-                        let progress = {
-                            let alive = alive;
-                            let set_percent = set_percent;
-                            move |percent: u8| {
-                                alive.if_alive(|| {
-                                    set_percent.set(Some(percent));
-                                });
-                            }
-                        };
-                        match actions::upload_media_with_progress(
-                            bytes,
-                            &mime,
-                            Some(&name),
-                            progress,
-                        )
-                        .await
-                        {
-                            Ok(attachment) => {
-                                alive.if_alive(|| media.update(|list| list.push(attachment)));
-                            }
-                            Err(message) => alive.if_alive(|| set_error.set(Some(message))),
-                        }
-                    }
-                    Err(message) => alive.if_alive(|| set_error.set(Some(message))),
-                }
-            }
-            alive.if_alive(|| {
-                set_uploading.set(false);
-                set_percent.set(None);
-            });
-        });
-    };
-
-    view! {
-        <div class="flex flex-wrap items-center gap-2">
+    // The input is a slot because it is the browser's, not the view's: `Files`, the accept
+    // filter and the click that opens the dialog all belong to this crate.
+    let input = Arc::new(move || {
+        view! {
             <input
                 id=ATTACH_INPUT
                 class="hidden"
@@ -121,62 +137,21 @@ pub fn Attachments(
                 accept="image/*,video/*,audio/*"
                 multiple
                 disabled=move || uploading.get()
-                on:change=pick
+                on:change=move |event| pick(event, set_uploading, set_percent, media, set_error)
             />
-            <Show when=move || uploading.get()>
-                {
-                    move || match percent.get() {
-                        Some(value) => view! {
-                            <span class="flex items-center gap-1" title="How much of the file has been sent">
-                                <progress class="progress progress-primary w-16" value=value max="100"></progress>
-                                <span class="text-xs tabular-nums opacity-70">{format!("{value}%")}</span>
-                            </span>
-                        }.into_any(),
-                        None => view! {
-                            <span class="loading loading-spinner loading-xs" aria-label="Uploading"></span>
-                        }.into_any(),
-                    }
-                }
-            </Show>
-            <ul class="flex flex-wrap gap-2">
-                <For each=move || media.get() key=|attachment| attachment.id.clone() let:attachment>
-                    <AttachmentTile attachment=attachment media=media set_error=set_error/>
-                </For>
-            </ul>
-        </div>
-    }
-}
+        }
+        .into_any()
+    }) as ChildrenFn;
 
-/// One attachment: what it is, and the alt text that makes it readable to someone who
-/// cannot see it.
-///
-/// Alt text is edited after the upload because that is when the writer knows what the
-/// picture is going to say in the post; asking for it before the transfer would be asking
-/// about a picture nobody can see yet.
-#[component]
-fn AttachmentTile(
-    attachment: MediaAttachment,
-    media: RwSignal<Vec<MediaAttachment>>,
-    set_error: WriteSignal<Option<String>>,
-) -> impl IntoView {
-    let remove_id = attachment.id.clone();
-    let save_id = attachment.id.clone();
-    // A signal, not a `String`: the fallback closure must be `Fn`, and a captured
-    // `String` moved into it once would make the whole component `FnOnce`.
-    let (label, _) = signal(format!("{:?}", attachment.kind));
-    let has_label = attachment
-        .description
-        .as_deref()
-        .is_some_and(|description| !description.trim().is_empty());
-    let is_image = attachment.kind == MediaKind::Image;
-    let (editing, set_editing) = signal(false);
-    let (alt, set_alt) = signal(attachment.description.clone().unwrap_or_default());
-    let (label_set, set_label_set) = signal(has_label);
-    let alive = Alive::new();
+    let remove = Callback::new(move |id: String| {
+        media.update(|list| list.retain(|item| item.id != id));
+    });
 
-    let save = move |()| {
-        let id = save_id.clone();
-        let text = alt.get_untracked();
+    // Alt text is edited after the upload because that is when the writer knows what the
+    // picture is going to say in the post; asking for it before the transfer would be asking
+    // about a picture nobody can see yet.
+    let describe = Callback::new(move |(id, text): (String, String)| {
+        let alive = Alive::new();
         spawn_local(async move {
             match actions::update_media(&id, &text).await {
                 Ok(updated) => {
@@ -185,72 +160,18 @@ fn AttachmentTile(
                             *slot = updated;
                         }
                     });
-                    alive.if_alive(|| {
-                        set_label_set.set(!text.trim().is_empty());
-                        set_editing.set(false);
-                    });
                 }
                 Err(message) => alive.if_alive(|| set_error.set(Some(message))),
             }
         });
-    };
-    // `Callback` is `Copy`, so the field and the blur can both ask for the same save.
-    let save = Callback::new(save);
+    });
 
-    view! {
-        <li class="relative flex flex-col gap-1">
-            <Show
-                when=move || is_image
-                fallback=move || {
-                    view! { <span class="badge badge-outline badge-sm">{label.get()}</span> }
-                }
-            >
-                <img
-                    class="h-20 w-20 rounded-box object-cover"
-                    src=attachment.preview_url.clone().unwrap_or_default()
-                    alt=attachment.description.clone().unwrap_or_default()
-                />
-            </Show>
-
-            <button
-                type="button"
-                class="btn btn-circle btn-xs absolute -right-1 -top-1"
-                title="Remove this attachment"
-                on:click=move |_| {
-                    media.update(|list| list.retain(|item| item.id != remove_id));
-                }
-            >
-                "×"
-            </button>
-
-            <div class="flex items-center gap-1">
-                <button
-                    type="button"
-                    class="btn btn-ghost btn-xs px-1"
-                    title="Describe this attachment for someone who cannot see it"
-                    class:text-warning=move || !label_set.get()
-                    on:click=move |_| set_editing.update(|open| *open = !*open)
-                >
-                    {move || if label_set.get() { "Alt ✓" } else { "Alt" }}
-                </button>
-            </div>
-
-            <Show when=move || editing.get()>
-                <input
-                    class="input input-bordered input-xs w-40"
-                    placeholder="What does it show?"
-                    aria-label="Attachment description"
-                    prop:value=alt
-                    on:input=move |event| set_alt.set(event_target_value(&event))
-                    on:keydown=move |event| {
-                        if event.key() == "Enter" {
-                            event.prevent_default();
-                            save.run(());
-                        }
-                    }
-                    on:blur=move |_| save.run(())
-                />
-            </Show>
-        </li>
-    }
+    AttachmentList(AttachmentListProps {
+        media: media.into(),
+        uploading: Signal::derive(move || uploading.get()),
+        percent: Signal::derive(move || percent.get()),
+        on_remove: Some(remove),
+        on_alt: Some(describe),
+        picker: Some(input),
+    })
 }

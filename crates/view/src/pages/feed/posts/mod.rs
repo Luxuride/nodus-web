@@ -31,10 +31,8 @@ pub fn PostCard(
         on_cleanup(move || left.run(item.item_id));
     }
 
-    let display_name = crate::components::format::display_name(
-        &item.account_display_name,
-        &item.account_acct,
-    );
+    let display_name =
+        crate::components::format::display_name(&item.account_display_name, &item.account_acct);
     let avatar_url = item.account_avatar_url.clone();
     let has_avatar = !avatar_url.trim().is_empty();
     let handle = item.account_acct.clone();
@@ -86,5 +84,132 @@ pub fn PostCard(
                 </div>
             </div>
         </li>
+    }
+}
+
+/// The feed's post list: a heading, one refresh verb, the cards, and one more page.
+///
+/// Same four states as the account list, minus the degradation line: a post feed either
+/// arrives or it does not. The cards arrive as a callback because each one writes an
+/// impression when it leaves the screen, which needs the client's clock.
+#[component]
+pub fn PostList(
+    /// The posts, already in the order they should be read.
+    #[prop(into)]
+    items: Signal<Vec<PostItem>>,
+    /// The last read's refusal, when it had one.
+    #[prop(into)]
+    error: Signal<Option<String>>,
+    /// Whether a read is already on its way.
+    #[prop(into)]
+    refreshing: Signal<bool>,
+    /// The cursor of the next page, when there is one.
+    #[prop(into)]
+    cursor: Signal<Option<String>>,
+    /// Paints one card.
+    row: Callback<PostItem, AnyView>,
+    /// Asks for the first page again.
+    #[prop(optional)]
+    on_refresh: Option<Callback<()>>,
+    /// Asks for the page after the given cursor.
+    #[prop(optional)]
+    on_more: Option<Callback<String>>,
+) -> impl IntoView {
+    let row = StoredValue::new(row);
+    let refresh_disabled = on_refresh.is_none();
+    let more_disabled = on_more.is_none();
+
+    view! {
+        <div class="mb-4 flex items-baseline justify-between gap-4">
+            <h2 class="text-sm font-medium opacity-70">"Posts to read"</h2>
+            <button
+                class="btn btn-ghost btn-sm gap-2"
+                disabled=move || refreshing.get() || refresh_disabled
+                on:click=move |_| {
+                    if let Some(on_refresh) = on_refresh {
+                        on_refresh.run(());
+                    }
+                }
+            >
+                <Show when=move || refreshing.get()>
+                    <span class="loading loading-spinner loading-xs"></span>
+                </Show>
+                "Refresh"
+            </button>
+        </div>
+
+        {move || {
+            error
+                .get()
+                .map(|message| {
+                    view! {
+                        <div class="alert alert-soft alert-error mb-4" role="alert">
+                            <span>{message}</span>
+                            <button
+                                class="btn btn-sm"
+                                disabled=refresh_disabled
+                                on:click=move |_| {
+                                    if let Some(on_refresh) = on_refresh {
+                                        on_refresh.run(());
+                                    }
+                                }
+                            >
+                                "Retry"
+                            </button>
+                        </div>
+                    }
+                })
+        }}
+
+        <Show when=move || {
+            items.get().is_empty() && !refreshing.get() && error.get().is_none()
+        }>
+            <EmptyPosts/>
+        </Show>
+
+        <ul class="space-y-3 transition-opacity" class:opacity-50=move || refreshing.get()>
+            <For each=move || items.get() key=|item| item.item_id let:item>
+                {row.with_value(|row| row.run(item))}
+            </For>
+        </ul>
+
+        {move || {
+            cursor
+                .get()
+                .map(|cursor| {
+                    view! {
+                        <div class="mt-6">
+                            <button
+                                class="btn btn-outline btn-sm w-full"
+                                disabled=move || refreshing.get() || more_disabled
+                                on:click=move |_| {
+                                    if let Some(on_more) = on_more {
+                                        on_more.run(cursor.clone());
+                                    }
+                                }
+                            >
+                                {move || {
+                                    if refreshing.get() { "Loading…" } else { "Load more posts" }
+                                }}
+                            </button>
+                        </div>
+                    }
+                })
+        }}
+    }
+}
+
+/// Why there is nothing to read, and what changes it.
+#[component]
+fn EmptyPosts() -> impl IntoView {
+    view! {
+        <div class="card border border-dashed border-base-300 bg-base-100">
+            <div class="card-body items-center gap-2 py-10 text-center">
+                <h2 class="card-title text-base">"No posts yet"</h2>
+                <p class="max-w-sm text-sm opacity-70">
+                    "Posts come from the accounts the recommender already knows something about, so this list fills in after the first background sync has fetched some timelines."
+                </p>
+            </div>
+        </div>
     }
 }

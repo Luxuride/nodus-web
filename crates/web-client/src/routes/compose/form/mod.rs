@@ -4,9 +4,12 @@
 //! of the same fields a `POST` takes. The only difference is the button's label and which
 //! bridge function runs, so the difference is one `if`.
 
+use std::sync::Arc;
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{MediaAttachment, Status};
+use nodus_view::pages::compose::form::{ComposeForm as Form, ComposeFormProps as FormProps};
 
 use self::buttons::ComposerActions;
 use self::initial::Initial;
@@ -122,15 +125,15 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     } else {
         "Say something"
     };
-    let body = view! { <Body text=text set_text=set_text submit=submit query=emoji_query/> };
+    // The frame — the screen column, the line above the box, the error under it — is the
+    // view's; the editor and the three rows under it are this crate's, and the frame takes
+    // them as the two slots it leaves open.
+    let body = Arc::new(move || {
+        view! { <Body text=text set_text=set_text submit=submit query=emoji_query/> }.into_any()
+    }) as ChildrenFn;
 
-    view! {
-        <nodus_view::Screen>
-            <div class="form-control">
-                <span class="label-text text-xs opacity-60">{label}</span>
-                {body}
-            </div>
-
+    let controls = Arc::new(move || {
+        view! {
             <ComposerOptions
                 visibility=visibility
                 set_visibility=set_visibility
@@ -152,12 +155,18 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
                 editing=editing
                 on_submit=submit
             />
+        }
+        .into_any()
+    }) as ChildrenFn;
 
-            <Show when=move || error.get().is_some()>
-                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-            </Show>
-        </nodus_view::Screen>
-    }
+    // The slots are handed over in the props struct: view syntax can pass an affordance but
+    // not the absence of one, and the frame needs both slots filled.
+    Form(FormProps {
+        label: label.to_owned(),
+        body,
+        children: controls,
+        error: Some(error.into()),
+    })
 }
 
 /// The post as the instance will receive it.

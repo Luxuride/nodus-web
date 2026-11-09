@@ -17,8 +17,8 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use nodus_instance::model::Conversation;
 
-use crate::chrome::Skeleton;
 use crate::chrome::more_button::{MoreButton, MoreButtonProps};
+use crate::chrome::Skeleton;
 use crate::lists::conversation_row::{ConversationRow, ConversationRowProps};
 use crate::{PageHeader, Screen};
 
@@ -193,7 +193,10 @@ mod rendering {
             .to_html()
         });
 
-        assert!(html.contains("Messages"), "the page header is painted: {html}");
+        assert!(
+            html.contains("Messages"),
+            "the page header is painted: {html}"
+        );
     }
 
     /// A row is where the loop actually walks; an empty list never reaches `keyed`.

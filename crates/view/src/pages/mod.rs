@@ -15,20 +15,26 @@
 pub mod account;
 pub use account as accounts;
 
+pub mod admin;
+pub mod compose;
 pub mod directory;
 pub mod feed;
 pub mod lists;
 pub mod messages;
-#[path = "moderation/[section]/mod.rs"]
 pub mod moderation;
 pub mod notifications;
-pub use moderation as people;
+// The people lists keep the path they were published under; their file still sits in the
+// moderation directory it was written in, and `pages::moderation::people` is the same module.
+pub use moderation::people;
 #[path = "saved/[shelf]/mod.rs"]
 pub mod saved_shelf;
 pub use saved_shelf as saved;
 
+#[path = "status/reply_card/mod.rs"]
+pub mod reply_card;
 pub mod scheduled;
 pub mod search;
+
 #[path = "status/[id]/mod.rs"]
 pub mod status_page;
 pub use status_page as status;

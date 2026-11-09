@@ -1,9 +1,25 @@
-//! The row under the textarea: media, visibility, when to send, the counter, the button.
+//! The bar's shell.
+//!
+//! Every control that describes *how* the post goes out, kept apart from the box that
+//! holds the text so neither half outgrows what one screen can read. The row itself — the
+//! media and poll buttons, the visibility select, the counter, the post button and its
+//! caret — is the view's; the three pieces that are not markup arrive as slots: the
+//! language list, the emoji picker (it owns a document listener), and the schedule panel
+//! (it reads the reader's clock).
+//!
+//! Scheduling is one absolute field rather than a menu of presets: "tomorrow at nine" is
+//! the same answer as "2026-11-09T09:00", and a picker that starts at the current minute
+//! needs no arithmetic of ours to be correct in the reader's zone. Empty means now.
+
+use std::sync::Arc;
 
 use leptos::prelude::*;
 use nodus_instance::model::Visibility;
+use nodus_view::pages::compose::inline::bar::{
+    ComposerBar as Bar, ComposerBarProps as BarProps,
+};
 
-use super::{LIMIT, SchedulePanel, VisibilityPicker};
+use super::{LIMIT, SchedulePanel};
 
 /// What the green notice says after a post was queued instead of sent.
 pub(super) struct Notice;
@@ -15,12 +31,7 @@ impl Notice {
     }
 }
 
-/// Every control that describes *how* the post goes out, kept apart from the box that
-/// holds the text so neither half outgrows what one screen can read.
-///
-/// Scheduling is one absolute field rather than a menu of presets: "tomorrow at nine" is
-/// the same answer as "2026-11-09T09:00", and a picker that starts at the current minute
-/// needs no arithmetic of ours to be correct in the reader's zone. Empty means now.
+/// The bar under the textarea.
 #[component]
 pub(super) fn ComposerBar(
     text: ReadSignal<String>,
@@ -44,103 +55,42 @@ pub(super) fn ComposerBar(
     set_language: WriteSignal<String>,
     on_submit: Callback<()>,
 ) -> impl IntoView {
-    let count = move || text.get().chars().count();
     // A time in the field means this press queues the post instead of publishing it, and
     // the button says which it will do.
-    let scheduling = move || !at.get().trim().is_empty();
+    let scheduling = Signal::derive(move || !at.get().trim().is_empty());
+    // The caret shows the chosen instant in the same shape the fields use.
+    let when = Signal::derive(move || at.get());
     let open = RwSignal::new(false);
-    // "Grey like send": a post button that cannot post must look like a button that
-    // cannot post, not like a primary action waiting to be pressed.
-    let postable = move || !busy.get() && !text.get().trim().is_empty();
-    let describe_when = move |value: &str| {
-        if value.trim().is_empty() {
-            "now".to_owned()
-        } else {
-            // The same shape the fields show, so the button and the inputs agree.
-            value.replace('T', " ")
-        }
-    };
-    view! {
-        <div class="flex flex-wrap items-center gap-2">
-            <button
-                type="button"
-                class="btn btn-outline btn-sm gap-1 border-dashed"
-                title="Add images, video or audio"
-                disabled=move || busy.get()
-                on:click=move |_| on_add_media.run(())
-            >
-                <span class="text-base leading-none">"+"</span>
-                <span>"Media"</span>
-            </button>
 
-            <button
-                type="button"
-                class="btn btn-outline btn-sm gap-1 border-dashed"
-                title="Ask a question instead"
-                disabled=move || busy.get()
-                on:click=move |_| on_add_poll.run(())
-            >
-                <span class="text-base leading-none">"+"</span>
-                <span>"Poll"</span>
-            </button>
+    let picker = Arc::new(move || {
+        view! { <crate::ui::language::LanguagePicker language=language set_language=set_language/> }
+            .into_any()
+    }) as ChildrenFn;
+    let emoji_picker = Arc::new(move || {
+        view! { <super::emoji_toggle::EmojiToggle open=emoji_open set_open=set_emoji_open busy=busy/> }
+            .into_any()
+    }) as ChildrenFn;
+    let schedule_panel = Arc::new(move || {
+        view! { <SchedulePanel at=at set_at=set_at open=open/> }.into_any()
+    }) as ChildrenFn;
 
-            <VisibilityPicker visibility=visibility set_visibility=set_visibility/>
-
-            // The count and the action sit at the far end: the left edge answers "how
-            // does this go out", the right edge answers "is it ready to".
-            <crate::ui::language::LanguagePicker language=language set_language=set_language/>
-            <div class="ml-auto flex items-center gap-2">
-                <super::emoji_toggle::EmojiToggle open=emoji_open set_open=set_emoji_open busy=busy/>
-
-                <span
-                    class="text-xs tabular-nums"
-                    class=("opacity-50", move || count() <= LIMIT)
-                    class=("text-error", move || count() > LIMIT)
-                    title="The instance refuses a post longer than this"
-                >
-                    {move || format!("{}/{LIMIT}", count())}
-                </span>
-
-                // Post and its caret are one control: the caret opens the schedule
-                // panel, and the label above says what the pair will do.
-                <div class="relative">
-                    <div class="join">
-                    <button
-                        class="btn btn-sm join-item gap-1"
-                        class:btn-primary=move || postable()
-                        class:bg-base-300=move || !postable()
-                        class:opacity-50=move || !postable()
-                        disabled=move || !postable()
-                        on:click=move |_| on_submit.run(())
-                    >
-                        {move || match (busy.get(), scheduling()) {
-                            (true, _) => "Posting…",
-                            (false, true) => "Schedule",
-                            (false, false) => "Post",
-                        }}
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-sm join-item px-2"
-                        class:btn-primary=move || postable()
-                        class:bg-base-300=move || !postable()
-                        class:opacity-50=move || !postable()
-                        disabled=move || !postable()
-                        title=move || if scheduling() { format!("Scheduled for {} — click to change", describe_when(&at.get())) } else { "Send now, or pick a time".to_owned() }
-                        aria-label="Change when this posts"
-                        aria-expanded=move || open.get().to_string()
-                        on:click=move |_| open.update(|shown| *shown = !*shown)
-                    >
-                        <span class="text-[0.6rem] leading-none">"▼"</span>
-                    </button>
-                    </div>
-                    // Outside the `join`: the panel is not part of the button group, and
-                    // the group's clipping would cut it off.
-                    <Show when=move || open.get()>
-                        <SchedulePanel at=at set_at=set_at open=open/>
-                    </Show>
-                </div>
-            </div>
-        </div>
-    }
+    // The props struct is filled directly because view syntax can hand a component a slot but
+    // not the absence of one.
+    Bar(BarProps {
+        text: text.into(),
+        visibility: visibility.into(),
+        busy: busy.into(),
+        scheduling,
+        when,
+        limit: LIMIT,
+        schedule_open: open.into(),
+        on_visibility: Some(Callback::new(move |chosen: Visibility| set_visibility.set(chosen))),
+        on_add_media: Some(on_add_media),
+        on_add_poll: Some(on_add_poll),
+        on_toggle_schedule: Some(Callback::new(move |()| open.update(|shown| *shown = !*shown))),
+        on_submit: Some(on_submit),
+        language: Some(picker),
+        emoji_picker: Some(emoji_picker),
+        schedule_panel: Some(schedule_panel),
+    })
 }

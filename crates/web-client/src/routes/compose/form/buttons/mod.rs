@@ -1,7 +1,11 @@
-//! The submit row: one button whose label is the only thing that changes between a new
-//! status and an edit.
+//! The submit row's shell: the label and the disabled rules live in the view; what Cancel
+//! does does not, because leaving the composer means a route and routes are this crate's.
+//!
+//! [`ComposerActions`] is the same component the inline composer ends with — the only
+//! difference between the two callers is the two verbs.
 
 use leptos::prelude::*;
+use nodus_view::pages::compose::form::buttons::ComposerActions as ActionsRow;
 
 use crate::router::{self, Route};
 
@@ -13,24 +17,18 @@ pub fn ComposerActions(
     editing: StoredValue<Option<String>>,
     on_submit: Callback<()>,
 ) -> impl IntoView {
+    // The label asks whether this is an edit. That is fixed for the life of the form, and a
+    // `StoredValue` is read, not tracked, so it is read once here rather than threaded into
+    // the view as a signal.
+    let editing = editing.get_value().is_some();
+
     view! {
-        <div class="flex items-center gap-2">
-            <button
-                class="btn btn-primary btn-sm"
-                disabled=move || busy.get() || text.get().trim().is_empty()
-                on:click=move |_| on_submit.run(())
-            >
-                {move || if busy.get() {
-                    "Sending…".to_owned()
-                } else if editing.get_value().is_some() {
-                    "Save changes".to_owned()
-                } else {
-                    "Post".to_owned()
-                }}
-            </button>
-            <button class="btn btn-ghost btn-sm" on:click=move |_| router::navigate(Route::Home)>
-                "Cancel"
-            </button>
-        </div>
+        <ActionsRow
+            text=text
+            busy=busy
+            editing=editing
+            on_submit=on_submit
+            on_cancel=Callback::new(move |()| router::navigate(Route::Home))
+        />
     }
 }

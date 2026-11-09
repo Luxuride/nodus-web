@@ -15,9 +15,9 @@
 use leptos::prelude::*;
 use nodus_instance::model::Status;
 
-use crate::Screen;
 use crate::components::CardRenderer;
 use crate::status_card::StatusCard;
+use crate::Screen;
 
 /// The card a row is painted with, for as long as the page is choosing it.
 type Paint = dyn Fn(Status) -> AnyView + Send + Sync;

@@ -3,6 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{AdminAccount, ModerationAction};
+use nodus_view::pages::moderation::accounts::AccountsPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::admin;
@@ -33,70 +34,29 @@ pub fn AccountList() -> impl IntoView {
         });
     });
 
+    // The toggle is a re-read, not a filter: the instance decides which accounts a
+    // local-only list holds.
     Effect::new(move |_| {
         local_only.get();
         reload.run(());
     });
 
+    let moderate = Callback::new(move |(id, action): (String, ModerationAction)| {
+        spawn_local(async move {
+            if admin::moderate(&id, action).await.is_ok() {
+                reload.run(());
+            }
+        });
+    });
+
     view! {
-        <label class="label mb-2 cursor-pointer justify-start gap-2">
-            <input
-                type="checkbox"
-                class="toggle toggle-sm"
-                prop:checked=local_only
-                on:change=move |event| set_local_only.set(event_target_checked(&event))
-            />
-            <span class="label-text">"Only accounts on this instance"</span>
-        </label>
-
-        <Show when=move || error.get().is_some()>
-            <p class="text-sm text-error">{move || error.get().unwrap_or_default()}</p>
-        </Show>
-
-        <ul class="flex flex-col gap-2">
-            <For each=move || accounts.get() key=|account| account.id.clone() let:account>
-                {
-                    let id = account.id.clone();
-                    let name = account
-                        .account
-                        .as_ref()
-                        .map_or_else(|| account.username.clone(), |public| format!("@{}", public.acct));
-                    let standing = account.standing();
-                    // A `Callback` rather than a closure: three buttons need the same
-                    // handler, and a closure that captures `id` can only be moved once.
-                    let act = Callback::new(move |action: ModerationAction| {
-                        let id = id.clone();
-                        spawn_local(async move {
-                            if admin::moderate(&id, action).await.is_ok() {
-                                reload.run(());
-                            }
-                        });
-                    });
-                    view! {
-                        <li class="flex items-center justify-between gap-2 rounded-box bg-base-100 px-3 py-2 shadow-sm">
-                            <div class="min-w-0">
-                                <p class="truncate text-sm font-medium">{name.clone()}</p>
-                                <p class="text-xs opacity-60">{standing}</p>
-                            </div>
-                            <div class="flex shrink-0 gap-1">
-                                <button class="btn btn-ghost btn-xs" on:click=move |_| act.run(ModerationAction::Silence)>
-                                    "Silence"
-                                </button>
-                                <button class="btn btn-ghost btn-xs" on:click=move |_| act.run(ModerationAction::Suspend)>
-                                    "Suspend"
-                                </button>
-                                <button class="btn btn-ghost btn-xs" on:click=move |_| act.run(ModerationAction::Enable)>
-                                    "Enable"
-                                </button>
-                            </div>
-                        </li>
-                    }
-                }
-            </For>
-        </ul>
-
-        <Show when=move || accounts.get().is_empty() && !busy.get()>
-            <p class="text-sm opacity-70">"No accounts to show."</p>
-        </Show>
+        <AccountsPage
+            accounts=accounts
+            local_only=local_only
+            busy=busy
+            error=error
+            on_local_only=Callback::new(move |only: bool| set_local_only.set(only))
+            on_moderate=moderate
+        />
     }
 }

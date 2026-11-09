@@ -3,6 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{DomainBlock, DomainSeverity};
+use nodus_view::pages::moderation::federation::FederationPage;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::admin;
@@ -58,63 +59,27 @@ pub(super) fn BlockedList() -> impl IntoView {
         });
     });
 
+    let remove = Callback::new(move |id: String| {
+        spawn_local(async move {
+            // A block that could not be removed is still in force; the list is the record
+            // of that.
+            if admin::delete_domain_block(&id).await.is_ok() {
+                reload.run(());
+            }
+        });
+    });
+
     view! {
-        <Show when=move || error.get().is_some()>
-            <p class="text-sm text-error">{move || error.get().unwrap_or_default()}</p>
-        </Show>
-
-        <ul class="flex flex-col gap-2">
-            <For each=move || blocks.get() key=|block| block.id.clone() let:block>
-                {
-                    let id = block.id.clone();
-                    let label = format!("{} · {}", block.domain, block.severity.as_str());
-                    view! {
-                        <li class="flex items-center justify-between gap-2 rounded-box bg-base-100 px-3 py-2 shadow-sm">
-                            <p class="truncate text-sm">{label}</p>
-                            <button
-                                class="btn btn-ghost btn-xs"
-                                on:click=move |_| {
-                                    let id = id.clone();
-                                    spawn_local(async move {
-                                        // A block that could not be removed is still
-                                        // in force; the list is the record of that.
-                                        if admin::delete_domain_block(&id).await.is_ok() {
-                                            reload.run(());
-                                        }
-                                    });
-                                }
-                            >
-                                "Remove"
-                            </button>
-                        </li>
-                    }
-                }
-            </For>
-        </ul>
-
-        <div class="mt-4 flex flex-col gap-2">
-            <input
-                class="input input-bordered input-sm"
-                placeholder="example.social"
-                prop:value=domain
-                on:input=move |event| set_domain.set(event_target_value(&event))
-            />
-            <label class="label cursor-pointer justify-start gap-2">
-                <input
-                    type="checkbox"
-                    class="toggle toggle-sm"
-                    prop:checked=suspend
-                    on:change=move |event| set_suspend.set(event_target_checked(&event))
-                />
-                <span class="label-text">"Suspend entirely (off: silence from timelines)"</span>
-            </label>
-            <button
-                class="btn btn-error btn-sm self-start"
-                disabled=move || busy.get()
-                on:click=move |_| add.run(())
-            >
-                "Block domain"
-            </button>
-        </div>
+        <FederationPage
+            blocks=blocks
+            domain=domain
+            suspend=suspend
+            busy=busy
+            error=error
+            on_domain=Callback::new(move |value: String| set_domain.set(value))
+            on_suspend=Callback::new(move |entire: bool| set_suspend.set(entire))
+            on_block=add
+            on_remove=remove
+        />
     }
 }

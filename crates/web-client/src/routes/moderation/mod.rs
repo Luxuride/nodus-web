@@ -3,93 +3,30 @@
 //! Administration (`/admin`) is the other half: the dashboard, relays, allowed domains and
 //! announcements. The split follows Mastodon's own, and follows the reader: a moderator
 //! looking for a report should not have to read server levers on the way.
+//!
+//! The area — heading, staff gate and section strip — is drawn in `nodus-view`, so the server
+//! paints the same three boxes the client mounts. What stays here is what only the client can
+//! know: what the staff probe answered, and which section's body to hand the page.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
+use nodus_view::chrome::StaffStanding;
+use nodus_view::pages::moderation::{ModerationPage, Section};
+
 use crate::router::{self, Route};
 use crate::state::alive::Alive;
 use crate::state::bridge::admin;
-use crate::ui::icons::Icon;
-use crate::ui::page::PageHeader;
 
 use self::accounts::AccountList;
 use self::federation::Federation;
 use self::registrations::Registrations;
 use self::reports::ReportQueue;
 
-use super::admin::StaffGate;
-
 mod accounts;
 mod federation;
 mod registrations;
 mod reports;
-
-/// One section of the moderation area.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Section {
-    Reports,
-    Accounts,
-    Registrations,
-    Federation,
-}
-
-impl Section {
-    pub const ALL: [Self; 4] = [
-        Self::Reports,
-        Self::Accounts,
-        Self::Registrations,
-        Self::Federation,
-    ];
-
-    #[must_use]
-    pub const fn slug(self) -> &'static str {
-        match self {
-            Self::Reports => "reports",
-            Self::Accounts => "accounts",
-            Self::Registrations => "registrations",
-            Self::Federation => "federation",
-        }
-    }
-
-    #[must_use]
-    pub fn of(slug: &str) -> Self {
-        Self::ALL
-            .into_iter()
-            .find(|section| section.slug() == slug)
-            .unwrap_or(Self::Reports)
-    }
-
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::Reports => "Reports",
-            Self::Accounts => "Accounts",
-            Self::Registrations => "Registrations",
-            Self::Federation => "Federation",
-        }
-    }
-
-    #[must_use]
-    pub const fn hint(self) -> &'static str {
-        match self {
-            Self::Reports => "Posts someone reported, and what was decided",
-            Self::Accounts => "Look an account up, and act on it",
-            Self::Registrations => "Who is waiting, and how somebody may join",
-            Self::Federation => "Domains this instance refuses",
-        }
-    }
-
-    #[must_use]
-    pub const fn icon(self) -> Icon {
-        match self {
-            Self::Reports => Icon::Alert,
-            Self::Accounts => Icon::Users,
-            Self::Registrations => Icon::Check,
-            Self::Federation => Icon::Shield,
-        }
-    }
-}
 
 /// The moderation area for one section.
 #[expect(
@@ -116,49 +53,43 @@ pub fn Moderation(section: String) -> impl IntoView {
         set_allowed.set(None);
         probe();
     });
+    // The grant itself is browser-only — it leaves for the instance's own authorize page —
+    // so it lives here and reaches the gate as a verb.
+    let grant = Callback::new(move |()| {
+        spawn_local(async move {
+            // The grant navigates away to the instance; the retry covers the case where the
+            // reader comes back without finishing it.
+            let _ = crate::routes::settings::admin::request_grant().await;
+            retry.run(());
+        });
+    });
+
+    // The page speaks the shared standing, not the bridge's: the gate is markup, so its
+    // three arms are the view's vocabulary, and the probe's answer is translated once here.
+    let standing = Signal::derive(move || allowed.get().map(standing_of));
 
     view! {
-        <nodus_view::Screen>
-            <PageHeader
-                title="Moderation"
-                description="Decisions about people: reports, accounts, registrations and blocked domains."
-            />
-
-            <StaffGate allowed=allowed retry=retry/>
-
-            <Show when=move || allowed.get() == Some(admin::Staff::Yes)>
-                <Strip current=section.get_value()/>
-                {move || match section.get_value() {
-                    Section::Reports => view! { <ReportQueue/> }.into_any(),
-                    Section::Accounts => view! { <AccountList/> }.into_any(),
-                    Section::Registrations => view! { <Registrations/> }.into_any(),
-                    Section::Federation => view! { <Federation/> }.into_any(),
-                }}
-            </Show>
-        </nodus_view::Screen>
+        <ModerationPage
+            active=section.get_value().slug()
+            standing=standing
+            on_grant=grant
+            on_navigate=Callback::new(|slug: String| router::navigate(Route::Moderation(slug)))
+        >
+            {move || match section.get_value() {
+                Section::Reports => view! { <ReportQueue/> }.into_any(),
+                Section::Accounts => view! { <AccountList/> }.into_any(),
+                Section::Registrations => view! { <Registrations/> }.into_any(),
+                Section::Federation => view! { <Federation/> }.into_any(),
+            }}
+        </ModerationPage>
     }
 }
 
-/// The section strip, one link each.
-#[component]
-fn Strip(current: Section) -> impl IntoView {
-    view! {
-        <div role="tablist" class="tabs tabs-box flex-wrap">
-            <For each=|| Section::ALL key=|section| section.slug() let:kind>
-                <a
-                    role="tab"
-                    class="tab gap-2"
-                    class:tab-active=kind == current
-                    href=format!("/moderation/{}", kind.slug())
-                    title=kind.hint()
-                    on:click=move |event| {
-                        router::link(event, Route::Moderation(kind.slug().to_owned()));
-                    }
-                >
-                    <Icon icon=kind.icon() class="size-4"/>
-                    <span>{kind.label()}</span>
-                </a>
-            </For>
-        </div>
+/// The bridge's verdict, in the gate's words.
+fn standing_of(staff: admin::Staff) -> StaffStanding {
+    match staff {
+        admin::Staff::Yes => StaffStanding::Yes,
+        admin::Staff::No => StaffStanding::No,
+        admin::Staff::NeedsGrant => StaffStanding::NeedsGrant,
     }
 }

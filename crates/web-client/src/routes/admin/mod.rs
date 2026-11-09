@@ -1,19 +1,23 @@
 //! Administration: the instance itself — what it counted, who it talks to, what it says.
 //!
 //! Distinct from Moderation on purpose. Moderating is a decision about people (reports,
-//! accounts, approvals, blocked domains); administering is a decision about the server
-//! (the dashboard, relays, allowed domains, announcements). Mastodon draws the same line,
-//! and a moderator who is not an administrator should not have to read server levers to
-//! find the report queue.
+//! accounts, approvals, blocked domains); administering is a decision about the server (the
+//! dashboard, relays, allowed domains, announcements). Mastodon draws the same line, and a
+//! moderator who is not an administrator should not have to read server levers to find the
+//! report queue.
+//!
+//! The area — heading, staff gate and section strip — is drawn in `nodus-view`. What stays
+//! here is the staff probe and which section's body to hand the page.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
+use nodus_view::chrome::StaffStanding;
+use nodus_view::pages::admin::{AdminPage, Section};
+
 use crate::router::{self, Route};
 use crate::state::alive::Alive;
 use crate::state::bridge::admin;
-use crate::ui::icons::Icon;
-use crate::ui::page::PageHeader;
 
 use self::announcements::Announcements;
 use self::domains::Domains;
@@ -22,62 +26,6 @@ use self::overview::Overview;
 mod announcements;
 mod domains;
 mod overview;
-
-/// One section of the administration area.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Section {
-    Overview,
-    Domains,
-    Announcements,
-}
-
-impl Section {
-    pub const ALL: [Self; 3] = [Self::Overview, Self::Domains, Self::Announcements];
-
-    #[must_use]
-    pub const fn slug(self) -> &'static str {
-        match self {
-            Self::Overview => "overview",
-            Self::Domains => "domains",
-            Self::Announcements => "announcements",
-        }
-    }
-
-    #[must_use]
-    pub fn of(slug: &str) -> Self {
-        Self::ALL
-            .into_iter()
-            .find(|section| section.slug() == slug)
-            .unwrap_or(Self::Overview)
-    }
-
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::Overview => "Overview",
-            Self::Domains => "Allowed domains",
-            Self::Announcements => "Announcements",
-        }
-    }
-
-    #[must_use]
-    pub const fn hint(self) -> &'static str {
-        match self {
-            Self::Overview => "What this instance counted this week",
-            Self::Domains => "Domains allowed through a general block",
-            Self::Announcements => "What the instance is telling everyone",
-        }
-    }
-
-    #[must_use]
-    pub const fn icon(self) -> Icon {
-        match self {
-            Self::Overview => Icon::Globe,
-            Self::Domains => Icon::Link,
-            Self::Announcements => Icon::Bell,
-        }
-    }
-}
 
 /// The administration area for one section.
 #[expect(
@@ -104,109 +52,41 @@ pub fn Admin(section: String) -> impl IntoView {
         set_allowed.set(None);
         probe();
     });
+    // The grant itself is browser-only — it leaves for the instance's own authorize page —
+    // so it lives here and reaches the gate as a verb.
+    let grant = Callback::new(move |()| {
+        spawn_local(async move {
+            // The grant navigates away to the instance; the retry covers the case where the
+            // reader comes back without finishing it.
+            let _ = crate::routes::settings::admin::request_grant().await;
+            retry.run(());
+        });
+    });
+
+    // The page speaks the shared standing; the probe's answer is translated once here.
+    let standing = Signal::derive(move || allowed.get().map(standing_of));
 
     view! {
-        <nodus_view::Screen>
-            <PageHeader
-                title="Administration"
-                description="This instance: what it counted, who it talks to, what it says."
-            />
-
-            <StaffGate allowed=allowed retry=retry/>
-
-            <Show when=move || allowed.get() == Some(admin::Staff::Yes)>
-                <Strip current=section.get_value()/>
-                {move || match section.get_value() {
-                    Section::Overview => view! { <Overview/> }.into_any(),
-                    Section::Domains => view! { <Domains/> }.into_any(),
-                    Section::Announcements => view! { <Announcements/> }.into_any(),
-                }}
-            </Show>
-        </nodus_view::Screen>
+        <AdminPage
+            active=section.get_value().slug()
+            standing=standing
+            on_grant=Some(grant)
+            on_navigate=Some(Callback::new(|slug: String| router::navigate(Route::Admin(slug))))
+        >
+            {move || match section.get_value() {
+                Section::Overview => view! { <Overview/> }.into_any(),
+                Section::Domains => view! { <Domains/> }.into_any(),
+                Section::Announcements => view! { <Announcements/> }.into_any(),
+            }}
+        </AdminPage>
     }
 }
 
-/// What to say while the probe is out, when the token lacks the scope, and when the
-/// account genuinely cannot moderate.
-///
-/// `NeedsGrant` is the interesting arm: the account may well be staff, and the app simply
-/// never asked for `admin:read`, so the gate offers the grant instead of a dead end.
-#[component]
-pub fn StaffGate(allowed: ReadSignal<Option<admin::Staff>>, retry: Callback<()>) -> impl IntoView {
-    view! {
-        <Show when=move || allowed.get().is_none()>
-            <p class="text-sm opacity-70">"Checking what this account may do…"</p>
-        </Show>
-
-        <Show when=move || matches!(allowed.get(), Some(admin::Staff::NeedsGrant))>
-            <div class="card border border-base-300 bg-base-100 shadow-sm">
-                <div class="card-body gap-3 p-4">
-                    <h2 class="card-title text-base">"This needs a moderation token"</h2>
-                    <p class="text-sm opacity-70">
-                        "Moderation lives behind a permission this app does not ask for at
-                         sign-in. Granting it authorizes a second token for this instance,
-                         with "
-                        <code class="text-xs">"admin:read"</code>
-                        " and "
-                        <code class="text-xs">"admin:write"</code>
-                        " — enough to read every report, suspend an account or block a domain."
-                    </p>
-                    <p class="text-sm opacity-70">
-                        "Your ordinary session keeps its own, narrower token; this grant is
-                         used only here, and can be forgotten again at any time."
-                    </p>
-                    <button
-                        class="btn btn-sm w-fit"
-                        on:click=move |_| {
-                            spawn_local(async move {
-                                // The grant navigates away to the instance; the retry covers
-                                // the case where the reader comes back without finishing it.
-                                let _ = super::settings::admin::request_grant().await;
-                                retry.run(());
-                            });
-                        }
-                    >
-                        "Grant admin access"
-                    </button>
-                </div>
-            </div>
-        </Show>
-
-        <Show when=move || matches!(allowed.get(), Some(admin::Staff::No))>
-            <div class="card border border-base-300 bg-base-100 shadow-sm">
-                <div class="card-body gap-2 p-4">
-                    <h2 class="card-title text-base">"Not a moderator here"</h2>
-                    <p class="text-sm opacity-70">
-                        "This account has no staff role on this instance, so nothing here
-                         would work. An admin has to give it one; that is not something a
-                         client can do."
-                    </p>
-                </div>
-            </div>
-        </Show>
-    }
-}
-
-/// A strip of sections, each one a link, so a section can be bookmarked and shared.
-#[component]
-fn Strip(current: Section) -> impl IntoView {
-    view! {
-        <div role="tablist" class="tabs tabs-box flex-wrap">
-            <For each=|| Section::ALL key=|section| section.slug() let:kind>
-                <a
-                    role="tab"
-                    class="tab gap-2"
-                    class:tab-active=kind == current
-                    href=format!("/admin/{}", kind.slug())
-                    title=kind.hint()
-                    on:click=move |event| {
-                        router::link(event, Route::Admin(kind.slug().to_owned()));
-                    }
-                >
-                    <Icon icon=kind.icon() class="size-4"/>
-                    <span>{kind.label()}</span>
-                </a>
-            </For>
-        </div>
+/// The bridge's verdict, in the gate's words.
+fn standing_of(staff: admin::Staff) -> StaffStanding {
+    match staff {
+        admin::Staff::Yes => StaffStanding::Yes,
+        admin::Staff::No => StaffStanding::No,
+        admin::Staff::NeedsGrant => StaffStanding::NeedsGrant,
     }
 }

@@ -14,6 +14,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{Account, Relationship};
 use nodus_sdk::Timeline;
+use nodus_view::chrome::LoadMore;
 
 use super::people::{Kind, PeopleList};
 use crate::state::alive::Alive;
@@ -34,13 +35,24 @@ enum Tab {
 }
 
 impl Tab {
-    /// The tab label.
+    /// The three, in the order the strip shows them.
+    const ALL: [Self; 3] = [Self::Posts, Self::Followers, Self::Following];
+
+    /// The tab label, which is also the name the strip hands back.
     fn label(self) -> &'static str {
         match self {
             Self::Posts => "Posts",
             Self::Followers => "Followers",
             Self::Following => "Following",
         }
+    }
+
+    /// The tab a label names, or `Posts` for a label this build does not know.
+    fn of(label: &str) -> Self {
+        Self::ALL
+            .into_iter()
+            .find(|which| which.label() == label)
+            .unwrap_or(Self::Posts)
     }
 }
 
@@ -127,13 +139,7 @@ pub fn AccountView(id: String) -> impl IntoView {
         view! {
             <Show when=move || tab.get() == Tab::Posts>
                 <Show when=move || next.get().is_some()>
-                    <button
-                        class="btn btn-ghost btn-sm w-full"
-                        disabled=move || loading.get()
-                        on:click=move |_| more.run(())
-                    >
-                        "Load more"
-                    </button>
+                    <LoadMore loading=Signal::derive(move || loading.get()) on_more=more/>
                 </Show>
             </Show>
             <Show when=move || tab.get() == Tab::Followers>

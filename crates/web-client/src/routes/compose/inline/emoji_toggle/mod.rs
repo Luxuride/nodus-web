@@ -1,10 +1,12 @@
-//! The emoticon button and the picker that hangs under it.
+//! The emoticon button's shell: the button is the view's, the picker under it is not.
 //!
-//! Kept out of [`super::bar`] for two reasons: the bar is already at the edge of clippy's
-//! `too_many_lines`, and the button owns a document listener, which is the kind of thing a
-//! reader should be able to find on its own.
+//! The document listener that puts the picker away is a `Closure`, which is neither `Send`
+//! nor `Sync`, so it cannot cross into the view crate; the button itself is an ordinary
+//! toggle and lives there with the rest of the bar. The wrapper stays here because the
+//! listener needs the wrapper as its "inside" test — pressing the panel must not close it.
 
 use leptos::prelude::*;
+use nodus_view::pages::compose::inline::emoji_toggle::EmojiToggleButton;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 
@@ -79,18 +81,11 @@ pub(super) fn EmojiToggle(
         // The emoticon sits with the counter, not with the compose-your-post row: it edits
         // the body, and the left group is about what kind of post this is.
         <div class="relative" node_ref=host>
-            <button
-                type="button"
-                data-emoji-toggle
-                class="btn btn-outline btn-sm px-2 text-lg leading-none"
-                class:bg-base-200=move || open.get()
-                title="Insert an emoji"
-                aria-expanded=move || open.get().to_string()
-                disabled=move || busy.get()
-                on:click=move |_| set_open.update(|showing| *showing = !*showing)
-            >
-                <span class="text-xl leading-none">"☺"</span>
-            </button>
+            <EmojiToggleButton
+                open=open
+                busy=busy
+                on_toggle=Callback::new(move |()| set_open.update(|showing| *showing = !*showing))
+            />
             // Absolutely positioned so opening the picker does not push the bar taller and
             // move the button the writer just pressed.
             <crate::ui::editor::EmojiPanel open=open/>

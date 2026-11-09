@@ -45,32 +45,11 @@ pub(super) fn ReplyBox(
     };
 
     view! {
-        <form
-            class="card border border-base-300 bg-base-100 shadow-sm"
-            on:submit=move |event| {
-                event.prevent_default();
-                publish(());
-            }
-        >
-            <div class="card-body gap-2 p-4">
-                <textarea
-                    class="textarea textarea-bordered w-full"
-                    rows="3"
-                    placeholder="Write a reply…"
-                    prop:value=move || draft.get()
-                    on:input=move |event| set_draft.set(event_target_value(&event))
-                ></textarea>
-                <div class="flex items-center justify-between gap-2">
-                    <span class="text-xs opacity-60">"Public reply"</span>
-                    <button
-                        class="btn btn-primary btn-sm"
-                        type="submit"
-                        disabled=move || posting.get() || draft.get().trim().is_empty()
-                    >
-                        "Reply"
-                    </button>
-                </div>
-            </div>
-        </form>
+        <nodus_view::pages::reply_card::ReplyCard
+            text=draft.get()
+            busy=posting.get()
+            on_input=Callback::new(move |text: String| set_draft.set(text))
+            on_submit=Callback::new(move |()| publish(()))
+        />
     }
 }

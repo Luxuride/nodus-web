@@ -7,6 +7,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
+use nodus_view::pages::compose::ComposeLoading;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
@@ -49,12 +50,7 @@ pub fn ComposeEdit(id: String) -> impl IntoView {
     view! {
         <Show
             when=move || status.get().is_some()
-            fallback=move || view! {
-                <Show when=move || error.get().is_some()>
-                    <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-                </Show>
-                <p class="text-sm opacity-60">"Loading the status…"</p>
-            }
+            fallback=move || view! { <ComposeLoading error=error/> }
         >
             {move || status.get().map(|found| view! { <ComposeForm initial=Some(found)/> })}
         </Show>

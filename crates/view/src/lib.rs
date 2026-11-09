@@ -29,6 +29,8 @@ pub use components::status::body as status_body;
 pub use components::status::card as status_card;
 pub use components::status::footer as status_footer;
 pub use components::status::header as status_header;
+pub use components::status::menu as status_menu;
+pub use components::status::share_button as status_share;
 pub use components::timeline_tabs::*;
 
 /// The account page, at `crate::pages::accounts`.

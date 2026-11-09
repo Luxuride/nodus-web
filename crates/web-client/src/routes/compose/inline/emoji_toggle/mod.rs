@@ -77,6 +77,20 @@ pub(super) fn EmojiToggle(
         }
     });
 
+
+    on_cleanup(|| {
+        LISTENER.with(|slot| {
+            if let Some(listener) = slot.borrow_mut().take()
+                && let Some(window) = web_sys::window()
+            {
+                let _ = window.remove_event_listener_with_callback(
+                    "click",
+                    listener.as_ref().unchecked_ref(),
+                );
+            }
+        });
+    });
+
     view! {
         // The emoticon sits with the counter, not with the compose-your-post row: it edits
         // the body, and the left group is about what kind of post this is.

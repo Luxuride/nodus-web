@@ -6,7 +6,7 @@
 
 use crate::router::{self, Route};
 use crate::routes::callback::Callback;
-use crate::routes::home::Home;
+use crate::routes::home::{FederatedTimeline, HomeTimeline, LocalTimeline};
 use crate::routes::sign_in::SignIn;
 use crate::shell;
 use crate::state::bridge::{init, revision, with_sdk};
@@ -14,7 +14,6 @@ use crate::state::bridge::{init, revision, with_sdk};
 use leptos::prelude::*;
 #[cfg(feature = "admin")]
 use leptos::task::spawn_local;
-use nodus_sdk::Timeline;
 use nodus_ui::components::CardRenderer;
 #[cfg(feature = "admin")]
 use nodus_ui::icons::Icon;
@@ -74,15 +73,9 @@ pub(crate) fn App() -> impl IntoView {
                                     card=card.clone()
                                 />
                             }.into_any(),
-                            Route::Home if signed_in => {
-                                view! { <Home which=Timeline::Home/> }.into_any()
-                            }
-                            Route::Local if signed_in => {
-                                view! { <Home which=Timeline::Local/> }.into_any()
-                            }
-                            Route::Federated if signed_in => {
-                                view! { <Home which=Timeline::Federated/> }.into_any()
-                            }
+                            Route::Home if signed_in => view! { <HomeTimeline/> }.into_any(),
+                            Route::Local if signed_in => view! { <LocalTimeline/> }.into_any(),
+                            Route::Federated if signed_in => view! { <FederatedTimeline/> }.into_any(),
                             Route::Messages if signed_in => view! {
                                 <RouteView
                                     runtime=crate::state::runtime::runtime()

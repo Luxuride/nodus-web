@@ -122,6 +122,20 @@ pub fn LanguagePicker(
         }
     });
 
+
+    on_cleanup(|| {
+        LISTENER.with(|slot| {
+            if let Some(listener) = slot.borrow_mut().take()
+                && let Some(window) = web_sys::window()
+            {
+                let _ = window.remove_event_listener_with_callback(
+                    "click",
+                    listener.as_ref().unchecked_ref(),
+                );
+            }
+        });
+    });
+
     // `Callback` rather than a closure, because the same handler serves the list and the
     // Enter key in the filter, and a `FnOnce` closure cannot be handed to both.
     // An empty code is the panel's Escape: close without changing the language.

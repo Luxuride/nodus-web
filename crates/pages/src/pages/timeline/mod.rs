@@ -64,7 +64,7 @@ pub fn TimelinePage(
                 <div class="card border border-base-300 bg-base-100">
                     <div class="card-body items-center p-6 text-center">
                         <h2 class="card-title text-base">"Nothing here yet"</h2>
-                        <p class="text-sm opacity-70">{move || note.get_value()}</p>
+                        <p class="text-sm opacity-70">{move || note.try_with_value(Clone::clone).unwrap_or_default()}</p>
                     </div>
                 </div>
             </Show>
@@ -125,7 +125,9 @@ pub fn StatusList(
                 view! {
                     <p class="text-sm opacity-60">
                         {move || {
-                            note.get_value().unwrap_or_else(|| "Nothing here yet.".to_owned())
+                            note.try_with_value(Clone::clone)
+                                .flatten()
+                                .unwrap_or_else(|| "Nothing here yet.".to_owned())
                         }}
                     </p>
                 }

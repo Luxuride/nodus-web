@@ -6,8 +6,6 @@
 mod banner;
 
 use leptos::prelude::*;
-use nodus_sdk::Timeline;
-use nodus_route::route::RouteView;
 
 mod tabs;
 
@@ -15,32 +13,40 @@ mod header;
 pub use header::TimelineHeader;
 pub use tabs::PrimaryTabs;
 
-use self::banner::Banner;
-use crate::router::Route;
+pub use self::banner::Banner;
 
-/// A timeline with its composer above it (home only) and a "Load more" foot.
-#[component]
-pub fn Home(which: Timeline) -> impl IntoView {
-    let route = match which {
-        Timeline::Local => Route::Local,
-        Timeline::Federated => Route::Federated,
-        _ => Route::Home,
-    };
 
+fn timeline(route: crate::router::Route) -> impl IntoView {
     let header: ChildrenFn = std::sync::Arc::new(|| view! { <TimelineHeader/> }.into_any());
     let banner: ChildrenFn = std::sync::Arc::new(|| view! { <Banner/> }.into_any());
-    let card: nodus_ui::components::card_renderer::CardRenderer = std::sync::Arc::new(|status| {
-        use leptos::prelude::IntoAny;
+    let card: nodus_ui::components::CardRenderer = std::sync::Arc::new(|status| {
         view! { <crate::routes::status::StatusCard status=status/> }.into_any()
     });
-
     view! {
-        <RouteView
+        <nodus_route::route::RouteView
             runtime=crate::state::runtime::runtime()
-            route
-            card
+            route=route
+            card=card
             header=Some(header)
             banner=Some(banner)
         />
     }
+}
+
+/// The home timeline.
+#[component]
+pub fn HomeTimeline() -> impl IntoView {
+    timeline(crate::router::Route::Home)
+}
+
+/// The local timeline.
+#[component]
+pub fn LocalTimeline() -> impl IntoView {
+    timeline(crate::router::Route::Local)
+}
+
+/// The federated timeline.
+#[component]
+pub fn FederatedTimeline() -> impl IntoView {
+    timeline(crate::router::Route::Federated)
 }

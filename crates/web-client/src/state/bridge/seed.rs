@@ -8,7 +8,7 @@
 //! Nothing here is required for the app to work — a bundle served without the island (the
 //! static deployment, a reload of a client-side route) simply starts cold, as before.
 
-use nodus_instance::model::Status;
+use nodus_instance::model::{List, SearchResults, Status};
 use nodus_sdk::Timeline;
 use nodus_sdk::page::{PageItems, PageKind};
 
@@ -17,6 +17,10 @@ use super::{handle, with_sdk};
 static ADOPTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 thread_local! {
+    /// The island as it was painted, kept after the node holding it is replaced, for the
+    /// screens that keep their own list rather than a page in the store.
+    static PAINTED: std::cell::RefCell<Option<Island>> = const { std::cell::RefCell::new(None) };
+
     /// An island read before the SDK existed. `main` reads the island first (the mount
     /// replaces the node it lives in), but the SDK is installed during `bridge::init`,
     /// which runs later — so the parsed page waits here rather than panicking.
@@ -24,7 +28,7 @@ thread_local! {
 }
 
 /// What the server writes into `#nodus-page`.
-#[derive(Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize)]
 struct Island {
     /// A timeline ("home", "local", "federated") or a page kind ("notifications", …).
     #[serde(default)]
@@ -37,6 +41,9 @@ struct Island {
     items: Option<serde_json::Value>,
     #[serde(default)]
     cursor: Option<String>,
+    /// The question, when the island is a search answer.
+    #[serde(default)]
+    query: Option<String>,
 }
 
 /// The page the island carries, when it is one of the lists a screen reads from the store.
@@ -70,6 +77,14 @@ fn page_of(island: &Island) -> Option<(PageKind, PageItems)> {
             PageKind::Directory(true),
             PageItems::Accounts(parse_typed(&values)),
         ),
+        "search" => {
+            let query = island.query.clone()?;
+            let results: SearchResults = serde_json::from_value(island.items.clone()?).ok()?;
+            (
+                PageKind::Search(query),
+                PageItems::Search(Box::new(results)),
+            )
+        }
         _ => return None,
     })
 }
@@ -111,6 +126,7 @@ pub fn install() {
         web_sys::console::warn_1(&"nodus: could not read the server-painted page".into());
         return;
     };
+    PAINTED.with(|painted| *painted.borrow_mut() = Some(island.clone()));
     let usable = if island.kind.is_empty() {
         !island.statuses.is_empty() && timeline_for(&island.which).is_some()
     } else {
@@ -124,6 +140,21 @@ pub fn install() {
     } else {
         PENDING.with(|pending| *pending.borrow_mut() = Some(island));
     }
+}
+
+/// The lists the server painted, when this document is a `/lists` one.
+///
+/// The lists screen keeps its own `Vec` (the store's pages are keyed by `PageKind`, and a
+/// list has no page of its own), so it reads the painted island directly instead of asking
+/// the instance for what is already on screen.
+#[must_use]
+pub fn lists() -> Option<Vec<List>> {
+    let island = PAINTED.with(|painted| painted.borrow().clone())?;
+    if island.kind != "lists" {
+        return None;
+    }
+    let items = island.items.as_ref()?.as_array()?.clone();
+    Some(parse_typed(&items))
 }
 
 /// Adopts an island that was read before the SDK was installed.

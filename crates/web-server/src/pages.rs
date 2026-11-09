@@ -9,7 +9,7 @@ use leptos::prelude::Owner;
 use nodus_web::shared::screens::{Screen, ScreenKind};
 
 use crate::mastodon::Client;
-use crate::{document, rows::now_millis, PAGE};
+use crate::{PAGE, document, rows::now_millis};
 
 /// The server's card painter: it has a status and needs the component's HTML.
 fn card() -> nodus_view::components::card_renderer::CardRenderer {
@@ -17,7 +17,8 @@ fn card() -> nodus_view::components::card_renderer::CardRenderer {
 }
 
 /// The same painter where a page asks for a callback rather than a renderer.
-fn card_callback() -> leptos::prelude::Callback<nodus_instance::model::Status, leptos::prelude::AnyView> {
+fn card_callback()
+-> leptos::prelude::Callback<nodus_instance::model::Status, leptos::prelude::AnyView> {
     leptos::prelude::Callback::new(|status: nodus_instance::model::Status| card_view_for(&status))
 }
 
@@ -169,7 +170,13 @@ pub(crate) async fn read_saved(
     } else {
         Shelf::Favourites
     };
-    let inner = painted(|| nodus_view::pages::saved::SavedPage(nodus_view::pages::saved::SavedPageProps::server(shelf, statuses.clone(), card())));
+    let inner = painted(|| {
+        nodus_view::pages::saved::SavedPage(nodus_view::pages::saved::SavedPageProps::server(
+            shelf,
+            statuses.clone(),
+            card(),
+        ))
+    });
     Some(document::page_of(
         assets,
         acct,
@@ -207,14 +214,28 @@ pub(crate) async fn read_search(
         return None;
     }
     let results = client.search(&query).await.ok()?;
-    let inner = painted(|| nodus_view::pages::search::SearchPage(nodus_view::pages::search::SearchPageProps::server(query.clone(), results.clone(), Some(nodus_view::components::props::ages(now_millis())), Some(card_callback()))));
+    let inner = painted(|| {
+        nodus_view::pages::search::SearchPage(nodus_view::pages::search::SearchPageProps::server(
+            query.clone(),
+            results.clone(),
+            Some(nodus_view::components::props::ages(now_millis())),
+            Some(card_callback()),
+        ))
+    });
+    let island = serde_json::json!({
+        "kind": "search",
+        "query": query,
+        "items": results,
+        "cursor": null,
+    })
+    .to_string();
     Some(document::page_of(
         assets,
         acct,
         path,
         "Search",
         &inner,
-        None,
+        Some(island),
     ))
 }
 

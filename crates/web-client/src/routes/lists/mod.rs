@@ -30,8 +30,12 @@ use timeline::ListTimeline;
 /// The lists screen.
 #[component]
 pub fn Lists() -> impl IntoView {
-    let (lists, set_lists) = signal(Vec::<List>::new());
-    let (selected, set_selected) = signal(None::<String>);
+    // The server paints this screen's lists into the island, so the store starts with
+    // them: a reader who navigates to /lists does not watch the client fetch the list of
+    // lists they are already looking at.
+    let painted = crate::state::bridge::seed::lists().unwrap_or_default();
+    let (lists, set_lists) = signal(painted.clone());
+    let (selected, set_selected) = signal(painted.first().map(|list| list.id.clone()));
     let (title, set_title) = signal(String::new());
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
@@ -64,7 +68,12 @@ pub fn Lists() -> impl IntoView {
         }
     };
 
-    Effect::new(move |_| reload());
+    // Only ask when the island had nothing: a painted page is already the answer.
+    Effect::new(move |_| {
+        if lists.get_untracked().is_empty() {
+            reload();
+        }
+    });
 
     let create = move |()| {
         let name = title.get_untracked();

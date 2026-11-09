@@ -163,3 +163,78 @@ fn mute_slot(id: String, muted: bool, on_mute: Option<Callback<(String, bool)>>)
         .into_any()
     }) as ChildrenFn
 }
+
+#[cfg(test)]
+mod rendering {
+    use leptos::prelude::{Owner, Signal};
+    use leptos::tachys::view::RenderHtml as _;
+
+    use super::MessagesPage;
+    use super::MessagesPageProps;
+
+    /// The server paints pages outside a component tree, so every page must survive being
+    /// rendered with nothing but an owner. This is the regression guard for
+    /// `panicked at leptos-0.8.23/src/for_loop.rs:138: no reactive owner`.
+    #[test]
+    fn an_empty_page_paints_without_a_component_tree() {
+        let html = Owner::new().with(|| {
+            MessagesPage(MessagesPageProps {
+                conversations: Signal::derive(Vec::new),
+                muted: Signal::derive(Vec::new),
+                loading: Signal::derive(|| false),
+                error: Signal::derive(|| None),
+                cursor: Signal::derive(|| None),
+                age_of: None,
+                on_open: None,
+                on_read: None,
+                on_mute: None,
+                on_more: None,
+            })
+            .to_html()
+        });
+
+        assert!(html.contains("Messages"), "the page header is painted: {html}");
+    }
+
+    /// A row is where the loop actually walks; an empty list never reaches `keyed`.
+    #[test]
+    fn a_page_with_a_row_paints_without_a_component_tree() {
+        let json = r#"{
+            "id": "1", "unread": true,
+            "accounts": [{"id": "2", "username": "ash", "acct": "ash", "display_name": "Ash",
+                          "url": "https://stub/@ash", "note": "", "avatar": "", "header": "",
+                          "followers_count": 0, "following_count": 0, "statuses_count": 0,
+                          "created_at": "2026-01-01T00:00:00Z", "emojis": []}],
+            "last_status": {"id": "9", "content": "<p>hi</p>", "created_at": "2026-01-01T00:00:00Z",
+                            "account": {"id": "2", "username": "ash", "acct": "ash", "display_name": "Ash",
+                                        "url": "https://stub/@ash", "note": "", "avatar": "", "header": "",
+                                        "followers_count": 0, "following_count": 0, "statuses_count": 0,
+                                        "created_at": "2026-01-01T00:00:00Z", "emojis": []},
+                            "reblog": null, "media_attachments": [], "mentions": [], "tags": [],
+                            "favourites_count": 0, "reblogs_count": 0, "replies_count": 0,
+                            "favourited": false, "reblogged": false, "bookmarked": false,
+                            "sensitive": false, "spoiler_text": "", "visibility": "public",
+                            "edited_at": null, "pinned": null, "poll": null, "emojis": []}
+        }"#;
+        let conversation: nodus_instance::model::Conversation =
+            serde_json::from_str(json).expect("the fixture is a conversation");
+
+        let html = Owner::new().with(|| {
+            MessagesPage(MessagesPageProps {
+                conversations: Signal::derive(move || vec![conversation.clone()]),
+                muted: Signal::derive(Vec::new),
+                loading: Signal::derive(|| false),
+                error: Signal::derive(|| None),
+                cursor: Signal::derive(|| None),
+                age_of: None,
+                on_open: None,
+                on_read: None,
+                on_mute: None,
+                on_more: None,
+            })
+            .to_html()
+        });
+
+        assert!(html.contains("hi"), "the row is painted: {html}");
+    }
+}

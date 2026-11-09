@@ -6,12 +6,20 @@
 
 use leptos::prelude::{Callback, Owner, Signal};
 
+use nodus_web::shared::screens::{Screen, ScreenKind};
+
 use crate::mastodon::Client;
 use crate::{document, rows::now_millis, PAGE};
 
 /// Renders a component tree to the string the document embeds.
-fn painted<V: leptos::IntoView>(view: V) -> String {
-    Owner::new().with(|| view.to_html())
+///
+/// The closure is not a convenience: a component's body runs when it is *called*, and a
+/// `For` inside that body asks `Owner::current()` while it renders. Building the props and
+/// the component inside `Owner::new().with(..)` is what keeps that answer non-empty —
+/// `painted(Page(props))` would build the page before the owner exists and panic with
+/// "no reactive owner" the first time a list had a row in it.
+fn painted<V: leptos::IntoView>(view: impl FnOnce() -> V) -> String {
+    Owner::new().with(|| view().to_html())
 }
 
 /// The clock every page's ages are measured against.
@@ -44,9 +52,13 @@ pub(crate) async fn read_page(
     path: &str,
     query: Option<&str>,
 ) -> Option<String> {
-    let page = match path {
-        "/notifications" => client.notifications(PAGE).await.map(|items| {
-            let inner = painted(nodus_view::pages::notifications::NotificationsPage(
+    let Some(screen) = Screen::of_path(path) else {
+        return read_entity(client, assets, acct, path).await;
+    };
+
+    let page = match screen.kind {
+        ScreenKind::Notifications => client.notifications(PAGE).await.map(|items| {
+            let inner = painted(|| nodus_view::pages::notifications::NotificationsPage(
                 nodus_view::pages::notifications::NotificationsPageProps {
                     notifications: held(items.clone()),
                     cursor: absent(),
@@ -64,14 +76,14 @@ pub(crate) async fn read_page(
                 assets,
                 acct,
                 path,
-                "Notifications",
+                screen.title,
                 &inner,
                 Some(serde_json::json!({ "kind": "notifications", "items": items, "cursor": null }).to_string()),
             )
         })
         .ok(),
-        "/messages" => client.conversations(PAGE).await.map(|items| {
-            let inner = painted(nodus_view::pages::messages::MessagesPage(
+        ScreenKind::Messages => client.conversations(PAGE).await.map(|items| {
+            let inner = painted(|| nodus_view::pages::messages::MessagesPage(
                 nodus_view::pages::messages::MessagesPageProps {
                     conversations: held(items.clone()),
                     muted: held(Vec::new()),
@@ -89,17 +101,15 @@ pub(crate) async fn read_page(
                 assets,
                 acct,
                 path,
-                "Messages",
+                screen.title,
                 &inner,
                 Some(serde_json::json!({ "kind": "conversations", "items": items, "cursor": null }).to_string()),
             )
         })
         .ok(),
-        "/saved/favourites" | "/saved/bookmarks" => {
-            read_saved(client, assets, acct, path, path.ends_with("bookmarks")).await
-        }
-        "/lists" => client.lists().await.map(|items| {
-            let inner = painted(nodus_view::pages::lists::ListsPage(
+        ScreenKind::Saved { bookmarks } => read_saved(client, assets, acct, path, bookmarks).await,
+        ScreenKind::Lists => client.lists().await.map(|items| {
+            let inner = painted(|| nodus_view::pages::lists::ListsPage(
                 nodus_view::pages::lists::ListsPageProps {
                     lists: held(items.clone()),
                     selected: absent(),
@@ -117,14 +127,14 @@ pub(crate) async fn read_page(
                 assets,
                 acct,
                 path,
-                "Lists",
+                screen.title,
                 &inner,
                 Some(serde_json::json!({ "kind": "lists", "items": items, "cursor": null }).to_string()),
             )
         })
         .ok(),
-        "/scheduled" => client.scheduled().await.map(|items| {
-            let inner = painted(nodus_view::pages::scheduled::ScheduledPage(
+        ScreenKind::Scheduled => client.scheduled().await.map(|items| {
+            let inner = painted(|| nodus_view::pages::scheduled::ScheduledPage(
                 nodus_view::pages::scheduled::ScheduledPageProps {
                     items: held(items.clone()),
                     loading: no(),
@@ -137,14 +147,14 @@ pub(crate) async fn read_page(
                 assets,
                 acct,
                 path,
-                "Scheduled",
+                screen.title,
                 &inner,
                 Some(serde_json::json!({ "kind": "scheduled", "items": items, "cursor": null }).to_string()),
             )
         })
         .ok(),
-        "/directory" => client.directory(true).await.map(|items| {
-            let inner = painted(nodus_view::pages::directory::DirectoryPage(
+        ScreenKind::Directory => client.directory(true).await.map(|items| {
+            let inner = painted(|| nodus_view::pages::directory::DirectoryPage(
                 nodus_view::pages::directory::DirectoryPageProps {
                     local_only: Signal::derive(|| true),
                     accounts: held(items.clone()),
@@ -160,13 +170,13 @@ pub(crate) async fn read_page(
                 assets,
                 acct,
                 path,
-                "People",
+                screen.title,
                 &inner,
                 Some(serde_json::json!({ "kind": "directory", "items": items, "cursor": null }).to_string()),
             )
         })
         .ok(),
-        "/search" => read_search(client, assets, acct, path, query).await,
+        ScreenKind::Search => read_search(client, assets, acct, path, query).await,
         _ => None,
     };
     if page.is_some() {
@@ -221,7 +231,7 @@ pub(crate) async fn read_saved(
     } else {
         Shelf::Favourites
     };
-    let inner = painted(nodus_view::pages::saved::SavedPage(
+    let inner = painted(|| nodus_view::pages::saved::SavedPage(
         nodus_view::pages::saved::SavedPageProps {
             shelf: Signal::derive(move || shelf),
             items: held(statuses.clone()),
@@ -277,7 +287,7 @@ pub(crate) async fn read_search(
         return None;
     }
     let results = client.search(&query).await.ok()?;
-    let inner = painted(nodus_view::pages::search::SearchPage(
+    let inner = painted(|| nodus_view::pages::search::SearchPage(
         nodus_view::pages::search::SearchPageProps {
             query: held(query.clone()),
             accounts: held(results.accounts.clone()),
@@ -337,4 +347,32 @@ pub(crate) fn percent_decode(value: &str) -> String {
         }
     }
     String::from_utf8_lossy(&decoded).into_owned()
+}
+
+#[cfg(test)]
+mod painting {
+    use leptos::prelude::{ElementChild as _, Get as _};
+
+    use super::painted;
+
+    /// A page built *outside* the owner panics the moment a list has a row in it:
+    /// `panicked at leptos/src/for_loop.rs:138: no reactive owner`. Building it inside
+    /// `painted`'s closure is the fix, and this test is the shape of that fix.
+    #[test]
+    fn a_for_with_a_row_is_built_inside_the_owner() {
+        let html = painted(|| {
+            let items = leptos::prelude::Signal::derive(|| vec![1_u8, 2]);
+            leptos::prelude::IntoView::into_view(
+                leptos::html::ul().child(leptos::prelude::For(
+                    leptos::prelude::ForProps::builder()
+                        .each(move || items.get())
+                        .key(|value: &u8| *value)
+                        .children(|value: u8| leptos::html::li().child(value.to_string()))
+                        .build(),
+                )),
+            )
+        });
+
+        assert!(html.contains("<li>1</li>"), "{html}");
+    }
 }

@@ -238,3 +238,27 @@ the URL and is read anonymously). These routes keep their client handlers until 
 contract grows a snapshot for their reads; they are the remaining difference between an SSR paint
 and a mounted paint. The shared `StatusCard` now receives no-op callbacks on the server instead of
 absent ones, so its verbs keep their markup on both paints.
+
+### Every server route paints a shared screen (2026-11-09, later pass)
+
+The stateless paint no longer has its own page for any route. `document::shell` keeps the
+signed-out gate, and for every signed-in path it hands the address to
+`pages::render_unclaimed`: `Route::from_path` selects the same route the browser selects,
+`RouteView` renders it, and `StaticRuntime::signed_in` supplies the session. A route whose
+data was not prefetched therefore shows the shared screen's own unavailable branch, not a
+skeleton or a server-only builder.
+
+That replaces the last fake bodies:
+
+- `/feed` renders `FeedScreen` and the shared `FeedPage` with both lists;
+- `/settings/*` renders `SettingsPage` and the same `SessionCard`/`AccountsCard`/`FeedsCard`/
+  `FiltersCard`/`FeaturedTagsCard`/`ClockCard`/`SensitiveCard`/`InstanceCard`/`ProfileFields`
+  the client mounts;
+- `/compose` and `/compose/{id}` render `ComposeScreen` and `ComposeForm`/`ComposeLoading`;
+- `/admin/*` and `/moderation/*` render `AdminPage`/`ModerationPage`, their gate and strip;
+- `Route::Thread` now owns the anonymous case too: a link with no host asks for one inside
+  the shared thread, and the client reads it through `Runtime::load_public_thread`.
+
+The client route modules that remain are data and state adapters for the browser-only
+transports; their rendering already goes through these shared pages. The next seam is
+moving the screen-local state behind the runtime, not adding more markup.

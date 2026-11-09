@@ -16,7 +16,9 @@
 use std::fmt::Write as _;
 
 use leptos::prelude::Owner;
+use leptos::tachys::html::element::InnerHtmlAttribute as _;
 use leptos::tachys::view::RenderHtml as _;
+use leptos::tachys::view::any_view::IntoAny as _;
 
 use nodus_instance::model::{
     Account, Context, Conversation, List, Notification, ScheduledStatus, Status,
@@ -152,18 +154,6 @@ pub fn status_card(status: &Status) -> String {
         })
         .to_html()
     })
-}
-
-/// The absolute timestamp the server paints, with the date and the minute.
-///
-/// Only the scheduled queue uses it: a post that has not gone out yet is read as a time
-/// and a day, where "in 3h" would be a moving target. Statuses take their age from
-/// [`nodus_view::relative_age`], the client's own wording.
-fn stamp(rfc3339: &str) -> String {
-    rfc3339
-        .get(..16)
-        .map(|head| head.replace('T', " "))
-        .unwrap_or_default()
 }
 
 // Whether this request's reader may moderate. Set once per request by `shell`; a
@@ -449,27 +439,24 @@ pub fn thread_page(assets: &Assets, acct: &str, status: &Status, context: &Conte
 
 /// The "Load more" button the client also draws, or nothing on the last page.
 fn more_button(cursor: Option<&str>) -> String {
-    cursor
-        .map(|cursor| {
-            format!(
-                "<button class=\"btn btn-ghost btn-sm w-full\" data-cursor=\"{}\">Load more</button>",
-                escape(cursor)
-            )
-        })
-        .unwrap_or_default()
+    Owner::new().with(|| {
+        nodus_view::chrome::more_button::MoreButton(
+            nodus_view::chrome::more_button::MoreButtonProps {
+                cursor: cursor.map(std::borrow::ToOwned::to_owned),
+                loading: false,
+                on_more: None,
+            },
+        )
+        .to_html()
+    })
 }
-
-/// A page whose body is a list of things that are not statuses.
-///
-/// The chrome, the heading and the description come from the client's own words, so a reader
-/// who lands here and a reader who navigates here see the same page.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one page: assets, who, where, three pieces of copy, the body and an island"
+)]
 #[expect(
     clippy::needless_pass_by_value,
     reason = "the island JSON is built once, for one page"
-)]
-#[expect(
-    clippy::too_many_arguments,
-    reason = "a page is a title, a description, a body and its island; a struct would only name them twice"
 )]
 pub fn list_page(
     assets: &Assets,
@@ -504,44 +491,19 @@ pub fn rows(items: &[String], empty: &str) -> String {
 /// One account as a row: who they are, and the one line of self-description they wrote.
 #[must_use]
 pub fn account_row(account: &Account) -> String {
-    let name = if account.display_name.trim().is_empty() {
-        account.acct.clone()
-    } else {
-        account.display_name.clone()
-    };
-    let avatar = if account.avatar.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "<img class=\"h-10 w-10 rounded-full object-cover\" width=\"40\" height=\"40\" \
-               decoding=\"async\" loading=\"lazy\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
-            escape(&account.avatar)
-        )
-    };
     let note = body_html(&account.note);
-    let note = if note.trim().is_empty() {
-        String::new()
-    } else {
-        format!("<p class=\"line-clamp-2 text-sm opacity-70\">{note}</p>")
-    };
-    format!(
-        "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-           <div class=\"card-body flex-row items-start gap-3 p-3\">\
-             <a class=\"avatar\" href=\"/accounts/{id}\">{avatar}</a>\
-             <div class=\"min-w-0 flex-1\">\
-               <a class=\"font-medium hover:underline\" href=\"/accounts/{id}\">{name}</a>\
-               <p class=\"truncate text-xs opacity-60\">@{acct}</p>{note}\
-             </div>\
-           </div>\
-         </li>",
-        id = escape(&account.id),
-        acct = escape(&account.acct),
-        name = escape(&name)
-    )
+    Owner::new().with(|| {
+        nodus_view::lists::account_row::AccountRow(
+            nodus_view::lists::account_row::AccountRowProps {
+                account: account.clone(),
+                note,
+                on_open: None,
+                after: None,
+            },
+        )
+        .to_html()
+    })
 }
-
-/// One notification: what happened, to whom, and the status when the event carries one.
-#[must_use]
 pub fn notification_row(notification: &Notification) -> String {
     use leptos::prelude::*;
 
@@ -578,64 +540,59 @@ fn now_millis() -> f64 {
 /// One conversation: everyone in it, and its last message.
 #[must_use]
 pub fn conversation_row(conversation: &Conversation) -> String {
-    let who = conversation.accounts.first().map_or_else(
-        || "a conversation".to_owned(),
-        |account| account.acct.clone(),
-    );
-    let rest = conversation.accounts.len().saturating_sub(1);
-    let name = if rest == 0 {
-        who
-    } else {
-        format!("{who} and {rest} more")
-    };
-    let last = conversation
+    let age = conversation
+        .last_status
+        .as_ref()
+        .map_or_else(String::new, |status| {
+            nodus_view::relative_age(&status.created_at, now_millis())
+        });
+    let card = conversation
         .last_status
         .as_ref()
         .map(status_card)
         .unwrap_or_default();
-    let unread = if conversation.unread {
-        "<span class=\"badge badge-primary badge-xs\">unread</span>"
-    } else {
-        ""
-    };
-    format!(
-        "<li class=\"flex flex-col gap-2\"><p class=\"text-sm font-medium\">{}\n{unread}</p>{last}</li>",
-        escape(&name)
-    )
+    let last: Option<std::sync::Arc<dyn Fn() -> leptos::prelude::AnyView + Send + Sync>> =
+        Some(std::sync::Arc::new(move || {
+            // `Fn`, not `FnOnce`: the closure may be called more than once.
+            leptos::html::div().inner_html(card.clone()).into_any()
+        }));
+    Owner::new().with(|| {
+        nodus_view::lists::conversation_row::ConversationRow(
+            nodus_view::lists::conversation_row::ConversationRowProps {
+                conversation: conversation.clone(),
+                age,
+                on_open: None,
+                on_read: None,
+                status: last,
+            },
+        )
+        .to_html()
+    })
 }
-
-/// One list: its title, and how many people it holds when the instance says.
-#[must_use]
 pub fn list_row(list: &List) -> String {
-    format!(
-        "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-           <div class=\"card-body flex-row items-center justify-between gap-3 p-3\">\
-             <a class=\"font-medium hover:underline\" href=\"/lists/{}\">{}</a>\
-             <span class=\"text-xs opacity-60\">{}</span>\
-           </div>\
-         </li>",
-        escape(&list.id),
-        escape(&list.title),
-        escape(&list.replies_policy)
-    )
+    Owner::new().with(|| {
+        nodus_view::lists::list_row::ListRow(nodus_view::lists::list_row::ListRowProps {
+            list: list.clone(),
+            selected: false,
+            on_select: None,
+            children: None,
+        })
+        .to_html()
+    })
 }
-
-/// One scheduled post: when it goes out, and what it will say.
-#[must_use]
 pub fn scheduled_row(scheduled: &ScheduledStatus) -> String {
-    format!(
-        "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-           <div class=\"card-body gap-1 p-3\">\
-             <p class=\"text-xs opacity-60\">{}</p>\
-             <p class=\"whitespace-pre-line text-sm\">{}</p>\
-           </div>\
-         </li>",
-        escape(&stamp(&scheduled.scheduled_at)),
-        escape(&scheduled.summary())
-    )
+    let age = nodus_view::relative_age(&scheduled.scheduled_at, now_millis());
+    Owner::new().with(|| {
+        nodus_view::lists::scheduled_row::ScheduledRow(
+            nodus_view::lists::scheduled_row::ScheduledRowProps {
+                scheduled: scheduled.clone(),
+                age,
+                on_cancel: None,
+            },
+        )
+        .to_html()
+    })
 }
-
-/// The signed-out page: the app's own front door, painted without data.
 pub fn landing(assets: &Assets) -> String {
     page(
         assets,
@@ -820,40 +777,19 @@ fn tabs_for(path: &str) -> String {
 fn skeleton(path: &str) -> String {
     let head = path.trim_start_matches('/');
     let section = head.split('/').next().unwrap_or_default();
-    let rows = match section {
+    let count = match section {
         "messages" | "notifications" | "search" | "directory" | "saved" | "scheduled" | "lists"
         | "local" | "federated" | "feed" | "moderation" | "admin" => 4,
         "status" => 1,
         _ => 3,
     };
-    let mut cards = String::new();
-    for _ in 0..rows {
-        let _ = write!(
-            cards,
-            "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-               <div class=\"card-body gap-3 p-4\">\
-                 <div class=\"flex items-center gap-3\">\
-                   <div class=\"skeleton h-10 w-10 shrink-0 rounded-full\"></div>\
-                   <div class=\"flex min-w-0 flex-1 flex-col gap-1\">\
-                     <div class=\"skeleton h-3 w-1/3\"></div>\
-                     <div class=\"skeleton h-3 w-1/4\"></div>\
-                   </div>\
-                 </div>\
-                 <div class=\"skeleton h-3 w-full\"></div>\
-                 <div class=\"skeleton h-3 w-4/5\"></div>\
-                 <div class=\"flex gap-2 border-t border-base-200 pt-2\">\
-                   <div class=\"skeleton h-6 w-16\"></div>\
-                   <div class=\"skeleton h-6 w-16\"></div>\
-                 </div>\
-               </div>\
-             </li>"
-        );
-    }
-    format!("<ul class=\"flex flex-col gap-2\">{cards}</ul>")
+    Owner::new().with(|| {
+        nodus_view::chrome::skeleton::Skeleton(nodus_view::chrome::skeleton::SkeletonProps {
+            count,
+        })
+        .to_html()
+    })
 }
-
-/// A page that says what went wrong and still loads the app, so the reader can sign out or
-/// retry instead of staring at an empty document.
 pub fn error(assets: &Assets, message: &str) -> String {
     page(
         assets,

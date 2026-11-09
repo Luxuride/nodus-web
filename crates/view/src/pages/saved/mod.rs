@@ -18,9 +18,9 @@ use leptos::prelude::*;
 use nodus_instance::model::Status;
 
 use crate::chrome::Skeleton;
+use crate::chrome::more_button::{MoreButton, MoreButtonProps};
 use crate::components::CardRenderer;
 use crate::{PageHeader, Screen};
-use crate::chrome::more_button::{MoreButton, MoreButtonProps};
 
 /// The saved screen, with its two shelves.
 #[component]

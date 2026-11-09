@@ -15,8 +15,8 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use nodus_instance::model::Account;
 
-use crate::lists::account_row::{AccountRow, AccountRowProps};
 use crate::chrome::more_button::{MoreButton, MoreButtonProps};
+use crate::lists::account_row::{AccountRow, AccountRowProps};
 
 /// How the list was produced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -18,9 +18,9 @@ use leptos::prelude::*;
 use nodus_instance::model::Conversation;
 
 use crate::chrome::Skeleton;
-use crate::{PageHeader, Screen};
-use crate::lists::conversation_row::{ConversationRow, ConversationRowProps};
 use crate::chrome::more_button::{MoreButton, MoreButtonProps};
+use crate::lists::conversation_row::{ConversationRow, ConversationRowProps};
+use crate::{PageHeader, Screen};
 
 /// The conversations the account is part of.
 #[component]
@@ -136,20 +136,15 @@ pub fn MessagesPage(
 /// The newest status, in the row's middle box: one truncated line, as the client drew it
 /// before the row was shared.
 fn preview_slot(text: String) -> ChildrenFn {
-    Arc::new(move || {
-        view! { <p class="truncate text-xs opacity-70">{text.clone()}</p> }.into_any()
-    }) as ChildrenFn
+    Arc::new(move || view! { <p class="truncate text-xs opacity-70">{text.clone()}</p> }.into_any())
+        as ChildrenFn
 }
 
 /// One conversation's Mute/Unmute toggle, disabled when the caller has no verb for it.
 ///
 /// The verb is the opposite of the state the row was drawn with, so a press always asks for
 /// the change the label promises.
-fn mute_slot(
-    id: String,
-    muted: bool,
-    on_mute: Option<Callback<(String, bool)>>,
-) -> ChildrenFn {
+fn mute_slot(id: String, muted: bool, on_mute: Option<Callback<(String, bool)>>) -> ChildrenFn {
     Arc::new(move || {
         let id = id.clone();
         view! {

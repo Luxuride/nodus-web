@@ -13,8 +13,8 @@ use leptos::prelude::*;
 use nodus_instance::model::ScheduledStatus;
 
 use crate::chrome::Skeleton;
-use crate::{PageHeader, Screen};
 use crate::lists::scheduled_row::{ScheduledRow, ScheduledRowProps};
+use crate::{PageHeader, Screen};
 
 /// The queue of posts waiting to be published.
 #[component]

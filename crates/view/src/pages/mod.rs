@@ -9,6 +9,7 @@
 //! the module: `/notifications` is `notifications`, and a screen with parts keeps them in the
 //! same directory as submodules rather than in a shared cupboard.
 
+pub mod accounts;
 pub mod directory;
 pub mod lists;
 pub mod messages;
@@ -17,3 +18,4 @@ pub mod people;
 pub mod saved;
 pub mod scheduled;
 pub mod search;
+pub mod status;

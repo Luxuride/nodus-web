@@ -12,14 +12,17 @@ pub mod components;
 pub mod icons;
 pub mod lists;
 pub mod media;
-pub mod pages;
 pub mod media_grid;
-pub mod profile;
+pub mod pages;
+
+/// The account page, at `crate::pages::accounts`.
+pub use pages::accounts as profile;
+/// The thread page, at `crate::pages::status`.
+pub use pages::status as thread;
 pub mod status_body;
 pub mod status_card;
 pub mod status_footer;
 pub mod status_header;
-pub mod thread;
 
 use icons::Icon;
 use leptos::prelude::*;

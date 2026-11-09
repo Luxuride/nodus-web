@@ -16,6 +16,7 @@ pub mod account;
 pub use account as accounts;
 
 pub mod directory;
+pub mod feed;
 pub mod lists;
 pub mod messages;
 #[path = "moderation/[section]/mod.rs"]

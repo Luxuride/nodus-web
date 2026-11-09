@@ -1507,6 +1507,7 @@ version = "0.1.0"
 dependencies = [
  "leptos",
  "nodus-instance",
+ "nodus-shared",
  "serde_json",
 ]
 

@@ -14,6 +14,7 @@ pub mod lists;
 pub mod media;
 pub mod notification_card;
 pub mod page_header;
+pub mod props;
 pub mod rail;
 pub mod screen;
 pub mod status;

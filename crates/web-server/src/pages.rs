@@ -4,12 +4,31 @@
 //! shelves, search — so `main.rs` stays a router: it decides *which* reader runs, this module
 //! decides what the answer looks like.
 
-use leptos::prelude::{Callback, Owner, Signal};
+use leptos::prelude::Owner;
 
 use nodus_web::shared::screens::{Screen, ScreenKind};
 
 use crate::mastodon::Client;
 use crate::{document, rows::now_millis, PAGE};
+
+/// The server's card painter: it has a status and needs the component's HTML.
+fn card() -> nodus_view::components::card_renderer::CardRenderer {
+    std::sync::Arc::new(|status: nodus_instance::model::Status| card_view_for(&status))
+}
+
+/// The same painter where a page asks for a callback rather than a renderer.
+fn card_callback() -> leptos::prelude::Callback<nodus_instance::model::Status, leptos::prelude::AnyView> {
+    leptos::prelude::Callback::new(|status: nodus_instance::model::Status| card_view_for(&status))
+}
+
+fn card_view_for(status: &nodus_instance::model::Status) -> leptos::prelude::AnyView {
+    use leptos::prelude::IntoAny;
+    use leptos::tachys::html::element::InnerHtmlAttribute as _;
+
+    leptos::html::div()
+        .inner_html(crate::rows::status_card(status))
+        .into_any()
+}
 
 /// Renders a component tree to the string the document embeds.
 ///
@@ -21,29 +40,6 @@ use crate::{document, rows::now_millis, PAGE};
 fn painted<V: leptos::IntoView>(view: impl FnOnce() -> V) -> String {
     Owner::new().with(|| view().to_html())
 }
-
-/// The clock every page's ages are measured against.
-fn ages() -> Callback<String, String> {
-    Callback::new(|created: String| nodus_view::relative_age(&created, now_millis()))
-}
-
-/// A value the server has, handed to a component that expects a signal.
-fn held<T: Clone + Send + Sync + 'static>(value: T) -> Signal<T> {
-    Signal::derive(move || value.clone())
-}
-
-fn empty() -> Signal<Option<String>> {
-    Signal::derive(|| None)
-}
-
-fn absent<T: Clone + Send + Sync + 'static>() -> Signal<Option<T>> {
-    Signal::derive(|| None)
-}
-
-fn no() -> Signal<bool> {
-    Signal::derive(|| false)
-}
-
 
 pub(crate) async fn read_page(
     client: &Client,
@@ -58,20 +54,7 @@ pub(crate) async fn read_page(
 
     let page = match screen.kind {
         ScreenKind::Notifications => client.notifications(PAGE).await.map(|items| {
-            let inner = painted(|| nodus_view::pages::notifications::NotificationsPage(
-                nodus_view::pages::notifications::NotificationsPageProps {
-                    notifications: held(items.clone()),
-                    cursor: absent(),
-                    loading: no(),
-                    error: empty(),
-                    age_of: Some(ages()),
-                    on_more: None,
-                    on_open: None,
-                    status_card: None,
-                    request_actions: None,
-                    banner: None,
-                },
-            ));
+            let inner = painted(|| nodus_view::pages::notifications::NotificationsPage(nodus_view::pages::notifications::NotificationsPageProps::server(items.clone(), Some(nodus_view::components::props::ages(now_millis())), None)));
             document::page_of(
                 assets,
                 acct,
@@ -83,20 +66,7 @@ pub(crate) async fn read_page(
         })
         .ok(),
         ScreenKind::Messages => client.conversations(PAGE).await.map(|items| {
-            let inner = painted(|| nodus_view::pages::messages::MessagesPage(
-                nodus_view::pages::messages::MessagesPageProps {
-                    conversations: held(items.clone()),
-                    muted: held(Vec::new()),
-                    loading: no(),
-                    error: empty(),
-                    cursor: absent(),
-                    age_of: Some(ages()),
-                    on_open: None,
-                    on_read: None,
-                    on_mute: None,
-                    on_more: None,
-                },
-            ));
+            let inner = painted(|| nodus_view::pages::messages::MessagesPage(nodus_view::pages::messages::MessagesPageProps::server(items.clone(), Some(nodus_view::components::props::ages(now_millis())))));
             document::page_of(
                 assets,
                 acct,
@@ -109,20 +79,7 @@ pub(crate) async fn read_page(
         .ok(),
         ScreenKind::Saved { bookmarks } => read_saved(client, assets, acct, path, bookmarks).await,
         ScreenKind::Lists => client.lists().await.map(|items| {
-            let inner = painted(|| nodus_view::pages::lists::ListsPage(
-                nodus_view::pages::lists::ListsPageProps {
-                    lists: held(items.clone()),
-                    selected: absent(),
-                    title: held(String::new()),
-                    busy: no(),
-                    error: empty(),
-                    on_title: None,
-                    on_create: None,
-                    row: None,
-                    members: None,
-                    timeline: None,
-                },
-            ));
+            let inner = painted(|| nodus_view::pages::lists::ListsPage(nodus_view::pages::lists::ListsPageProps::server(items.clone())));
             document::page_of(
                 assets,
                 acct,
@@ -134,15 +91,7 @@ pub(crate) async fn read_page(
         })
         .ok(),
         ScreenKind::Scheduled => client.scheduled().await.map(|items| {
-            let inner = painted(|| nodus_view::pages::scheduled::ScheduledPage(
-                nodus_view::pages::scheduled::ScheduledPageProps {
-                    items: held(items.clone()),
-                    loading: no(),
-                    error: empty(),
-                    age_of: Some(ages()),
-                    on_cancel: None,
-                },
-            ));
+            let inner = painted(|| nodus_view::pages::scheduled::ScheduledPage(nodus_view::pages::scheduled::ScheduledPageProps::server(items.clone(), Some(nodus_view::components::props::ages(now_millis())))));
             document::page_of(
                 assets,
                 acct,
@@ -154,18 +103,7 @@ pub(crate) async fn read_page(
         })
         .ok(),
         ScreenKind::Directory => client.directory(true).await.map(|items| {
-            let inner = painted(|| nodus_view::pages::directory::DirectoryPage(
-                nodus_view::pages::directory::DirectoryPageProps {
-                    local_only: Signal::derive(|| true),
-                    accounts: held(items.clone()),
-                    loading: no(),
-                    error: empty(),
-                    cursor: absent(),
-                    on_scope: None,
-                    on_open: None,
-                    on_more: None,
-                },
-            ));
+            let inner = painted(|| nodus_view::pages::directory::DirectoryPage(nodus_view::pages::directory::DirectoryPageProps::server(items.clone())));
             document::page_of(
                 assets,
                 acct,
@@ -231,25 +169,7 @@ pub(crate) async fn read_saved(
     } else {
         Shelf::Favourites
     };
-    let inner = painted(|| nodus_view::pages::saved::SavedPage(
-        nodus_view::pages::saved::SavedPageProps {
-            shelf: Signal::derive(move || shelf),
-            items: held(statuses.clone()),
-            loading: no(),
-            error: empty(),
-            cursor: held(cursor.clone()),
-            // The server's card is the client's card without its verbs.
-            card: std::sync::Arc::new(|status| {
-                use leptos::prelude::IntoAny;
-                use leptos::tachys::html::element::InnerHtmlAttribute as _;
-                leptos::html::div()
-                    .inner_html(crate::rows::status_card(&status))
-                    .into_any()
-            }),
-            on_shelf: None,
-            on_more: None,
-        },
-    ));
+    let inner = painted(|| nodus_view::pages::saved::SavedPage(nodus_view::pages::saved::SavedPageProps::server(shelf, statuses.clone(), card())));
     Some(document::page_of(
         assets,
         acct,
@@ -287,27 +207,7 @@ pub(crate) async fn read_search(
         return None;
     }
     let results = client.search(&query).await.ok()?;
-    let inner = painted(|| nodus_view::pages::search::SearchPage(
-        nodus_view::pages::search::SearchPageProps {
-            query: held(query.clone()),
-            accounts: held(results.accounts.clone()),
-            statuses: held(results.statuses.clone()),
-            tags: held(results.hashtags.clone()),
-            searched: Signal::derive(|| true),
-            loading: no(),
-            error: empty(),
-            on_query: None,
-            on_search: None,
-            age_of: Some(ages()),
-            card: Some(Callback::new(|status| {
-                use leptos::prelude::IntoAny;
-                use leptos::tachys::html::element::InnerHtmlAttribute as _;
-                leptos::html::div()
-                    .inner_html(crate::rows::status_card(&status))
-                    .into_any()
-            })),
-        },
-    ));
+    let inner = painted(|| nodus_view::pages::search::SearchPage(nodus_view::pages::search::SearchPageProps::server(query.clone(), results.clone(), Some(nodus_view::components::props::ages(now_millis())), Some(card_callback()))));
     Some(document::page_of(
         assets,
         acct,

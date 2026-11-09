@@ -11,8 +11,8 @@ use nodus_sdk::{Command, Degraded, InstanceApi};
 use nodus_shared::{AccountFeed, EventBatch, EventKind, InteractionEvent};
 
 use super::{
-    FEED_ID, FeedUi, WebSdk, dispatch, existing_feed_id, feed_ui, handle, impressions,
-    instance_transport, with_sdk,
+    FEED_ID, FeedUi, WebSdk, dispatch, existing_feed_id, feed_ui, forget_feed_id, handle,
+    impressions, instance_transport, with_sdk,
 };
 
 /// Loads one page of the feed, keeping the current list visible while it runs.
@@ -37,10 +37,27 @@ pub fn reload_feed(cursor: Option<String>) {
         };
         match result {
             Ok(feed) => remember_feed(&feed),
+            // A restarted discovery process forgets its snapshots. The id names
+            // nothing now, so retry once as a fresh read instead of making every
+            // refresh repeat the same dead request.
+            Err(error) if gone(&error) => {
+                forget_feed_id();
+                match sdk.load_feed(None).await {
+                    Ok(feed) => remember_feed(&feed),
+                    Err(error) => ui.error.set(Some(error.to_string())),
+                }
+            }
             Err(error) => ui.error.set(Some(error.to_string())),
         }
         ui.refreshing.set(false);
     });
+}
+
+fn gone(error: &nodus_sdk::SdkError<nodus_sdk::instance_api::Error, nodus_discovery::Error>) -> bool {
+    matches!(
+        error,
+        nodus_sdk::SdkError::Discovery(nodus_discovery::Error::Status { status: 410, .. })
+    )
 }
 
 /// Follows the account behind a feed item and hides the item.

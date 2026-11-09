@@ -2,7 +2,7 @@
 
 Status: **in progress**. `nodus_view` already owns the frame, the rail, the icons, the
 timeline tabs, the composer card, the page header, the screen column, the notification row
-and the media rules. `web/crates/server/src/render.rs` still builds markup as strings for the
+and the media rules. `web/crates/web/src/server/render.rs` still builds markup as strings for the
 components below.
 
 The goal is one definition per component, rendered by `tachys::view::RenderHtml::to_html()`
@@ -53,7 +53,8 @@ not a degraded paint; it is the same card a signed-out reader sees.
 
 ## Verification per step
 
-- `cargo clippy -p nodus-view -p nodus-server --all-targets -- -D warnings`
+- `cargo clippy -p nodus-view --all-targets -- -D warnings`
+- `cargo clippy -p nodus-web --no-default-features --features ssr --all-targets -- -D warnings`
 - `cargo clippy -p nodus-web --target wasm32-unknown-unknown --all-targets --features admin -- -D warnings`
 - `cargo test -p nodus-view`
 - `trunk build --release --features admin`, then `curl` the affected route and diff the markup
@@ -96,7 +97,7 @@ that is the screen's (list undo, list rename/delete, the post menu, share) arriv
 `ChildrenFn` slot or is simply not the row's prop; a verb the row can justify (open, select,
 cancel) arrives as an `Option<Callback<..>>` and renders disabled-but-identical when absent.
 
-Still strings in `crates/server/src/render.rs`: `profile_page`, `thread_page`,
+Still strings in `crates/web/src/server/render.rs`: `profile_page`, `thread_page`,
 `timeline_header`/`page_header` adapters, `tabs_for`, `skeleton`, `more_button`.
 
 ## Decision (2026-11-09): everything in nodus

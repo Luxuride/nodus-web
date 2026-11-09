@@ -169,9 +169,11 @@ bump is part of the lockfile review.
 
 ## Composer assets (2026-11-08)
 
-The body editor and the emoji picker are two vendored bundles, built with `npm run build` in
-`web/js` and committed under `web/crates/web/public/vendor/`. Nothing in the Rust build or the
-deployment needs npm; rebuilding them is a deliberate act:
+The body editor and the emoji picker are two bundles built from `web/js/` with esbuild, plus a
+copy of `emoji-picker-element-data`. They are **generated, not committed**:
+`crates/web-client/build.rs` rebuilds them (and `style/tailwind.css`) whenever an output is
+missing or older than its source, so a stale bundle cannot ship. `web/vendor/VENDOR.md` is the
+source of truth for the recipe; the sizes below are what that build produces:
 
 | file | raw | gzipped | loaded |
 |---|---|---|---|

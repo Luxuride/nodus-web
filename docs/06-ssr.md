@@ -68,8 +68,9 @@ docker run --rm \
   -v nodus-cargo-cache:/usr/local/cargo/registry \
   -e CFLAGS=-std=gnu11 -e AWS_LC_SYS_CFLAGS=-std=gnu11 \
   rust:1-bookworm bash -lc 'export PATH=/usr/local/cargo/bin:$PATH && mkdir -p /build && \
-    cp -a /src/. /build/ && cd /build/web && cargo build --release -p nodus-server && \
-    cp target/release/nodus-server /out'
+    cp -a /src/. /build/ && cd /build/web && cargo build --release -p nodus-web \
+      --no-default-features --features ssr --bin nodus-web-server && \
+    cp target/release/nodus-web-server /out'
 ```
 
 `CFLAGS=-std=gnu11` is not optional on bookworm: gcc 12 compiles `aws-lc` in C23 mode and

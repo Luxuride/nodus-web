@@ -2,8 +2,8 @@
 //!
 //! Tailwind and daisyUI are the npm packages in this directory, so their versions are
 //! pinned by `package-lock.json` rather than by a vendored copy or a standalone binary.
-//! The output is committed: `trunk build` must work on a machine with no npm and no
-//! network, which is also how the deployment box is set up.
+//! The output is generated, not committed: `crates/web-client/build.rs` runs this when the
+//! sheet is missing or older than `app.css`.
 
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";

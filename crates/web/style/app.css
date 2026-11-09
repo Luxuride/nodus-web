@@ -1,6 +1,6 @@
-/* The stylesheet entry point. Compiled by the Tailwind CLI in `js/node_modules`; the
- * output (`tailwind.css`) is what `index.html` links and is committed, so a Rust build
- * needs no network.
+/* The stylesheet entry point. Compiled by the Tailwind CLI in `node_modules`; the output
+ * (`tailwind.css`) is generated, not committed — `crates/web-client/build.rs` runs the
+ * compiler when the sheet is missing or older than this file.
  *
  * Three layers, in order:
  *   1. Tailwind's own preflight and utilities;

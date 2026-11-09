@@ -1,7 +1,12 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/view","crates/server", "crates/web"]
+    "crates/view",
+    "crates/web",
+    # One package per artifact, so a workspace build never enables both paints at once.
+    "crates/web-client",
+    "crates/web-server",
+]
 
 [workspace.package]
 version = "0.1.0"

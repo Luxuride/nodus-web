@@ -1485,24 +1485,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nodus-server"
-version = "0.1.0"
-dependencies = [
- "axum",
- "leptos",
- "lol_html",
- "nodus-instance",
- "nodus-runtime",
- "nodus-view",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "nodus-shared"
 version = "0.1.0"
 dependencies = [
@@ -1535,18 +1517,42 @@ dependencies = [
  "gloo-net",
  "js-sys",
  "leptos",
+ "lol_html",
  "nodus-discovery",
  "nodus-instance",
+ "nodus-runtime",
  "nodus-sdk",
  "nodus-shared",
  "nodus-view",
  "serde",
  "serde_json",
+ "tracing",
  "url",
+ "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
  "web-time",
+]
+
+[[package]]
+name = "nodus-web-client"
+version = "0.1.0"
+dependencies = [
+ "nodus-web",
+]
+
+[[package]]
+name = "nodus-web-server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "nodus-web",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

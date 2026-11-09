@@ -1,23 +1,10 @@
-//! The Leptos client: a Mastodon web client whose discovery surface is the
-//! recommendation Feed tab.
+//! The application shell: the rail, the screen the address bar asks for, and the chrome
+//! around both.
 //!
-//! This crate renders; it does not decide. All state lives in
-//! `nodus-sdk` (the sibling `sdk` project), and every can happen is a
-//! `Command` there. Scope, data layer and performance budget are specified in
-//! `docs/` in this repository; the SDK is specified in `sdk/README.md`.
+//! Composition only: every screen comes from `crate::routes`, the chrome from `nodus-view`
+//! or `crate::shell`.
 
-mod media;
-mod platform;
-mod public;
-mod router;
-mod routes;
-mod scroll;
-mod shell;
-mod state;
-mod theme;
-mod ui;
-
-use crate::router::Route;
+use crate::router::{self, Route};
 use crate::routes::account::AccountView;
 use crate::routes::callback::Callback;
 use crate::routes::compose::{Compose, ComposeEdit};
@@ -34,6 +21,7 @@ use crate::routes::search::Search;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
 use crate::routes::status::{PublicThread, Thread};
+use crate::shell;
 use crate::state::bridge::{init, revision, with_sdk};
 
 #[cfg(feature = "admin")]
@@ -43,90 +31,13 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_sdk::Timeline;
 
-use wasm_bindgen::JsCast as _;
-
-fn main() {
-    console_error_panic_hook::set_once();
-    // Before the first mount, so app-lifetime signals have no owner to be disposed
-    // with (see `routes::settings::sync::install`).
-    crate::routes::settings::sync::install();
-    // Same reason: the revision signal is written by socket frames and ticks, which
-    // outlive every screen, so it must not belong to one.
-    crate::state::bridge::install_reactive_root();
-    crate::state::clock_format::install();
-    crate::state::feeds::install();
-    // The expander's signal, created with no owner for the same reason.
-    crate::media::install();
-    // The operating system decides light or dark, and may change its mind while the tab
-    // is open; `index.html` also sets the attribute before wasm arrives, so the first
-    // paint is already correct.
-    crate::theme::follow_system();
-    // The server painted the first page into `#app`; the client replaces it, using the data
-    // that page carried (`state::bridge::seed` read it a line earlier). Mounting *into* the
-    // node instead of appending to `<body>` is what makes the takeover a replacement rather
-    // than a second copy of the page underneath the first.
-    crate::state::bridge::seed::install();
-    mount_app();
-    // Started after the mount so the first render never waits on a network tick.
-    crate::state::bridge::start_background_tick();
-    // Impressions are written when a card leaves the screen, so the last screen's
-    // worth of them is flushed on page hide (D36).
-    crate::state::bridge::install_impression_flush();
-}
-
-/// Mounts the app into the server-painted node, or into `<body>` when there is none.
-///
-/// A static deployment (no SSR host) has no `#app`, and `mount_to_body` is the right answer
-/// there; the SSR document always has one.
-fn mount_app() {
-    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
-        return;
-    };
-    let Some(host) = document
-        .get_element_by_id("app")
-        .and_then(|node| node.dyn_into::<web_sys::HtmlElement>().ok())
-    else {
-        // A static bundle: there is no server paint to stand aside for.
-        leptos::mount::mount_to_body(App);
-        mark_hydrated();
-        return;
-    };
-    // Mounted into a detached node, then swapped in whole.
-    //
-    // Clearing `#app` and mounting into it paints one frame of nothing, and the reader sees
-    // the server's page blink out and come back — which reads as the interface resetting
-    // itself. Rendering beside the document and replacing the children in one step keeps the
-    // server paint on screen until the client tree is ready to stand in its place.
-    let staging = document
-        .create_element("div")
-        .ok()
-        .and_then(|node| node.dyn_into::<web_sys::HtmlElement>().ok());
-    if let Some(staging) = staging {
-        leptos::mount::mount_to(staging.clone(), App).forget();
-        if let Ok(node) = staging.dyn_into::<web_sys::Node>() {
-            host.replace_children_with_node_1(&node);
-        }
-        mark_hydrated();
-        return;
-    }
-    host.set_inner_html("");
-    leptos::mount::mount_to(host, App).forget();
-    mark_hydrated();
-}
-
-/// Says, in a way a test (or a curious reader) can see, that the client tree is live.
-///
-/// Until this runs, the rail and the page are the **server's** anchors: clicking one is a
-/// full document load. A test that clicks before this point is testing a static site.
-fn mark_hydrated() {
-    if let Some(window) = web_sys::window() {
-        let _ = js_sys::Reflect::set(&window, &"__nodus".into(), &wasm_bindgen::JsValue::TRUE);
-    }
-}
-
 /// Application shell: the rail, and the screen the address bar asks for.
 #[component]
-fn App() -> impl IntoView {
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per route: the match is the router, and splitting it hides a missing screen"
+)]
+pub(crate) fn App() -> impl IntoView {
     init();
     // Refreshes arrive on the SDK's own schedule; the views only render them.
     // Keeps the address bar and the back button in step with the rail.
@@ -328,7 +239,7 @@ fn App() -> impl IntoView {
     reason = "the lean build returns nothing, and one call site serves both"
 )]
 fn extra_doors() -> Option<nodus_view::ExtraDoors> {
-    Some(std::sync::Arc::new(|| crate::staff_rail_items().into_any()))
+    Some(std::sync::Arc::new(|| staff_rail_items().into_any()))
 }
 
 /// The lean build has no moderation screens, so the rail has no extra doors.

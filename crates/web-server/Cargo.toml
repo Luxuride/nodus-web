@@ -1,0 +1,41 @@
+[package]
+name = "nodus-web-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+description = "The SSR host: a cookie session in, HTML out, rendered by the same app crate."
+
+# Binary-only, like the client package, for the same reason: this artifact must never
+# enable `hydrate`, and a workspace build must never combine the two paints.
+[[bin]]
+name = "nodus-web-server"
+path = "src/main.rs"
+
+[features]
+default = ["ssr"]
+
+# The server build of the shared app crate. `leptos/ssr`, the native instance client and
+# the sanitiser live behind this in `nodus-web`.
+ssr = ["nodus-web/ssr"]
+
+# A server that also carries the moderation screens, so a moderator's first paint has the
+# rail's doors: `--features admin` (see web/docs/05-quality.md).
+# Implies `ssr`: a server artifact with no server build is not an artifact. That keeps
+# `--no-default-features --features admin` meaningful instead of failing on a missing module.
+admin = ["ssr", "nodus-web/admin"]
+
+[dependencies]
+# The one unified library both artifacts render.
+nodus-web = { path = "../web", default-features = false }
+
+# The HTTP host. Everything here is server-only; the app crate knows how to render a page
+# and nothing about sockets.
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -20,6 +20,7 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.5",
     "daisyui": "^5.7.50",
+    "emoji-picker-element-data": "^1.8.0",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.3.5"
   }

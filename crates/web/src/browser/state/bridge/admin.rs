@@ -66,7 +66,6 @@ pub async fn resolve_report(id: &str) -> Result<Report, String> {
 ///
 /// Unused until the queue grows a "resolved" tab; the SDK keeps it because a report
 /// closed by mistake can only be reopened, never re-created.
-#[expect(dead_code, reason = "the queue shows open reports only")]
 pub async fn reopen_report(id: &str) -> Result<Report, String> {
     let transport = admin_transport()
         .or_else(instance_transport)

@@ -14,10 +14,6 @@ use wasm_bindgen::closure::Closure;
 ///
 /// `fire` is expected to be idempotent while a request is in flight — the guard belongs to
 /// the caller, because only the caller knows what "already loading" means.
-#[expect(
-    dead_code,
-    reason = "the lists are converted one at a time; Home is next"
-)]
 pub fn when_visible(sentinel: NodeRef<html::Div>, fire: impl Fn() + 'static) {
     let Some(element) = sentinel.get_untracked() else {
         return;

@@ -1,0 +1,39 @@
+[package]
+name = "nodus-web-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+description = "The browser artifact: the wasm module trunk builds from the shared app crate."
+
+# A binary-only package. It exists so that building *this* artifact never enables the
+# server's features: with one package holding both binaries, `cargo build --workspace`
+# unifies `hydrate` and `ssr` and the app crate compiles with `leptos/csr` *and*
+# `leptos/ssr` at once — which does not build. One paint per package, and the workspace
+# build is safe.
+[[bin]]
+name = "nodus-web"
+path = "src/main.rs"
+
+[features]
+default = ["hydrate"]
+
+# What this artifact is. Named rather than implied so the client build can be spelled out:
+# `trunk build --release --features admin`.
+hydrate = ["nodus-web/hydrate"]
+
+# The moderation screens. Same meaning as in the app crate; kept here so `--features admin`
+# means the same thing to `trunk` and to `cargo build -p nodus-web-client`.
+admin = ["nodus-web/admin"]
+
+[dependencies]
+# The one unified library. Both artifacts render the same pages from it; only the
+# renderer behind `leptos` differs, and that is the feature's business, not this file's.
+nodus-web = { path = "../web", default-features = false }
+
+# `trunk` looks for this in the package that owns `index.html`, so it is named here
+# rather than in the app crate: the crate that is built is the crate that is configured.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]

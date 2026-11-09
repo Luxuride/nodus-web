@@ -1,10 +1,11 @@
-//! Builds the two vendored bundles the composer mounts.
+//! Builds the two bundles the composer mounts, plus the emoji data file they search.
 //!
-//! Run from `web`: `npm install && npm run build`. The output is committed, so the Rust
-//! build and the deployment never need npm — the same reason `Cargo.lock` is committed.
+//! Run from `web`: `npm install && npm run build`. `crates/web-client/build.rs` runs this
+//! automatically when an output is missing or older than its source, so the files are
+//! generated rather than committed.
 
 import { build } from "esbuild";
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 
 const OUT = "crates/web/public/vendor";
@@ -23,6 +24,14 @@ const targets = [
 ];
 
 await mkdir(OUT, { recursive: true });
+
+// The picker's own data: 2 500-odd standard emoji with every shortcode. Copied from the
+// npm package rather than fetched, so a build needs no CDN and the version is pinned by
+// `package-lock.json`.
+await copyFile(
+  "node_modules/emoji-picker-element-data/en/emojibase/data.json",
+  `${OUT}/emoji-data.json`,
+);
 
 for (const target of targets) {
   await build({

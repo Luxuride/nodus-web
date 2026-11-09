@@ -12,39 +12,82 @@ repository.workspace = true
 workspace = true
 
 [features]
+# The client is the default artifact: `trunk build` names no features.
+default = ["hydrate"]
+
+# The browser build. Everything that touches `web_sys`, `js-sys`, `gloo-net` or the
+# SDK's `BrowserInstance` lives behind this, and only this.
+hydrate = [
+    "leptos/csr",
+    "nodus-instance/wasm",
+    "dep:console_error_panic_hook",
+    "dep:gloo-net",
+    "dep:js-sys",
+    "dep:nodus-discovery",
+    "dep:nodus-sdk",
+    "dep:nodus-shared",
+    "dep:url",
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:web-sys",
+    "dep:web-time",
+]
+
+# The server build. Never combined with `hydrate`, so it is built explicitly:
+# `cargo build -p nodus-web --no-default-features --features ssr --bin nodus-web-server`.
+ssr = [
+    "leptos/ssr",
+    "nodus-instance/native",
+    # The session file is logged about, not thrown away silently.
+    "dep:tracing",
+    "dep:lol_html",
+    "dep:nodus-runtime",
+    "dep:uuid",
+]
+
 # The moderation screens are the largest optional slice of the client and most readers
 # never open them. Off by default; a moderator build is
 # `trunk build --release --features admin` (see web/docs/05-quality.md).
-default = []
+#
+# Orthogonal to the two build modes above, and deliberately not implying `hydrate`: the
+# combination is spelled out where it is used, for the deployed client
+# `--features admin` and for a server build that carries the screens
+# `--no-default-features --features "ssr,admin"`.
 admin = []
 
 [dependencies]
+# Shared by both artifacts.
 nodus-view = { path = "../view" }
-nodus-shared = { workspace = true }
-nodus-sdk = { workspace = true }
-# Transports live outside the SDK facade so a consumer chooses its stack.
-nodus-instance = { workspace = true }
-nodus-discovery = { workspace = true }
-console_error_panic_hook = "0.1"
-leptos = { version = "0.8.23", features = ["csr"] }
-# `localStorage` session record, holding the token that sign-in produced.
-# Hand-encoded on purpose: `serde_json` is in the bundle anyway through `gloo-net`,
-# so this is not a size decision — it is one obvious format in one obvious place.
-url = "2"
-# The two form-encoded `POST`s of the OAuth flow (`state/oauth/api.rs`). No JSON
-# feature: responses are read with the browser's own parser, so this adds no crate
-# to the bundle that the transports did not already pull in.
-gloo-net = { version = "0.6", default-features = false, features = ["http"] }
+# `leptos` renders both; *how* it renders is the build feature's business
+# (`leptos/csr` for the client, `leptos/ssr` for the server).
+leptos = "0.8.23"
+# Transports live outside the SDK facade so a consumer chooses its stack: the client
+# build enables `wasm`, the server build `native` (see [features]).
+nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0" }
 # Anonymous reads parse a whole Mastodon payload, so the wire types rather than a
 # hand-written reader: `serde` was already in the tree, only not linked here.
 serde = { workspace = true }
 serde_json = { workspace = true }
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-js-sys = "0.3"
+
+# The browser client.
+nodus-shared = { workspace = true, optional = true }
+nodus-sdk = { workspace = true, optional = true }
+nodus-discovery = { workspace = true, optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+# `localStorage` session record, holding the token that sign-in produced.
+# Hand-encoded on purpose: `serde_json` is in the bundle anyway through `gloo-net`,
+# so this is not a size decision — it is one obvious format in one obvious place.
+url = { version = "2", optional = true }
+# The two form-encoded `POST`s of the OAuth flow (`state/oauth/api.rs`). No JSON
+# feature: responses are read with the browser's own parser, so this adds no crate
+# to the bundle that the transports did not already pull in.
+gloo-net = { version = "0.6", default-features = false, features = ["http"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
 # The browser has no `std::time::Instant`: `web-time` reads `performance.now()`.
-web-time = "1.1"
-web-sys = { version = "0.3", features = [
+web-time = { version = "1.1", optional = true }
+web-sys = { version = "0.3", optional = true, features = [
     # `navigator.clipboard().write_text(…)` on a feed card.
     "Clipboard",
     # PKCE: `get_random_values_with_u8_array` and `subtle.digest`.
@@ -78,3 +121,12 @@ web-sys = { version = "0.3", features = [
     "HtmlTextAreaElement",
     "Window",
 ] }
+
+# The server. The instance client is the SDK's native build, not a second hand-rolled HTTP
+# layer: one place knows where Mastodon's endpoints are and what its payloads look like.
+nodus-runtime = { path = "../../../sdk/crates/runtime", version = "0.1.0", optional = true }
+lol_html = { version = "2", optional = true }
+# Server-only, but the app crate is where sessions are read and written, so the
+# logging faces live here rather than in the host.
+tracing = { version = "0.1", optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }

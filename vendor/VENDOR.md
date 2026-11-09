@@ -1,26 +1,43 @@
 # Generated assets
 
-Nothing here is a copy of a package any more: the stylesheet and the composer bundles are
-built from `web/package.json` (npm), and only their **outputs** are committed so that
-`trunk build` works on a machine without Node or a network.
+Three browser-side artifacts exist that are not in this repository, because they are
+compiled from sources that are:
 
-## `crates/web/public/vendor/`
-
-| file | made by | why committed |
+| Artifact | Built from | By |
 | --- | --- | --- |
-| `editor.js` (206 KB / 64 KB gz) | `npm run build` → `js/build.mjs` (esbuild) | the composer's ProseMirror body; a Rust build cannot produce it |
-| `picker.js` (38 KB / 14 KB gz) | same | `emoji-picker-element`, mounted on demand |
-| `emoji-data.json` (430 KB) | `js/fetch-emoji.mjs`, from `emoji-picker-element-data` | self-hosted so the picker never contacts a CDN |
-| `../../style/tailwind.css` (283 KB / 41 KB gz) | `npm run css` → `js/css.mjs` (Tailwind CLI from `node_modules`) | every page's stylesheet; git-tracked, not ignored |
+| `crates/web/style/tailwind.css` | `style/app.css` + Tailwind/daisyUI from npm | `js/css.mjs` |
+| `crates/web/public/vendor/editor.js` | `js/editor.mjs`, `js/schema.mjs`, ProseMirror | `js/build.mjs` (esbuild) |
+| `crates/web/public/vendor/picker.js` | `js/picker.mjs`, `emoji-picker-element` | `js/build.mjs` (esbuild) |
+| `crates/web/public/vendor/emoji-data.json` | `emoji-picker-element-data` (en) | copied by `js/build.mjs` |
+
+`crates/web-client/build.rs` runs those scripts when an artifact is missing or older than
+its source, so `cargo build`/`trunk build` produce them and a stale bundle cannot ship.
+`web/.gitignore` keeps the outputs out of the tree.
+
+## Why npm rather than a vendored copy
+
+Tailwind v4 resolves `@import "tailwindcss"` and `@plugin "daisyui"` through `node_modules`
+above the CSS file, so the CSS entry point has to live in a directory with `node_modules`.
+`package.json` and `package-lock.json` pin the versions; nothing else is taken from the
+network.
+
+## Measured sizes (2026-11-09)
+
+| File | Raw | Gzipped |
+| --- | --- | --- |
+| `editor.js` | 206 KB | 64 KB |
+| `picker.js` | 38 KB | 14 KB |
+| `emoji-data.json` | 430 KB | — |
+| `tailwind.css` | 148 KB | 24 KB |
 
 ## Updating
 
 ```sh
 cd web
-npm install          # pinned by package-lock.json
-npm run build        # bundles + stylesheet
+npm install                      # once, or after a lockfile change
+npm run build                    # both bundles and the stylesheet
 ```
 
-Commit the regenerated files. `Tailwind.toml`'s hook that used to run a standalone
-`tailwindcss` binary is gone: the CLI now resolves `tailwindcss` and `daisyui` from
-`web/node_modules`, so the two versions move together in `package.json`.
+Then rebuild: `trunk build --release --features admin`. A build without Node fails with a
+message naming this file, which is deliberate — a composer that renders without its editor
+is worse than a build that stops.

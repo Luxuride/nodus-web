@@ -25,14 +25,9 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::json;
 
-mod html;
-mod mastodon;
-mod render;
-mod session;
-
-use mastodon::Client;
-use render::Assets;
-use session::{COOKIE, Session, Sessions};
+use nodus_web::server::mastodon::Client;
+use nodus_web::server::render::{self, Assets};
+use nodus_web::server::session::{COOKIE, Session, Sessions};
 
 /// How many statuses the server paints. One page, the same size the client asks for: the
 /// point is to remove the first request, not to reimplement pagination.
@@ -96,7 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,nodus_server=debug".into()),
+                .unwrap_or_else(|_| "info,nodus_web=debug".into()),
         )
         .init();
 

@@ -279,10 +279,6 @@ pub async fn edit(id: &str, status: &NewStatus) -> Result<Status, String> {
 }
 
 /// Uploads one attachment and returns what the instance made of it.
-#[expect(
-    dead_code,
-    reason = "the composer uploads with progress; this stays for callers that do not"
-)]
 pub async fn upload_media(
     bytes: Vec<u8>,
     mime: String,
@@ -317,7 +313,6 @@ pub async fn vote(poll_id: &str, choices: &[usize]) -> Result<Status, String> {
 }
 
 /// The edit history of a status, oldest first.
-#[expect(dead_code, reason = "the edit-history panel lands with editing")]
 pub async fn history(id: &str) -> Result<Vec<HistoryEntry>, String> {
     call(transport()?.history(id)).await
 }
@@ -423,10 +418,6 @@ pub async fn create_filter(draft: &FilterDraft) -> Result<Filter, String> {
 ///
 /// Unused until the card grows an editor; the SDK keeps it because a filter whose
 /// phrases cannot be corrected is a filter the reader must delete and retype.
-#[expect(
-    dead_code,
-    reason = "the settings card can add and delete, not yet edit"
-)]
 pub async fn update_filter(id: &str, draft: &FilterDraft) -> Result<Filter, String> {
     call(transport()?.update_filter(id, draft)).await
 }

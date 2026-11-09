@@ -49,10 +49,9 @@ pub(super) const ADMIN_SCOPES: &str = "read write follow admin:read admin:write"
 /// Where the instance sends the browser back.
 ///
 /// The same string is registered as `redirect_uris` and echoed to `/oauth/token`:
-/// Mastodon requires all three to match exactly, so it is built once, here. The
-/// router reads this constant, so the address bar's path and the registered URI
-/// cannot drift apart.
-pub(crate) const CALLBACK_PATH: &str = "/oauth/callback";
+/// Mastodon requires all three to match exactly, so it is defined once, in
+/// `shared::router`, where the route table that parses the address bar can reach it too.
+pub(crate) const CALLBACK_PATH: &str = crate::shared::router::CALLBACK_PATH;
 
 /// Starts the flow: register the client, stash the pending record, leave the page.
 ///
@@ -182,6 +181,7 @@ pub async fn finish(search: &str) -> Result<Finished, String> {
 }
 
 /// What the callback learned, and what it is allowed to do with it.
+#[derive(Debug)]
 pub struct Finished {
     /// The instance the token belongs to.
     pub host: String,

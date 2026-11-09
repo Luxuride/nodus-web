@@ -1,11 +1,12 @@
 [build]
-target = "crates/web/index.html"
+target = "crates/web-client/index.html"
 dist = "dist"
 release = true
 
-# `crates/web/style/tailwind.css` is committed, not compiled here: Tailwind and daisyUI
-# come from `web/package.json`, and neither Node nor a network is required to build the
-# crate. Regenerate it with `npm run css` after changing a class name or a theme.
+# `crates/web/style/tailwind.css` and `crates/web/public/vendor/` are generated, not
+# committed: `crates/web-client/build.rs` compiles them from `style/app.css` and `js/`
+# when they are missing or stale. Node and `npm ci` are needed for that first build, which
+# is what the devcontainer feature and `.devcontainer/post-create.sh` provide.
 
 [serve]
 addresses = ["127.0.0.1"]

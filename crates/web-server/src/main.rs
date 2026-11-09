@@ -17,6 +17,7 @@ mod content;
 mod document;
 mod html;
 mod mastodon;
+mod rows;
 mod session;
 
 use std::net::SocketAddr;

@@ -13,7 +13,6 @@
 //! - **Unknown is not a default.** When the server has no session it paints the signed-out
 //!   page; it never paints one account's page and lets the client swap it.
 
-use std::fmt::Write as _;
 
 use leptos::prelude::Owner;
 use leptos::tachys::html::element::InnerHtmlAttribute as _;
@@ -464,10 +463,21 @@ pub fn list_page(
 
 /// A list of rows, or the sentence that says the list is empty.
 pub fn rows(items: &[String], empty: &str) -> String {
+    // The classes come from `nodus_view` so a change lands on both paints at once; the
+    // fragment itself is assembled here because the rows are already-rendered components and
+    // a `ChildrenFn` cannot be built from a list of strings.
     if items.is_empty() {
-        return format!("<p class=\"text-sm opacity-60\">{}</p>", escape(empty));
+        return format!(
+            "<p class=\"{}\">{}</p>",
+            nodus_view::lists::rows::EMPTY,
+            escape(empty)
+        );
     }
-    format!("<ul class=\"flex flex-col gap-2\">{}</ul>", items.concat())
+    format!(
+        "<ul class=\"{}\">{}</ul>",
+        nodus_view::lists::rows::STACK,
+        items.concat()
+    )
 }
 
 /// One account as a row: who they are, and the one line of self-description they wrote.
@@ -708,9 +718,11 @@ fn describe(path: &str) -> (String, String) {
 /// The section's own tab strip, painted so the heading does not move when the client
 /// mounts. The client replaces it with the same strip, one tab marked active.
 fn tabs_for(path: &str) -> String {
+    use leptos::prelude::*;
+
     let head = path.trim_start_matches('/');
     let section = head.split('/').next().unwrap_or_default();
-    let tabs: &[(&str, &str)] = match section {
+    let links: &[(&str, &str)] = match section {
         "settings" => &[
             ("Account", "/settings/account"),
             ("Profile", "/settings/profile"),
@@ -730,29 +742,27 @@ fn tabs_for(path: &str) -> String {
         ],
         _ => &[],
     };
-    if tabs.is_empty() {
+    if links.is_empty() {
         return String::new();
     }
-    let mut items = String::new();
-    for (label, href) in tabs {
-        let active = if head == href.trim_start_matches('/') || path == *href {
-            " tab-active"
-        } else {
-            ""
-        };
-        let _ = write!(
-            items,
-            "<a role=\"tab\" class=\"tab{active}\" href=\"{}\"{}>{}</a>",
-            escape(href),
-            if active.is_empty() {
-                ""
-            } else {
-                " aria-selected=\"true\""
-            },
-            escape(label)
-        );
-    }
-    format!("<div role=\"tablist\" class=\"tabs tabs-box\">{items}</div>")
+    // The same component the client mounts; the only difference is the absent `on_navigate`,
+    // which turns each tab into a plain link rather than a router press.
+    let tabs: Vec<nodus_view::Tab> = links
+        .iter()
+        .map(|(label, href)| nodus_view::Tab::new(*label, *href))
+        .collect();
+    let active = links
+        .iter()
+        .find(|(_, href)| head == href.trim_start_matches('/') || path == *href)
+        .map_or_else(String::new, |(label, _)| (*label).to_owned());
+    Owner::new().with(|| {
+        nodus_view::TabList(nodus_view::TabListProps {
+            tabs,
+            active,
+            on_navigate: None,
+        })
+        .to_html()
+    })
 }
 
 /// A skeleton of the screen, drawn at the sizes the real cards take.

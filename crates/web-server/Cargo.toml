@@ -24,7 +24,7 @@ admin = []
 
 [dependencies]
 # The URL vocabulary and the route table: the one thing both artifacts must agree on.
-nodus-web = { path = "../web", default-features = false }
+nodus-web = { path = "../web-shared", default-features = false }
 # The components. The server does not have a renderer of its own.
 nodus-view = { path = "../view" }
 # Rendering to a string, never hydrating.

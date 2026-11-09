@@ -13,6 +13,7 @@ pub mod pages;
 // Components live under `components/`; these names are how both paints spell them, and how
 // they were spelled before the move.
 pub use components::chrome;
+pub use components::chrome::tab_list::{Tab, TabList, TabListProps};
 pub use components::composer_card::*;
 pub use components::format::{describe_notification, display_name, relative_age, unix_seconds};
 pub use components::frame::*;

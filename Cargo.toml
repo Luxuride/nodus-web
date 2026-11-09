@@ -2,7 +2,7 @@
 resolver = "3"
 members = [
     "crates/view",
-    "crates/web",
+    "crates/web-shared",
     # One package per artifact, so a workspace build never enables both paints at once.
     "crates/web-client",
     "crates/web-server",

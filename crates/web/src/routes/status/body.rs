@@ -1,108 +1,73 @@
 //! The part of a status that is content: text, content warning, media, poll.
 //!
-//! Split from the card so neither file is about two things: this one renders what the
-//! author wrote, the card renders who wrote it and what a reader can do about it.
+//! The markup lives in `nodus-view` because the server paints it too. What stays here is
+//! what that crate may not know: the viewer the gallery opens, the vote transport, and the
+//! reader's saved preference for sensitive media, which is storage.
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use nodus_instance::model::Status;
-
-use super::chips::StatusChips;
 use nodus_view::media_grid::Picture;
-use super::poll::PollView;
+use nodus_view::status_body::StatusBody as SharedBody;
+
 use super::sensitive;
+use crate::media;
+use crate::state::alive::Alive;
+use crate::state::bridge::actions;
 
 /// Content, media and poll of one status.
 #[component]
 pub fn StatusBody(shown: ReadSignal<Status>, set_shown: WriteSignal<Status>) -> impl IntoView {
-    // Per status, not global: a reader who opens one post's warning has not consented to
-    // the next one, and the flag is a claim about this attachment set only.
-    let (revealed, set_revealed) = signal(sensitive::reveals_automatically());
-    let hidden = move || shown.get().sensitive && !revealed.get();
+    let (error, set_error) = signal(None::<String>);
     // The gallery position is the driver's business, so the shared grid only reports the
     // press; opening the viewer stays here.
     let on_open = Callback::new(move |(pictures, position): (Vec<Picture>, usize)| {
-        crate::media::expand(pictures, position);
+        media::expand(pictures, position);
     });
+    let on_vote = Callback::new(move |(poll_id, choices): (String, Vec<usize>)| {
+        vote(poll_id, choices, set_shown, set_error);
+    });
+    // Whether a veil starts open is a stored preference, so it is read once here and handed
+    // to the shared body as its starting state.
+    let revealed = sensitive::reveals_automatically();
 
     view! {
-        <Show when=move || !shown.get().spoiler_text.trim().is_empty()>
-            <div class="rounded-box bg-base-200 p-3">
-                <p class="text-sm font-medium">{move || shown.get().spoiler_text.clone()}</p>
-                // Opening the warning is consent for the whole post: text, media and poll
-                // arrive together, and asking twice would make one decision cost two clicks.
-                <details
-                    class="mt-2"
-                    on:toggle=move |event| {
-                        if event_target::<web_sys::HtmlDetailsElement>(&event).open() {
-                            set_revealed.set(true);
-                        }
-                    }
-                >
-                    <summary class="cursor-pointer text-xs opacity-60">"Show content"</summary>
-                    <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">
-                        <span>
-                            {move || view! {
-                                <div
-                                    class="break-words [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
-                                    inner_html=shown.get().content
-                                />
-                            }}
-                        </span>
-                    </p>
-                </details>
-            </div>
-        </Show>
-        <Show when=move || shown.get().spoiler_text.trim().is_empty()>
-            <p class="whitespace-pre-line text-sm leading-relaxed">
-                <span>
-                            {move || view! {
-                                <div
-                                    class="break-words [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
-                                    inner_html=shown.get().content
-                                />
-                            }}
-                        </span>
-            </p>
-        </Show>
-
-        <StatusChips shown=shown/>
-
-        <Show when=move || hidden()>
-            // Blurred *and* labelled: a blur alone leaves the reader guessing whether the
-            // hidden thing is a photo, a chart or a joke, which is worse than a warning.
-            <div class="relative overflow-hidden rounded-box">
-                <nodus_view::media_grid::MediaGrid items=Signal::derive(move || shown.get().media_attachments) hidden=true on_open=on_open/>
-                // Only a label and a click target: the sharpest thing on screen should not
-                // be the overlay, and a veil over a blur reads as a bug rather than a gate.
-                <button
-                    type="button"
-                    class="absolute inset-0 flex cursor-pointer items-center justify-center bg-transparent"
-                    on:click=move |_| set_revealed.set(true)
-                >
-                    <span class="rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm transition-transform hover:scale-105">
-                        <span class="block text-sm font-medium">"Sensitive content"</span>
-                        <span class="block text-xs opacity-70">{move || count_label(&shown.get())}</span>
-                    </span>
-                </button>
-            </div>
-        </Show>
-
-        <Show when=move || !shown.get().media_attachments.is_empty() && !hidden()>
-            <nodus_view::media_grid::MediaGrid items=Signal::derive(move || shown.get().media_attachments) hidden=false on_open=on_open/>
-        </Show>
-
-        <Show when=move || shown.get().poll.is_some()>
-            <PollView shown=shown set_shown=set_shown/>
+        // The body reads the whole status, so an answered verb — which replaces the card's
+        // copy — repaints the counts behind the veil and the poll's tally.
+        {move || view! {
+            <SharedBody
+                status=shown.get()
+                on_open_media=on_open
+                on_vote=on_vote
+                revealed_init=revealed
+            />
+        }}
+        // The poll's own error state covers an empty pick; a refused vote arrives from the
+        // transport, which the shared crate cannot reach, so it is drawn here.
+        <Show when=move || error.get().is_some()>
+            <p class="text-error mt-1 text-xs">{move || error.get().unwrap_or_default()}</p>
         </Show>
     }
 }
 
-/// "Show 3 attachments", singular for one.
-fn count_label(status: &Status) -> String {
-    let count = status.media_attachments.len();
-    if count == 1 {
-        "Show 1 attachment".to_owned()
-    } else {
-        format!("Show {count} attachments")
-    }
+/// Sends the picked options and folds the answer back into the card.
+///
+/// The vote answers with the whole status, which is the only way to learn the new counts:
+/// Mastodon has no "read this poll" endpoint, so the card replaces its copy with the
+/// response instead of trusting a locally incremented number. The writes go through
+/// [`Alive`] because the answer arrives after the reader may have left the screen.
+fn vote(
+    poll_id: String,
+    choices: Vec<usize>,
+    set_shown: WriteSignal<Status>,
+    set_error: WriteSignal<Option<String>>,
+) {
+    let alive = Alive::new();
+    set_error.set(None);
+    spawn_local(async move {
+        match actions::vote(&poll_id, &choices).await {
+            Ok(status) => alive.if_alive(|| set_shown.set(status)),
+            Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+        }
+    });
 }

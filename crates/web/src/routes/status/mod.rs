@@ -5,6 +5,8 @@
 //! owns (which timeline is loaded, where the cursor is) is untouched, because a
 //! favourite is not a change to the list — it is a change to one status.
 
+use std::sync::Arc;
+
 use leptos::prelude::*;
 
 mod thread;
@@ -16,17 +18,15 @@ pub use public::PublicThread;
 use crate::router::{self, Route};
 
 mod body;
-mod chips;
 mod footer;
 mod menu;
-mod poll;
 mod public;
 mod reply;
 pub(crate) mod sensitive;
 mod share;
 
 use body::StatusBody;
-use footer::CardFooter;
+use footer::CardActions;
 
 /// The route to one status, host included.
 ///
@@ -40,18 +40,16 @@ pub(super) fn thread_route(id: &str) -> Route {
 }
 
 /// A status card: who wrote it, what it says, and what can be done with it.
+///
+/// The box, the header, the body and the action row come from `nodus-view`, the component
+/// the server paints with. What stays here is what that crate may not know: the router, the
+/// transport, and the press target around the body.
 #[component]
 pub fn StatusCard(status: Status) -> impl IntoView {
-    // A boost is shown as the boosted status with a line saying who boosted it: the
-    // wrapper carries the booster's account and an empty body, so rendering the wrapper
-    // would show a nameless post with no text.
-    let booster = status
-        .reblog
-        .as_ref()
-        .map(|_| format!("{} boosted", status.account.acct));
-    // A signal, not a local: `Show`'s children closure must be `Fn`, and a `String`
-    // captured by value would make it `FnOnce`.
-    let (booster_text, _) = signal(booster.unwrap_or_default());
+    // A boost is shown as the boosted status with a line saying who boosted it: the wrapper
+    // carries the booster's account and an empty body, so rendering the wrapper would show
+    // a nameless post with no text.
+    let booster = status.reblog.as_ref().map(|_| status.account.clone());
     let initial = match status.reblog {
         Some(inner) => *inner,
         None => status,
@@ -70,43 +68,79 @@ pub fn StatusCard(status: Status) -> impl IntoView {
     let author_path = Route::Account(header.account.id.clone()).path();
     let thread_path = thread_route(&header.id).path();
     let navigate = Callback::new(move |path: String| router::navigate(Route::from_path(&path)));
+    let CardActions {
+        on_reply,
+        on_boost,
+        on_favourite,
+        on_bookmark,
+        before_verbs,
+        after_verbs,
+    } = footer::card_actions(shown, set_shown, busy, set_busy, set_error);
+
+    // The whole body opens the post: reading it in place is the point of a timeline, and
+    // reaching for the timestamp to do it is a second step nobody wants. Links inside the
+    // body keep their own destination — the delegated listener already knows a prevented
+    // click when it sees one.
+    let body: ChildrenFn = Arc::new(move || {
+        view! {
+            <div
+                class="cursor-pointer"
+                on:click=move |event: web_sys::MouseEvent| {
+                    if event.default_prevented() || inside_control(&event) {
+                        return;
+                    }
+                    router::link(event, thread_id(&shown.get_untracked()));
+                }
+            >
+                <StatusBody shown=shown set_shown=set_shown/>
+            </div>
+        }
+        .into_any()
+    });
+
+    // A refused verb arrives after the row is drawn, so its message is the card's, not the
+    // row's.
+    let extra: ChildrenFn = Arc::new(move || {
+        view! {
+            <Show when=move || error.get().is_some()>
+                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
+            </Show>
+        }
+        .into_any()
+    });
+
+    // The shared card unwraps a boost itself, so a boosted row hands it a wrapper that names
+    // the booster and carries the status this card's signal holds: rebuilding that wrapper
+    // from `shown` is what keeps the line and the counts in step after a verb answers.
+    let painted = move || match &booster {
+        None => shown.get(),
+        Some(account) => {
+            let inner = shown.get();
+            let mut outer = inner.clone();
+            outer.account = account.clone();
+            outer.reblog = Some(Box::new(inner));
+            outer
+        }
+    };
 
     view! {
-        <li class="card border border-base-300 bg-base-100 shadow-sm">
-            <div class="card-body gap-3 p-4">
-                <Show when=move || !booster_text.get().is_empty()>
-                    <p class="text-xs opacity-60">{move || booster_text.get()}</p>
-                </Show>
-                <nodus_view::status_header::StatusHeader
-                    status=header
-                    age=age
-                    author_path=author_path
-                    thread_path=thread_path
-                    on_navigate=navigate
-                />
-
-                // The whole body opens the post: reading it in place is the point of a
-                // timeline, and reaching for the timestamp to do it is a second step nobody
-                // wants. Links inside the body keep their own destination — the delegated
-                // listener already knows a prevented click when it sees one.
-                <div
-                    class="cursor-pointer"
-                    on:click=move |event: web_sys::MouseEvent| {
-                        if event.default_prevented() || inside_control(&event) {
-                            return;
-                        }
-                        router::link(event, thread_id(&shown.get_untracked()));
-                    }
-                >
-                    <StatusBody shown=shown set_shown=set_shown/>
-                </div>
-
-                <CardFooter shown=shown set_shown=set_shown busy=busy set_busy=set_busy set_error=set_error/>
-                <Show when=move || error.get().is_some()>
-                    <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-                </Show>
-            </div>
-        </li>
+        {move || view! {
+            <nodus_view::status_card::StatusCard
+                status=painted()
+                age=age.clone()
+                author_path=author_path.clone()
+                thread_path=thread_path.clone()
+                on_navigate=navigate
+                on_reply=on_reply
+                on_boost=on_boost
+                on_favourite=on_favourite
+                on_bookmark=on_bookmark
+                before_verbs=before_verbs.clone()
+                after_verbs=after_verbs.clone()
+                body=body.clone()
+                extra=extra.clone()
+            />
+        }}
     }
 }
 

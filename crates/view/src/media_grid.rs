@@ -52,8 +52,7 @@ pub fn MediaGrid(
     /// Whether the tiles offer a player or a gallery; false for the server paint.
     #[prop(default = true)]
     interactive: bool,
-    #[prop(optional)]
-    on_open: Option<Callback<(Vec<Picture>, usize)>>,
+    #[prop(optional)] on_open: Option<Callback<(Vec<Picture>, usize)>>,
 ) -> impl IntoView {
     // Collected outside the macro: a turbofish inside `view!` ends the tag early.
     let rows = move || items.get().into_iter().enumerate().collect::<Vec<_>>();

@@ -7,11 +7,13 @@
 //! router — so it compiles for `wasm32` and for the server, and `leptos::ssr` can turn it
 //! into the first paint while the client turns the same tree into the live one.
 
-pub mod icons;
 pub mod chrome;
+pub mod icons;
 pub mod lists;
 pub mod media;
 pub mod media_grid;
+pub mod status_body;
+pub mod status_card;
 pub mod status_footer;
 pub mod status_header;
 

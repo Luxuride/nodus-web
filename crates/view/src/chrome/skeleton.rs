@@ -17,9 +17,7 @@ pub fn Skeleton(count: usize) -> impl IntoView {
     if count == 0 {
         return ().into_any();
     }
-    let cards = std::iter::repeat_with(card)
-        .take(count)
-        .collect::<Vec<_>>();
+    let cards = std::iter::repeat_with(card).take(count).collect::<Vec<_>>();
     view! { <ul class="flex flex-col gap-2">{cards}</ul> }.into_any()
 }
 

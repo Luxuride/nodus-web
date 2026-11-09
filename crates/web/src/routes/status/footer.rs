@@ -17,7 +17,6 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
-use nodus_view::status_footer::StatusFooter;
 
 use super::menu::StatusMenu;
 use super::share::ShareButton;
@@ -25,15 +24,35 @@ use crate::router;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 
-/// Counts on the left, actions on the right.
-#[component]
-pub fn CardFooter(
+/// The handlers a card's action row runs, ready to hand to the shared card.
+pub(super) struct CardActions {
+    /// Opens the thread.
+    pub on_reply: Callback<String>,
+    /// Boosts, or undoes the boost.
+    pub on_boost: Callback<String>,
+    /// Favourites, or removes the favourite.
+    pub on_favourite: Callback<String>,
+    /// Bookmarks, or removes the bookmark.
+    pub on_bookmark: Callback<String>,
+    /// The post's menu, drawn where it sits in the row.
+    pub before_verbs: ChildrenFn,
+    /// The copy button, drawn after the verbs.
+    pub after_verbs: ChildrenFn,
+}
+
+/// Builds the row's handlers from the card's signals.
+///
+/// The shared card draws the row, so this returns what the row needs rather than a view: the
+/// three verbs run one call each and fold the answer back into the card, and the two controls
+/// that exist only in the app — the menu and the copy button — arrive as the row's slots,
+/// because the shared component may not reach for the transport or the clipboard.
+pub(super) fn card_actions(
     shown: ReadSignal<Status>,
     set_shown: WriteSignal<Status>,
     busy: ReadSignal<bool>,
     set_busy: WriteSignal<bool>,
     set_error: WriteSignal<Option<String>>,
-) -> impl IntoView {
+) -> CardActions {
     let alive = Alive::new();
 
     let on_reply = Callback::new(move |id: String| router::navigate(super::thread_route(&id)));
@@ -80,34 +99,21 @@ pub fn CardFooter(
         );
     });
 
-    // The shared row calls its children again on every repaint of the card, so the slots
-    // clone rather than move.
-    let menu: ChildrenFn = Arc::new(move || {
-        view! { <StatusMenu shown=shown set_error=set_error/> }.into_any()
-    });
-    let share: ChildrenFn = Arc::new(move || {
-        view! { <ShareButton shown=shown set_error=set_error/> }.into_any()
-    });
+    // A `ChildrenFn` is cloned on every repaint of the card, so the slots clone rather than
+    // move. Both are present here: the app always has a menu and a copy button, and the
+    // absent case belongs to the paint that has no transport.
+    let menu: ChildrenFn =
+        Arc::new(move || view! { <StatusMenu shown=shown set_error=set_error/> }.into_any());
+    let share: ChildrenFn =
+        Arc::new(move || view! { <ShareButton shown=shown set_error=set_error/> }.into_any());
 
-    // The row reads the whole status once, so an answered verb (which replaces the card's
-    // copy) repaints the counts and the active highlights.
-    view! {
-        {move || {
-            let status = shown.get();
-            let edited = status.edited_at.is_some();
-            view! {
-                <StatusFooter
-                    status=status
-                    edited=edited
-                    on_reply=on_reply
-                    on_boost=on_boost
-                    on_favourite=on_favourite
-                    on_bookmark=on_bookmark
-                    before_verbs=menu.clone()
-                    after_verbs=share.clone()
-                />
-            }
-        }}
+    CardActions {
+        on_reply,
+        on_boost,
+        on_favourite,
+        on_bookmark,
+        before_verbs: menu,
+        after_verbs: share,
     }
 }
 

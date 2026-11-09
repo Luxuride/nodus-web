@@ -94,7 +94,11 @@ thread_local! {
 }
 
 /// A key that names this timeline and page, or `None` when the shape is malformed.
-fn claim_key(which: &Timeline, tag: Option<&str>, cursor: Option<&str>) -> (String, Option<String>) {
+fn claim_key(
+    which: &Timeline,
+    tag: Option<&str>,
+    cursor: Option<&str>,
+) -> (String, Option<String>) {
     let name = match (which, tag) {
         (Timeline::Tag, Some(tag)) => format!("tag:{tag}"),
         (Timeline::Account(id), _) => format!("account:{id}"),

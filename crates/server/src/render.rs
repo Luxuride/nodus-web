@@ -15,7 +15,7 @@
 
 use std::fmt::Write as _;
 
-use leptos::prelude::{Owner, Signal};
+use leptos::prelude::Owner;
 use leptos::tachys::view::RenderHtml as _;
 
 use nodus_instance::model::{
@@ -110,110 +110,48 @@ pub struct Island<'a> {
     pub cursor: Option<&'a str>,
 }
 
-/// The author line above a status, drawn by the component the client draws with.
+/// One status as markup: who, what, and what can be done with it.
 ///
-/// The addresses are the server's own routes and the age comes from the clock this
-/// process reads once per card; with no `on_navigate` the anchors stay plain links, which
-/// is what the server's reader gets anyway.
-fn status_header(status: &Status) -> String {
-    let age = nodus_view::relative_age(&status.created_at, now_millis());
-    let author_path = format!("/accounts/{}", status.account.id);
-    let thread_path = format!("/status/{}", status.id);
-    let status = status.clone();
+/// The whole card comes from `nodus-view`, the component the client mounts, so the first
+/// paint and the one after the wasm boots cannot drift. The body is rewritten here rather
+/// than in the component: the emoji shortcodes are a read of the instance's emoji list, and
+/// `inner_html` already carries the HTML both paints show.
+pub fn status_card(status: &Status) -> String {
+    let mut painted = status.clone();
+    // A boost renders the boosted post under the booster's name, exactly as the client
+    // does: the line above the card comes from the wrapper and everything below it from
+    // `reblog`.
+    match painted.reblog.as_deref_mut() {
+        Some(inner) => inner.content = with_emojis(body_html(&inner.content), &inner.emojis),
+        None => painted.content = with_emojis(body_html(&painted.content), &painted.emojis),
+    }
+    let inner = painted.reblog.as_deref().map_or(&painted, |inner| inner);
+    let age = nodus_view::relative_age(&inner.created_at, now_millis());
+    let author_path = format!("/accounts/{}", inner.account.id);
+    let thread_path = format!("/status/{}", inner.id);
+
     Owner::new().with(|| {
-        nodus_view::status_header::StatusHeader(nodus_view::status_header::StatusHeaderProps {
-            status,
+        nodus_view::status_card::StatusCard(nodus_view::status_card::StatusCardProps {
+            status: painted,
             age,
             author_path,
             thread_path,
             on_navigate: None,
-        })
-        .to_html()
-    })
-}
-
-/// The action row under a status, drawn by the component the client draws with.
-///
-/// The verbs have no callbacks here, so they render as the client's boxes without the
-/// press; the reply link keeps its `href`.
-fn status_footer(status: &Status) -> String {
-    let edited = status.edited_at.is_some();
-    let status = status.clone();
-    Owner::new().with(|| {
-        nodus_view::status_footer::StatusFooter(nodus_view::status_footer::StatusFooterProps {
-            status,
-            edited,
-            on_reply: None,
+            on_open: None,
             on_boost: None,
             on_favourite: None,
             on_bookmark: None,
+            on_reply: None,
             before_verbs: None,
             after_verbs: None,
-        })
-        .to_html()
-    })
-}
-
-/// The attachment grid: images inline, video and audio with a player, and a one-picture
-/// post given the full width so it is not forced into a half-empty pair.
-fn media_grid(status: &Status, blurred: bool) -> String {
-    if status.media_attachments.is_empty() {
-        return String::new();
-    }
-    // The grid is a component, not a string: the client mounts the same one, so the tiles,
-    // the reserved boxes and the veil cannot drift apart between the two paints.
-    let items = status.media_attachments.clone();
-    Owner::new().with(|| {
-        nodus_view::media_grid::MediaGrid(nodus_view::media_grid::MediaGridProps {
-            items: Signal::derive(move || items.clone()),
-            hidden: blurred,
+            on_open_media: None,
+            on_vote: None,
             interactive: false,
-            on_open: None,
+            body: None,
+            extra: None,
         })
         .to_html()
     })
-}
-
-/// One status as markup: who, when, what.
-///
-/// The author line and the action row come from `nodus-view`, the same components the
-/// client mounts, so the first paint and the one after the wasm boots cannot drift.
-pub fn status_card(status: &Status) -> String {
-    // A boost renders the boosted post under the booster's name, exactly as the client
-    // does: the wrapper carries nothing but the line that says who boosted it.
-    let (boosted, inner) = match status.reblog.as_deref() {
-        Some(inner) => (
-            format!(
-                "<p class=\"text-xs opacity-60\">{} boosted</p>",
-                escape(&status.account.acct)
-            ),
-            inner,
-        ),
-        None => (String::new(), status),
-    };
-    let grid = if inner.media_attachments.is_empty() {
-        String::new()
-    } else if inner.sensitive {
-        // Not a convenience: painting the sharp image and hiding it once the client boots is
-        // exactly the flash of sensitive content a reader did not consent to see.
-        format!(
-            "<div class=\"relative mt-1 overflow-hidden rounded-box\">{}<button type=\"button\" class=\"absolute inset-0 flex items-center justify-center\"><span class=\"rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm\"><span class=\"block text-sm font-medium\">Sensitive content</span><span class=\"block text-xs opacity-70\">{}</span></span></button></div>",
-            media_grid(inner, true),
-            escape(&nodus_view::media::attachments_label(inner))
-        )
-    } else {
-        media_grid(inner, false)
-    };
-    let header = status_header(inner);
-    let footer = status_footer(inner);
-    format!(
-        "<li class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-           <div class=\"card-body gap-3 p-4\">{boosted}{header}\
-             <div class=\"whitespace-pre-line text-sm leading-relaxed\">{body}</div>{grid}{footer}\
-           </div>\
-         </li>",
-        body = with_emojis(body_html(&inner.content), &inner.emojis),
-    )
 }
 
 /// The absolute timestamp the server paints, with the date and the minute.

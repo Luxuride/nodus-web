@@ -160,28 +160,6 @@ pub fn StatusList(
 ///
 /// Inert on purpose: the wasm mount replaces this tree before the reader can type, and a
 /// control that pretends to work is worse than one that plainly waits.
-#[component]
-pub fn TimelineHeaderPlaceholder(#[prop(into)] active: Signal<String>) -> impl IntoView {
-    view! {
-        <div class="flex flex-col gap-2">
-            <crate::ComposerCard>
-                <textarea
-                    class="textarea textarea-ghost min-h-20 w-full resize-none p-1 text-[15px]"
-                    aria-label="Write a post"
-                    placeholder="What is on your mind?"
-                ></textarea>
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="btn btn-outline btn-sm gap-1 border-dashed">"+"</span>
-                    <span class="select select-bordered select-sm">"Public"</span>
-                    <span class="ml-auto text-xs opacity-50">"0/500"</span>
-                    <span class="btn btn-sm btn-primary">"Post"</span>
-                </div>
-            </crate::ComposerCard>
-            <crate::TimelineTabs active=active/>
-        </div>
-    }
-}
-
 /// A column of already-painted cards, with the server's cursor button.
 ///
 /// `cards` is the output of [`crate::status_card::StatusCard`], one per row: the server has

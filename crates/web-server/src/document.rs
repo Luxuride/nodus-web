@@ -193,19 +193,18 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
     })
 }
 
-/// The composer and the timeline tabs, at the size the client gives them.
-/// The composer and the tab strip, drawn by the crate the client draws with.
+/// The composer and the timeline tabs, drawn by the crate the client draws with.
 ///
-/// The textarea and the buttons here are inert on purpose: the wasm mount replaces them
-/// before the reader can type, and a control that pretends to work is worse than one that
-/// plainly waits.
-fn timeline_header(path: &str) -> String {
+/// The controls are the real ones, with verbs that do nothing until the wasm mount
+/// brings the editor and the account's own SDK. The tab strip takes the route's path,
+/// not the request's: Home lives at `/`, even when the reader asked for `/home`.
+fn timeline_header(active: &str) -> String {
     use leptos::prelude::*;
 
-    let here = path.to_owned();
+    let here = active.to_owned();
     Owner::new().with(|| {
-        nodus_view::pages::timeline::TimelineHeaderPlaceholder(
-            nodus_view::pages::timeline::TimelineHeaderPlaceholderProps {
+        nodus_view::pages::compose::inline::ComposerPreview(
+            nodus_view::pages::compose::inline::preview::ComposerPreviewProps {
                 active: Signal::derive(move || here.clone()),
             },
         )
@@ -251,7 +250,8 @@ pub fn feed(
                     .into_any()
             });
         let header: leptos::prelude::ChildrenFn = {
-            let heading = timeline_header(path);
+            let active = if which == "home" { "/" } else { path };
+            let heading = timeline_header(active);
             std::sync::Arc::new(move || leptos::html::div().inner_html(heading.clone()).into_any())
         };
         nodus_view::route::RouteView(nodus_view::route::RouteViewProps {

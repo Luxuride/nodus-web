@@ -17,11 +17,13 @@ pub mod emoji;
 pub mod emoji_toggle;
 pub mod hints;
 pub mod poll;
+pub mod preview;
 pub mod schedule;
 
 pub use bar::ComposerBar;
 pub use drafts_panel::{Draft, DraftsPanel};
 pub use emoji::Suggestions;
+pub use preview::ComposerPreview;
 
 /// What a published post says afterwards: the visibility it went out with, and the
 /// language, named the way the composer names it.

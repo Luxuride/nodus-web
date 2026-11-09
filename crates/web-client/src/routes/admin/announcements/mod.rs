@@ -51,9 +51,7 @@ pub fn Announcements() -> impl IntoView {
 
     view! {
         <div class="flex flex-col gap-3">
-            <div class="card border border-base-300 bg-base-100 shadow-sm">
-                <div class="card-body gap-2 p-4">
-                    <h2 class="card-title text-base">"Published now"</h2>
+            <nodus_view::components::panel::Panel title="Published now">
                     <Show
                         when=move || !items.get().is_empty()
                         fallback=move || {
@@ -69,8 +67,7 @@ pub fn Announcements() -> impl IntoView {
                     {move || error.get().map(|message| view! {
                         <p class="alert alert-error alert-soft py-1 text-sm">{message}</p>
                     })}
-                </div>
-            </div>
+            </nodus_view::components::panel::Panel>
 
             <div class="card border border-dashed border-base-300 bg-base-100">
                 <div class="card-body gap-1 p-4">

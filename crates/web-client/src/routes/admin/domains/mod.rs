@@ -53,12 +53,10 @@ pub fn Domains() -> impl IntoView {
     };
 
     view! {
-        <div class="card border border-base-300 bg-base-100 shadow-sm">
-            <div class="card-body gap-2 p-4">
-                <h2 class="card-title text-base">"Allowed domains"</h2>
-                <p class="text-sm opacity-70">
-                    "An allow lets one domain through even when this instance blocks federation generally — for a domain you trust without wanting to federate with everyone."
-                </p>
+        <nodus_view::components::panel::Panel
+            title="Allowed domains"
+            description="An allow lets one domain through even when this instance blocks federation generally — for a domain you trust without wanting to federate with everyone."
+        >
                 <For each=move || items.get() key=|entry| entry.id.clone() let:entry>
                     {
                         let id = entry.id.clone();
@@ -94,7 +92,6 @@ pub fn Domains() -> impl IntoView {
                     />
                     <button class="btn btn-ghost btn-sm" disabled=move || busy.get()>"Allow"</button>
                 </form>
-            </div>
-        </div>
+        </nodus_view::components::panel::Panel>
     }
 }

@@ -6,9 +6,17 @@
 
 pub mod card_renderer;
 pub mod chrome;
+pub mod composer_card;
+pub mod format;
+pub mod frame;
 pub mod icons;
 pub mod lists;
 pub mod media;
+pub mod notification_card;
+pub mod page_header;
+pub mod rail;
+pub mod screen;
 pub mod status;
+pub mod timeline_tabs;
 
 pub use card_renderer::CardRenderer;

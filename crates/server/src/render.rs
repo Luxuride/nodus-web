@@ -345,55 +345,47 @@ pub fn profile_page(
     statuses: &[Status],
     cursor: Option<&str>,
 ) -> String {
-    let name = if account.display_name.trim().is_empty() {
-        account.acct.clone()
-    } else {
-        account.display_name.clone()
-    };
-    let avatar = if account.avatar.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "<img class=\"h-16 w-16 rounded-full object-cover\" width=\"64\" height=\"64\" \
-               decoding=\"async\" referrerpolicy=\"no-referrer\" alt=\"\" src=\"{}\">",
-            escape(&account.avatar)
-        )
-    };
-    let header = format!(
-        "<header class=\"card border border-base-300 bg-base-100 shadow-sm\">\
-           <div class=\"card-body gap-3 p-4\">\
-             <div class=\"flex items-center gap-3\">{avatar}\
-               <div class=\"min-w-0\">\
-                 <h1 class=\"text-lg font-semibold\">{name}</h1>\
-                 <p class=\"truncate text-sm opacity-60\">@{acct}</p>\
-               </div>\
-             </div>\
-             <p class=\"text-sm opacity-70\">{counts}</p>\
-             <div class=\"text-sm\">{note}</div>\
-           </div>\
-         </header>",
-        name = escape(&name),
-        acct = escape(&account.acct),
-        counts = escape(&format!(
-            "{} posts · {} followers · {} following",
-            account.statuses_count, account.followers_count, account.following_count
-        )),
-        note = body_html(&account.note)
-    );
-    let cards = statuses.iter().map(status_card).collect::<String>();
+    use leptos::prelude::{Callback, ChildrenFn, Owner, Signal};
+
+    // The header, the cards and the box around them come from the crate the client mounts.
+    // What is missing here is the verbs, and they are drawn disabled rather than left out.
+    let cards = statuses.to_vec();
+    let after: Option<ChildrenFn> = Some(std::sync::Arc::new({
+        let cursor = cursor.map(std::borrow::ToOwned::to_owned);
+        move || {
+            nodus_view::chrome::more_button::MoreButton(
+                nodus_view::chrome::more_button::MoreButtonProps {
+                    cursor: cursor.clone(),
+                    loading: false,
+                    on_more: None,
+                },
+            )
+            .into_any()
+        }
+    }));
+    let painted = Owner::new().with(|| {
+        nodus_view::profile::ProfilePage(nodus_view::profile::ProfilePageProps {
+            account: account.clone(),
+            relationship: None,
+            statuses: Signal::derive(move || cards.clone()),
+            show_statuses: true,
+            tabs: None,
+            after,
+            card: None,
+            age_of: Some(Callback::new(|created_at: String| {
+                nodus_view::relative_age(&created_at, now_millis())
+            })),
+            on_follow: None,
+            on_mute: None,
+            on_block: None,
+            on_avatar: None,
+        })
+        .to_html()
+    });
     page(
         assets,
         &format!("{} · {acct}", account.acct),
-        &chrome(
-            true,
-            &format!("/accounts/{}", account.id),
-            &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">{header}\
-                   <ul class=\"flex flex-col gap-2\">{cards}</ul>{more}\
-                 </div>",
-                more = more_button(cursor)
-            ),
-        ),
+        &chrome(true, &format!("/accounts/{}", account.id), &painted),
         None,
     )
 }
@@ -401,55 +393,45 @@ pub fn profile_page(
 /// A thread: what came before, the status itself, then the replies.
 #[must_use]
 pub fn thread_page(assets: &Assets, acct: &str, status: &Status, context: &Context) -> String {
-    let ancestors = context
-        .ancestors
-        .iter()
-        .map(status_card)
-        .collect::<String>();
-    let replies = context
-        .descendants
-        .iter()
-        .map(status_card)
-        .collect::<String>();
-    let replies = if replies.is_empty() {
-        "<p class=\"text-sm opacity-60\">No replies yet.</p>".to_owned()
-    } else {
-        format!(
-            "<h2 class=\"text-sm font-semibold\">Replies</h2>\
-             <ul class=\"flex flex-col gap-2\">{replies}</ul>"
-        )
+    // The page itself is shared, so what is left here is the server's half of it: the content
+    // preparation, because `inner_html` carries whatever the caller hands it and the browser
+    // would only ever get the instance's own text.
+    let paint = |status: &Status| -> Status {
+        let mut painted = status.clone();
+        match painted.reblog.as_deref_mut() {
+            Some(inner) => inner.content = with_emojis(body_html(&inner.content), &inner.emojis),
+            None => painted.content = with_emojis(body_html(&painted.content), &painted.emojis),
+        }
+        painted
     };
+    let ancestors = context.ancestors.iter().map(&paint).collect::<Vec<_>>();
+    let focused = paint(status);
+    let replies = context.descendants.iter().map(&paint).collect::<Vec<_>>();
+    let inner = Owner::new().with(|| {
+        // The ages come from this host's clock, asked once per status by the page that draws
+        // them; the view crate owns no clock of its own.
+        let clock = leptos::prelude::Callback::new(|created_at: String| {
+            nodus_view::relative_age(&created_at, now_millis())
+        });
+        nodus_view::thread::ThreadPage(nodus_view::thread::ThreadPageProps {
+            ancestors,
+            focused,
+            replies: replies.into(),
+            card: None,
+            age_of: Some(clock),
+            reply_slot: None,
+        })
+        .to_html()
+    });
     page(
         assets,
         &format!("Thread · {acct}"),
-        &chrome(
-            true,
-            &format!("/status/{}", status.id),
-            &format!(
-                "<div class=\"mx-auto flex w-full flex-col gap-3 px-2 max-w-2xl\">\
-                   <ul class=\"flex flex-col gap-2\">{ancestors}</ul>\
-                   <ul class=\"flex flex-col gap-2\">{focused}</ul>{replies}\
-                 </div>",
-                focused = status_card(status)
-            ),
-        ),
+        &chrome(true, &format!("/status/{}", status.id), &inner),
         None,
     )
 }
 
 /// The "Load more" button the client also draws, or nothing on the last page.
-fn more_button(cursor: Option<&str>) -> String {
-    Owner::new().with(|| {
-        nodus_view::chrome::more_button::MoreButton(
-            nodus_view::chrome::more_button::MoreButtonProps {
-                cursor: cursor.map(std::borrow::ToOwned::to_owned),
-                loading: false,
-                on_more: None,
-            },
-        )
-        .to_html()
-    })
-}
 #[expect(
     clippy::too_many_arguments,
     reason = "one page: assets, who, where, three pieces of copy, the body and an island"
@@ -561,9 +543,13 @@ pub fn conversation_row(conversation: &Conversation) -> String {
             nodus_view::lists::conversation_row::ConversationRowProps {
                 conversation: conversation.clone(),
                 age,
+                // The server cannot change a conversation, so it draws the row without the
+                // verbs and without a mute state it would have to guess.
+                muted: false,
                 on_open: None,
                 on_read: None,
                 status: last,
+                after: None,
             },
         )
         .to_html()

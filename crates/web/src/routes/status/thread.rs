@@ -3,13 +3,22 @@
 //! The thread is loaded in two calls — the status itself and its context — because
 //! Mastodon splits them and because the status is worth showing even when the context
 //! endpoint is slow or fails.
+//!
+//! The page is `nodus_view`'s `ThreadPage`, the same tree the server paints. What stays
+//! here is what the page may not know: the two reads, the filters (a thread assembled from
+//! cache never passes through the server's eye again, so the matching rule has to run
+//! here), the clock, and the composer's transport.
+
+use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::FilterContext;
 use nodus_instance::model::Status;
+use nodus_view::components::CardRenderer;
 
 use crate::routes::filtering::Filtered;
+use crate::routes::format::relative_time;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 use crate::state::bridge::timeline;
@@ -64,39 +73,51 @@ pub fn Thread(id: String) -> impl IntoView {
         });
     });
 
+    // Every status goes through `Filtered`, which paints the client's card and hides what the
+    // reader asked not to see; the page never decides what a post looks like.
+    let card: CardRenderer = Arc::new(|status: Status| {
+        view! { <Filtered status=status context=FilterContext::Thread/> }.into_any()
+    });
+    let age_of: Callback<String, String> =
+        Callback::new(|created_at: String| relative_time(&created_at));
+
+    // The composer is transport, so it is a slot the page paints at its foot. The read's own
+    // refusals sit beside it: they are the only line the server never shows, and the column
+    // that holds them is the one the page draws.
     let parent = id.clone();
-
-    view! {
-        <nodus_view::Screen>
-            <Show when=move || !ancestors.get().is_empty()>
-                <ul class="flex flex-col gap-3">
-                    <For each=move || ancestors.get() key=|status| status.id.clone() let:status>
-                        <Filtered status=status context=FilterContext::Thread/>
-                    </For>
-                </ul>
-            </Show>
-
-            <Show when=move || status.get().is_some()>
-                <ul class="flex flex-col gap-3">
-                    {move || status.get().map(|status| view! { <Filtered status=status context=FilterContext::Thread/> })}
-                </ul>
-            </Show>
-
-            <Show when=move || !replies.get().is_empty()>
-                <h2 class="mt-2 text-sm font-semibold opacity-70">
-                    {move || format!("{} replies", replies.get().len())}
-                </h2>
-                <ul class="flex flex-col gap-3">
-                    <For each=move || replies.get() key=|status| status.id.clone() let:status>
-                        <Filtered status=status context=FilterContext::Thread/>
-                    </For>
-                </ul>
-            </Show>
-
-            <ReplyBox parent=parent set_replies=set_replies set_error=set_error/>
+    let reply_slot: ChildrenFn = Arc::new(move || {
+        view! {
+            <ReplyBox parent=parent.clone() set_replies=set_replies set_error=set_error/>
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </nodus_view::Screen>
+        }
+        .into_any()
+    });
+
+    view! {
+        {move || match status.get() {
+            Some(focused) => view! {
+                <nodus_view::thread::ThreadPage
+                    ancestors=ancestors.get()
+                    focused=focused
+                    replies=replies
+                    card=card.clone()
+                    age_of=age_of
+                    reply_slot=reply_slot.clone()
+                />
+            }
+            .into_any(),
+            // Nothing has arrived yet: the column keeps its width and says why, if the read
+            // refused before the status was in hand.
+            None => view! {
+                <nodus_view::Screen>
+                    <Show when=move || error.get().is_some()>
+                        <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
+                    </Show>
+                </nodus_view::Screen>
+            }
+            .into_any(),
+        }}
     }
 }

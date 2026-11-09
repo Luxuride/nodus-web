@@ -1,81 +1,49 @@
 //! Saved statuses: the two shelves the instance keeps for the signed-in account.
 //!
-//! Favourites and bookmarks are separate endpoints with the same shape, so they share a
-//! screen with a tab each. Both pages are cursored the same way the timelines are: only a
-//! full page produces a `next_max_id`, and that id is what "Load more" sends back.
+//! The screen is `nodus_view::pages::saved`: the tabs, the shelf they select, the empty state,
+//! the list container and the paging control. What stays here is what that crate may not hold
+//! — the page store this screen reads, the transport that answers a load, and the card. The
+//! card is the client's because each saved status carries state of its own (a verb in flight,
+//! its own refusal), so the list is handed a renderer rather than a verb per row.
+
+use std::sync::Arc;
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
+use nodus_sdk::page::{PageItems, PageKind};
+use nodus_view::components::CardRenderer;
+use nodus_view::pages::saved::{SavedPage, Shelf};
 
 use super::status::StatusCard;
 use crate::router::Route;
 use crate::state::alive::Alive;
 use crate::state::bridge::{pages, revision};
-use crate::ui::page::PageHeader;
-use leptos::task::spawn_local;
-use nodus_sdk::page::{PageItems, PageKind};
 
-/// Which shelf is showing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Shelf {
-    Favourites,
-    Bookmarks,
-}
-
-impl Shelf {
-    /// The page this shelf reads from SDK state.
-    fn kind(self) -> PageKind {
-        match self {
-            Self::Favourites => PageKind::Favourites,
-            Self::Bookmarks => PageKind::Bookmarks,
-        }
-    }
-
-    /// The address this shelf lives at.
-    fn slug(self) -> &'static str {
-        match self {
-            Self::Favourites => "favourites",
-            Self::Bookmarks => "bookmarks",
-        }
-    }
-
-    /// The shelf a `/saved/{slug}` address names.
-    fn of(slug: &str) -> Self {
-        match slug {
-            "bookmarks" => Self::Bookmarks,
-            _ => Self::Favourites,
-        }
-    }
-
-    /// The tab label.
-    fn label(self) -> &'static str {
-        match self {
-            Self::Favourites => "Favourites",
-            Self::Bookmarks => "Bookmarks",
-        }
+/// The page a shelf is read from. The view crate names the shelf; which request answers it is
+/// this crate's business.
+fn kind(shelf: Shelf) -> PageKind {
+    match shelf {
+        Shelf::Favourites => PageKind::Favourites,
+        Shelf::Bookmarks => PageKind::Bookmarks,
     }
 }
 
-/// The saved screen: a tab per shelf and one list beneath it.
-/// The shelf a `/saved/{slug}` address names.
-/// A Leptos component receives its props by value; the body only reads it.
+/// Saved statuses, a tab per shelf.
+#[component]
 #[expect(
     clippy::needless_pass_by_value,
     reason = "a Leptos component receives its props by value"
 )]
-#[component]
 pub fn Saved(shelf: String) -> impl IntoView {
     let revision = revision();
-    // The address decides the shelf: `/saved/bookmarks` opens Bookmarks.
     let (shelf, _set_shelf) = signal(Shelf::of(&shelf));
     let (loading, set_loading) =
         signal(!pages::held(&PageKind::Favourites) && !pages::held(&PageKind::Bookmarks));
     let (error, set_error) = signal(None::<String>);
 
-    // The shelf is read from the SDK: two shelves live there side by side, so switching
-    // tabs is a read, not a fetch.
     let held = move || {
         revision.get();
-        pages::items(&shelf.get().kind(), |items| match items {
+        pages::items(&kind(shelf.get()), |items| match items {
             PageItems::Statuses(list) => Some(list),
             _ => None,
         })
@@ -83,76 +51,40 @@ pub fn Saved(shelf: String) -> impl IntoView {
     let statuses = move || held().map(|(list, _)| list).unwrap_or_default();
     let cursor = move || held().and_then(|(_, cursor)| cursor);
 
+    // The busy flag is set from what is held *before* the read starts: a shelf already in the
+    // store paints at once, and only an empty one shows the placeholder cards.
     let load = move |which: Shelf, after: Option<String>| {
         let alive = Alive::new();
-        // A shelf we already hold paints immediately; only an empty one looks busy.
-        set_loading.set(!pages::held(&which.kind()));
+        set_loading.set(!pages::held(&kind(which)));
         set_error.set(None);
         spawn_local(async move {
-            if let Err(message) = pages::ensure_after(which.kind(), after).await {
+            if let Err(message) = pages::ensure_after(kind(which), after).await {
                 alive.if_alive(|| set_error.set(Some(message)));
             }
             alive.if_alive(|| set_loading.set(false));
         });
     };
-
-    // The first page only: switching tabs clears the list instead of merging, because a
-    // favourite is not a bookmark and one list holding both would be a lie about which.
     Effect::new(move |_| load(shelf.get_untracked(), None));
 
-    let more = move || {
-        if let Some(after) = cursor() {
-            load(shelf.get_untracked(), Some(after));
-        }
-    };
+    // Both shelves keep their own cursor, so the press carries the one the reader was shown.
+    let on_more = Callback::new(move |after: String| load(shelf.get_untracked(), Some(after)));
+    let on_shelf = Callback::new(move |to: Shelf| {
+        crate::router::navigate(Route::Saved(to.slug().to_owned()));
+    });
+
+    let card: CardRenderer =
+        Arc::new(move |status| view! { <StatusCard status=status/> }.into_any());
 
     view! {
-        <nodus_view::Screen>
-            <PageHeader title="Saved" description="Your favourites and bookmarks, newest first."/>
-            <div role="tablist" class="tabs tabs-box w-fit">
-                <For
-                    each=|| [Shelf::Favourites, Shelf::Bookmarks]
-                    key=|which| which.label()
-                    let:which
-                >
-                    <a
-                        role="tab"
-                        class="tab"
-                        href=format!("/saved/{}", which.slug())
-                        class:tab-active=move || shelf.get() == which
-                        on:click=move |event| {
-                            crate::router::link(event, Route::Saved(which.slug().to_owned()));
-                        }
-                    >
-                        {which.label()}
-                    </a>
-                </For>
-            </div>
-
-            <Show when=move || !loading.get() && statuses().is_empty() && error.get().is_none()>
-                <p class="text-sm opacity-60">
-                    {move || match shelf.get() {
-                        Shelf::Favourites => "Nothing is favourited yet.",
-                        Shelf::Bookmarks => "Nothing is bookmarked yet.",
-                    }}
-                </p>
-            </Show>
-
-            <ul class="flex flex-col gap-3">
-                <For each=statuses key=|status| status.id.clone() let:status>
-                    <StatusCard status=status/>
-                </For>
-            </ul>
-
-            <Show when=move || cursor().is_some()>
-                <button class="btn btn-ghost btn-sm w-full" disabled=move || loading.get() on:click=move |_| more()>
-                    "Load more"
-                </button>
-            </Show>
-
-            <Show when=move || error.get().is_some()>
-                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-            </Show>
-        </nodus_view::Screen>
+        <SavedPage
+            shelf=shelf.into()
+            items=Signal::derive(statuses)
+            loading=loading.into()
+            error=error.into()
+            cursor=Signal::derive(cursor)
+            card=card
+            on_shelf=on_shelf
+            on_more=on_more
+        />
     }
 }

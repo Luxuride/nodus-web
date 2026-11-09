@@ -1,117 +1,23 @@
-//! The profile card: who they are and what can be done about it.
+//! How the client paints the shared profile page.
 //!
-//! Separated from [`super::AccountView`] because the card is the part that grows: every
-//! relationship verb and every profile affordance lands here, while the page around it
-//! stays a list of statuses.
+//! The page itself lives in `nodus-view`: the header, the verbs' boxes, the status list and
+//! the order of the three. What only the client can supply is the card — which has verbs, a
+//! media viewer and a router step — and the clock its age comes from.
+
+use std::sync::Arc;
 
 use leptos::prelude::*;
+use nodus_instance::model::Status;
+use nodus_view::components::CardRenderer;
 
-use super::avatar::Avatar;
-use nodus_instance::model::{Account, Relationship};
+use crate::routes::status::StatusCard;
 
-use super::{Verb, toggle};
-use crate::routes::feed::posts::plain_text;
-use crate::routes::format::display_name;
-use crate::state::alive::Alive;
+/// The card the profile's list paints: the live one, not the server's inert one.
+pub(super) fn card() -> CardRenderer {
+    Arc::new(|status: Status| view! { <StatusCard status=status/> }.into_any())
+}
 
-/// A profile header with Follow, Mute and Block.
-#[component]
-pub(super) fn ProfileCard(
-    account: ReadSignal<Option<Account>>,
-    relationship: ReadSignal<Option<Relationship>>,
-    set_relationship: WriteSignal<Option<Relationship>>,
-    busy: ReadSignal<bool>,
-    set_busy: WriteSignal<bool>,
-    set_error: WriteSignal<Option<String>>,
-) -> impl IntoView {
-    // Shared by the three verbs: a response must not write after the card is gone.
-    let alive = Alive::new();
-    view! {
-        {move || {
-            account.get().map(|profile| {
-                let id = profile.id.clone();
-                let heading = display_name(&profile.display_name, &profile.acct);
-                let bio = plain_text(&profile.note);
-                let (avatar, _) = signal(profile.avatar.clone());
-                let acct = profile.acct.clone();
-                let counts = format!(
-                    "{} posts · {} following · {} followers",
-                    profile.statuses_count, profile.following_count, profile.followers_count,
-                );
-                // One clone per button: each handler owns its id, so the card can rebuild
-                // when the relationship changes without any handler being consumed.
-                let follow_id = id.clone();
-                let mute_id = id.clone();
-                let block_id = id;
-                view! {
-                    <div class="card border border-base-300 bg-base-100 shadow-sm">
-                        <div class="card-body gap-3 p-4">
-                            <div class="flex items-start gap-3">
-                                <Avatar src=avatar/>
-                                <div class="min-w-0 flex-1">
-                                    <p class="truncate text-lg font-semibold">{heading}</p>
-                                    <p class="truncate text-sm opacity-60">{format!("@{acct}")}</p>
-                                    <p class="mt-2 text-xs opacity-60">{counts}</p>
-                                </div>
-                            </div>
-                            <p class="whitespace-pre-line text-sm leading-relaxed">{bio}</p>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <button
-                                    class="btn btn-primary btn-sm"
-                                    disabled=move || busy.get() || relationship.get().is_none()
-                                    on:click=move |_| {
-                                        toggle(
-                                            follow_id.clone(),
-                                            Verb::Follow,
-                                            alive,
-                                            relationship,
-                                            set_relationship,
-                                            set_busy,
-                                            set_error,
-                                        );
-                                    }
-                                >
-                                    {move || Verb::Follow.label(relationship.get())}
-                                </button>
-                                <button
-                                    class="btn btn-ghost btn-sm"
-                                    disabled=move || busy.get() || relationship.get().is_none()
-                                    on:click=move |_| {
-                                        toggle(
-                                            mute_id.clone(),
-                                            Verb::Mute,
-                                            alive,
-                                            relationship,
-                                            set_relationship,
-                                            set_busy,
-                                            set_error,
-                                        );
-                                    }
-                                >
-                                    {move || Verb::Mute.label(relationship.get())}
-                                </button>
-                                <button
-                                    class="btn btn-ghost btn-sm"
-                                    disabled=move || busy.get() || relationship.get().is_none()
-                                    on:click=move |_| {
-                                        toggle(
-                                            block_id.clone(),
-                                            Verb::Block,
-                                            alive,
-                                            relationship,
-                                            set_relationship,
-                                            set_busy,
-                                            set_error,
-                                        );
-                                    }
-                                >
-                                    {move || Verb::Block.label(relationship.get())}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                }
-            })
-        }}
-    }
+/// How old a post is, from the browser's clock.
+pub(super) fn age(created_at: &str) -> String {
+    crate::routes::format::relative_time(created_at)
 }

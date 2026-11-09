@@ -3,6 +3,12 @@
 //! The relationship is a separate request from the account, because it depends on who
 //! is asking: the same profile looks different to a follower, a stranger and someone who
 //! blocked them.
+//!
+//! The paint is the shared page in `nodus-view`; this module owns the state and the
+//! requests, and supplies the two things the page may not know: the tab strip, and the foot
+//! where the next page and the other tabs sit.
+
+use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -10,18 +16,14 @@ use nodus_instance::model::{Account, Relationship};
 use nodus_sdk::Timeline;
 
 use super::people::{Kind, PeopleList};
-use super::status::StatusCard;
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
 use crate::state::bridge::revision;
 use crate::state::bridge::timeline;
 use tabs::AccountTabs;
 
-mod avatar;
 mod profile;
 mod tabs;
-
-use self::profile::ProfileCard;
 
 /// The three lists a profile offers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,27 +50,6 @@ pub(super) enum Verb {
     Follow,
     Mute,
     Block,
-}
-
-impl Verb {
-    /// The button label for this verb and the relationship as it stands.
-    /// The button label, or a placeholder while the relationship is still unknown.
-    ///
-    /// A label is a claim about the account's state ("Unfollow" means "you already
-    /// follow"), so an unanswered relationship gets no claim at all.
-    pub(super) fn label(self, relationship: Option<Relationship>) -> &'static str {
-        if relationship.is_none() {
-            return "…";
-        }
-        match (self, relationship) {
-            (Self::Follow, Some(found)) if found.following => "Unfollow",
-            (Self::Mute, Some(found)) if found.muting => "Unmute",
-            (Self::Block, Some(found)) if found.blocking => "Unblock",
-            (Self::Follow, _) => "Follow",
-            (Self::Mute, _) => "Mute",
-            (Self::Block, _) => "Block",
-        }
-    }
 }
 
 /// A profile page.
@@ -101,35 +82,14 @@ pub fn AccountView(id: String) -> impl IntoView {
 
     let account_id = id.clone();
     Effect::new(move |_| {
-        // One clone per request: the three calls run in parallel and each owns its id.
-        let for_account = account_id.clone();
-
-        spawn_local(async move {
-            match actions::account(&for_account).await {
-                Ok(found) => alive.if_alive(|| set_account.set(Some(found))),
-                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
-            }
-        });
-        let for_relationship = account_id.clone();
-
-        spawn_local(async move {
-            match actions::relationship(&for_relationship).await {
-                Ok(Some(found)) => alive.if_alive(|| set_relationship.set(Some(found))),
-                Ok(None) => {}
-                Err(message) => set_error.set(Some(message)),
-            }
-        });
-        let for_posts = Timeline::Account(account_id.clone());
-
-        spawn_local(async move {
-            match timeline::ensure(for_posts, None, None).await {
-                Ok(_) => alive.if_alive(|| set_loading.set(false)),
-                Err(message) => alive.if_alive(|| {
-                    set_error.set(Some(message));
-                    set_loading.set(false);
-                }),
-            }
-        });
+        load_profile(
+            &account_id,
+            alive,
+            set_account,
+            set_relationship,
+            set_loading,
+            set_error,
+        );
     });
 
     // A `Callback` rather than a bare closure: it is read inside a `Show` body that must be
@@ -150,27 +110,23 @@ pub fn AccountView(id: String) -> impl IntoView {
         });
     });
 
-    view! {
-        <nodus_view::Screen>
-            <ProfileCard
-                account=account
-                relationship=relationship
-                set_relationship=set_relationship
-                busy=busy
-                set_busy=set_busy
-                set_error=set_error
-            />
+    // The page reads the list as a signal, so a page of posts lands in the list without the
+    // header being rebuilt. The cursor travels with it, for the foot's "Load more".
+    let statuses = Signal::derive(move || posts().0);
+    let next = Signal::derive(move || posts().1);
 
-            <AccountTabs tab=tab set_tab=set_tab/>
+    // The tab strip is the client's: it switches a list, not a page. It is a slot so that
+    // the page can keep the header above it and the list below, which is the one order both
+    // paints agree on.
+    let tabs: ChildrenFn =
+        Arc::new(move || view! { <AccountTabs tab=tab set_tab=set_tab/> }.into_any());
 
+    // What sits under the list: the next page, or the other tab's list, or the error a
+    // request brought back. The page owns the status list and nothing below it.
+    let after: ChildrenFn = Arc::new(move || {
+        view! {
             <Show when=move || tab.get() == Tab::Posts>
-                <ul class="flex flex-col gap-3">
-                    <For each=move || posts().0 key=|status| status.id.clone() let:status>
-                        <StatusCard status=status/>
-                    </For>
-                </ul>
-
-                <Show when=move || posts().1.is_some()>
+                <Show when=move || next.get().is_some()>
                     <button
                         class="btn btn-ghost btn-sm w-full"
                         disabled=move || loading.get()
@@ -180,19 +136,134 @@ pub fn AccountView(id: String) -> impl IntoView {
                     </button>
                 </Show>
             </Show>
-
             <Show when=move || tab.get() == Tab::Followers>
                 <PeopleList id=id_signal.get_value() kind=Kind::Followers/>
             </Show>
-
             <Show when=move || tab.get() == Tab::Following>
                 <PeopleList id=id_signal.get_value() kind=Kind::Following/>
             </Show>
-
             <Show when=move || error.get().is_some()>
                 <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
             </Show>
-        </nodus_view::Screen>
+        }
+        .into_any()
+    });
+
+    // A verb pressed while another is in flight is ignored rather than disabled: the shared
+    // page decides `disabled` from the relationship alone, and the labels do not flicker.
+    let verbs = verbs(alive, busy, relationship, set_relationship, set_busy, set_error);
+
+    let on_avatar = Callback::new(|url: String| crate::media::expand_one(url, String::new()));
+
+    // The page is built once the account has arrived: until then there is no header to
+    // draw, and a header drawn from a guess is the flicker this module exists to avoid.
+    view! {
+        {move || {
+            account.get().map(|profile| {
+                view! {
+                    <nodus_view::profile::ProfilePage
+                        account=profile
+                        relationship=relationship.get()
+                        statuses=statuses
+                        show_statuses=tab.get() == Tab::Posts
+                        tabs=tabs.clone()
+                        after=after.clone()
+                        card=profile::card()
+                        age_of=Callback::new(|created_at: String| profile::age(&created_at))
+                        on_follow=verbs.follow
+                        on_mute=verbs.mute
+                        on_block=verbs.block
+                        on_avatar=on_avatar
+                    />
+                }
+            })
+        }}
+    }
+}
+
+/// The three reads a profile needs, issued together.
+///
+/// They are one function so the page reads as a page: the profile, the relationship that
+/// decides which verbs make sense, and its first page of posts. Each call owns its own clone
+/// of the id, because they run in parallel and a shared `&str` cannot outlive the first spawn.
+fn load_profile(
+    id: &str,
+    alive: Alive,
+    set_account: WriteSignal<Option<Account>>,
+    set_relationship: WriteSignal<Option<Relationship>>,
+    set_loading: WriteSignal<bool>,
+    set_error: WriteSignal<Option<String>>,
+) {
+    let for_account = id.to_owned();
+    spawn_local(async move {
+        match actions::account(&for_account).await {
+            Ok(found) => alive.if_alive(|| set_account.set(Some(found))),
+            Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+        }
+    });
+
+    let for_relationship = id.to_owned();
+    spawn_local(async move {
+        match actions::relationship(&for_relationship).await {
+            Ok(Some(found)) => alive.if_alive(|| set_relationship.set(Some(found))),
+            Ok(None) => {}
+            Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+        }
+    });
+
+    let for_posts = Timeline::Account(id.to_owned());
+    spawn_local(async move {
+        match timeline::ensure(for_posts, None, None).await {
+            Ok(_) => alive.if_alive(|| set_loading.set(false)),
+            Err(message) => alive.if_alive(|| {
+                set_error.set(Some(message));
+                set_loading.set(false);
+            }),
+        }
+    });
+}
+
+/// The profile's three relationship verbs, drawn once and shared by the buttons.
+#[derive(Clone, Copy)]
+struct Verbs {
+    follow: Callback<(String, bool)>,
+    mute: Callback<(String, bool)>,
+    block: Callback<(String, bool)>,
+}
+
+/// Builds the three verbs around one guard.
+///
+/// A verb pressed while another is in flight is ignored rather than disabled: the shared page
+/// decides `disabled` from the relationship alone, and the labels must not flicker.
+fn verbs(
+    alive: Alive,
+    busy: ReadSignal<bool>,
+    relationship: ReadSignal<Option<Relationship>>,
+    set_relationship: WriteSignal<Option<Relationship>>,
+    set_busy: WriteSignal<bool>,
+    set_error: WriteSignal<Option<String>>,
+) -> Verbs {
+    let one = |verb: Verb| {
+        Callback::new(move |(id, on): (String, bool)| {
+            if busy.get_untracked() {
+                return;
+            }
+            toggle(
+                id,
+                verb,
+                on,
+                alive,
+                relationship,
+                set_relationship,
+                set_busy,
+                set_error,
+            );
+        })
+    };
+    Verbs {
+        follow: one(Verb::Follow),
+        mute: one(Verb::Mute),
+        block: one(Verb::Block),
     }
 }
 
@@ -200,10 +271,16 @@ pub fn AccountView(id: String) -> impl IntoView {
 ///
 /// A free function rather than a closure because three buttons share it: the signals are
 /// `Copy`, so no handler ends up owning state that a rebuild would have to hand over
-/// again.
+/// again. The flag comes from the page, which knows the relationship the buttons were drawn
+/// against; this only refuses to send when the relationship was never answered at all.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the template's action set: id, verb, target state, and the three signals it writes"
+)]
 pub(super) fn toggle(
     id: String,
     verb: Verb,
+    on: bool,
     alive: Alive,
     relationship: ReadSignal<Option<Relationship>>,
     set_relationship: WriteSignal<Option<Relationship>>,
@@ -215,17 +292,6 @@ pub(super) fn toggle(
     if relationship.get_untracked().is_none() {
         return;
     }
-    let on = match verb {
-        Verb::Follow => !relationship
-            .get_untracked()
-            .is_some_and(|found| found.following),
-        Verb::Mute => !relationship
-            .get_untracked()
-            .is_some_and(|found| found.muting),
-        Verb::Block => !relationship
-            .get_untracked()
-            .is_some_and(|found| found.blocking),
-    };
     set_busy.set(true);
     set_error.set(None);
     spawn_local(async move {

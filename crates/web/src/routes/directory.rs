@@ -4,17 +4,18 @@
 //! paints what was already fetched, and only a page older than the store's TTL asks the
 //! instance for more. The directory is the one list Mastodon pages by offset, so its
 //! cursor is a count — the store treats it as an opaque string either way.
+//!
+//! The screen is `nodus_view::pages::directory`; this file answers what it asks: which scope
+//! is showing, the page that scope holds, and where a press on a row goes.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_sdk::page::PageKind;
+use nodus_view::pages::directory::DirectoryPage;
 
-use self::card::PersonCard;
+use crate::router::{self, Route};
 use crate::state::alive::Alive;
 use crate::state::bridge::{pages, revision};
-use crate::ui::page::PageHeader;
-
-mod card;
 
 /// Local or federated accounts, in the instance's own order of activity.
 #[component]
@@ -55,72 +56,20 @@ pub fn Directory() -> impl IntoView {
         load(None);
     });
 
-    let more = move |()| load(cursor());
+    let on_scope = Callback::new(move |here: bool| set_local_only.set(here));
+    let on_more = Callback::new(move |after: String| load(Some(after)));
+    let on_open = Callback::new(move |who: String| router::navigate(Route::Account(who)));
 
     view! {
-        <nodus_view::Screen>
-            <PageHeader
-                title="People"
-                description="Accounts this instance suggests, most active first."
-            />
-
-            <div role="tablist" class="tabs tabs-box w-fit">
-                <button
-                    role="tab"
-                    class="tab"
-                    class:tab-active=move || local_only.get()
-                    on:click=move |_| set_local_only.set(true)
-                >
-                    "This instance"
-                </button>
-                <button
-                    role="tab"
-                    class="tab"
-                    class:tab-active=move || !local_only.get()
-                    on:click=move |_| set_local_only.set(false)
-                >
-                    "Known elsewhere"
-                </button>
-            </div>
-
-            {move || error.get().map(|message| view! {
-                <div class="alert alert-error py-2 text-sm" role="alert">
-                    <span>{message}</span>
-                </div>
-            })}
-
-            <Show when=move || loading.get() && people().is_empty()>
-                <div class="flex justify-center py-6">
-                    <span class="loading loading-spinner loading-md"></span>
-                </div>
-            </Show>
-
-            <ul class="flex flex-col gap-1">
-                <For each=people key=|account| account.id.clone() let:account>
-                    <PersonCard account=account/>
-                </For>
-            </ul>
-
-            <Show when=move || !loading.get() && people().is_empty()>
-                <div class="card border border-base-300 bg-base-100">
-                    <div class="card-body items-center p-6 text-center">
-                        <h2 class="card-title text-base">"Nobody to suggest yet"</h2>
-                        <p class="text-sm opacity-70">
-                            "This instance has not published a directory of accounts."
-                        </p>
-                    </div>
-                </div>
-            </Show>
-
-            <Show when=move || cursor().is_some()>
-                <button
-                    class="btn btn-ghost btn-sm w-full"
-                    disabled=move || loading.get()
-                    on:click=move |_| more(())
-                >
-                    {move || if loading.get() { "Loading…" } else { "Load more" }}
-                </button>
-            </Show>
-        </nodus_view::Screen>
+        <DirectoryPage
+            local_only=local_only.into()
+            accounts=Signal::derive(people)
+            loading=loading.into()
+            error=error.into()
+            cursor=Signal::derive(cursor)
+            on_scope=on_scope
+            on_open=on_open
+            on_more=on_more
+        />
     }
 }

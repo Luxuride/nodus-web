@@ -98,3 +98,61 @@ cancel) arrives as an `Option<Callback<..>>` and renders disabled-but-identical 
 
 Still strings in `crates/server/src/render.rs`: `profile_page`, `thread_page`,
 `timeline_header`/`page_header` adapters, `tabs_for`, `skeleton`, `more_button`.
+
+## Decision (2026-11-09): everything in nodus
+
+The operator's words: *"Everything in nodus, also move web routes/ to view."* So the target layout
+is not "shared atoms only" — it is:
+
+- `web/crates/view/src/components/` — pieces with no screen of their own: rows, cards, chrome,
+  media, icons.
+- `web/crates/view/src/pages/` — one module per screen, rendering the whole page body.
+- `web/crates/web/src/routes/` — thin shells: read the SDK, hold signals, pass callbacks to a
+  `nodus_view::pages::…` component. No markup beyond the wiring.
+
+The line that decides what may stay in `web/` is not "is it small" but "does it own state". A
+ProseMirror mount, the media modal's open signal, and the page store's cursors are state, so they
+stay in the client and reach a page through props (`Signal`, `Callback`, `ChildrenFn` slots). A
+page never fetches, never reads a clock, never navigates by itself.
+
+### Consequence: SSR renders pages, not strings
+
+Once a screen is a `nodus_view::pages::…` component, the server's job stops being "build HTML
+that resembles the client" and becomes "read the data, render the page". It reads through the
+SDK's fallible `Reads` (`Headless`), so every read is a `Result`:
+
+- `Ok(data)` → the page with data, `on_*: None`, `interactive: false`.
+- `Err(e)` → the *same* page component in its unavailable branch — the state the client shows
+  when the same read fails — never a different hand-built string, and never a 500 page for a
+  page whose data merely could not be fetched.
+
+`render.rs` then keeps only what is genuinely server-side: asset discovery, the document shell,
+the island JSON, and the two or three page-level guards (signed out, staff only).
+
+### The `pages/` tree mirrors the URL tree
+
+A page module is named after the path that renders it, so a stale filename cannot survive a
+rename and a reader can find the code for `/local` without a search:
+
+```
+pages/index.rs            /
+pages/feed.rs             /feed
+pages/local.rs            /local
+pages/federated.rs        /federated
+pages/notifications/      /notifications        (row, request, banner)
+pages/messages.rs         /messages
+pages/saved/              /saved, /saved/{favourites,bookmarks}
+pages/lists/              /lists, /lists/{id}    (members, timeline)
+pages/scheduled.rs        /scheduled
+pages/directory.rs        /directory
+pages/search/             /search               (results)
+pages/accounts/           /accounts/{id}
+pages/status/             /status/{id}
+pages/compose/            /compose, /compose/{id}
+pages/settings/           /settings/{section}
+pages/moderation/         /moderation/{section}
+pages/admin/              /admin/{section}
+```
+
+`pages/status/public.rs` is the shared-post document at `/s/…` — a server-rendered page, not the
+client's status route, and it keeps its own name because its URL says so.

@@ -8,6 +8,11 @@
 //! the server has a rendered status card, the client its own preview. The row does not
 //! decide which, and a conversation with no status at all renders nothing there — the same
 //! boxes with the slot empty — rather than a different row.
+//!
+//! The mute toggle is a slot for the same reason: the mute state is not part of the
+//! conversation payload, so the screen that remembers it is the only one that can undo it.
+//! The row draws the badge a muted conversation carries — that state is passed in, because a
+//! reader has to see it — and leaves the verb to the trailing slot.
 
 use leptos::prelude::*;
 use nodus_instance::model::Conversation;
@@ -30,12 +35,14 @@ fn participants(conversation: &Conversation) -> String {
         .join(", ")
 }
 
-/// One conversation: the participants, the last message, and its read state.
+/// One conversation: the participants, the last message, and its read and mute state.
 ///
 /// `age` is the last message's age in words, from [`crate::relative_age`]; this crate reads
 /// no clock. `on_open` receives the conversation id, and `on_read` marks it read — without
 /// it the mark-as-read button keeps its label and its box but is disabled, so the server's
-/// row and the client's do not differ by a control's width.
+/// row and the client's do not differ by a control's width. `muted` is the one piece of the
+/// mute state the row can draw on its own, and `after` is where the screen that owns the
+/// toggle puts it.
 #[component]
 #[expect(
     clippy::needless_pass_by_value,
@@ -46,12 +53,17 @@ pub fn ConversationRow(
     conversation: Conversation,
     /// The last message's age in words ("3h").
     age: String,
+    /// Whether the viewer muted this conversation, which the row says with a badge.
+    muted: bool,
     /// Opens the conversation inside the app.
     #[prop(optional)]
     on_open: Option<Callback<String>>,
     /// Marks the conversation read.
     #[prop(optional)]
     on_read: Option<Callback<String>>,
+    /// The screen's own trailing control, such as the mute toggle.
+    #[prop(optional)]
+    after: Option<ChildrenFn>,
     /// The caller's rendering of the newest status.
     #[prop(optional)]
     status: Option<ChildrenFn>,
@@ -74,6 +86,9 @@ pub fn ConversationRow(
                     <Show when=move || unread>
                         <span class="badge badge-primary badge-xs">"new"</span>
                     </Show>
+                    <Show when=move || muted>
+                        <span class="badge badge-ghost badge-xs">"muted"</span>
+                    </Show>
                 </p>
                 // The box is painted whether or not there is a status to put in it: a
                 // conversation that gains its first message keeps the row's height instead
@@ -92,6 +107,7 @@ pub fn ConversationRow(
             >
                 "Mark as read"
             </button>
+            {after.map(|children| children())}
         </li>
     }
 }

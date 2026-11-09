@@ -8,14 +8,18 @@
 //! into the first paint while the client turns the same tree into the live one.
 
 pub mod chrome;
+pub mod components;
 pub mod icons;
 pub mod lists;
 pub mod media;
+pub mod pages;
 pub mod media_grid;
+pub mod profile;
 pub mod status_body;
 pub mod status_card;
 pub mod status_footer;
 pub mod status_header;
+pub mod thread;
 
 use icons::Icon;
 use leptos::prelude::*;

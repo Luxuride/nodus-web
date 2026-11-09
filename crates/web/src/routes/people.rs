@@ -1,61 +1,30 @@
 //! A paged list of accounts: followers, following, mutes and blocks all look like this.
 //!
-//! One component for four screens because the only differences are which bridge function
-//! runs and which verb the button sends, and both are small enough to pass in.
+//! The list itself is `nodus_view::pages::people`: the empty line, the rows, the paging
+//! control and the error line. What stays here is which page store the list reads, which verb
+//! an undo sends, and where a press on a row goes.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_sdk::Command;
 use nodus_sdk::page::PageKind;
+use nodus_sdk::Command;
+use nodus_view::pages::people::PeoplePage;
 
+use crate::router::{self, Route};
 use crate::state::alive::Alive;
 use crate::state::bridge::{actions, dispatch, pages, revision};
 
-mod row;
+/// The list the view crate draws. Re-exported because the four screens that place one — a
+/// profile's followers and following, the viewer's mutes and blocks — name it themselves.
+pub use nodus_view::pages::people::Kind;
 
-use row::PersonRow;
-
-/// How the list was produced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Kind {
-    /// Who follows an account.
-    Followers,
-    /// Who an account follows.
-    Following,
-    /// Accounts the viewer muted.
-    Mutes,
-    /// Accounts the viewer blocked.
-    Blocks,
-}
-
-impl Kind {
-    /// The heading and the empty text.
-    fn empty(self) -> &'static str {
-        match self {
-            Self::Followers => "No followers yet.",
-            Self::Following => "Not following anyone yet.",
-            Self::Mutes => "Nobody is muted.",
-            Self::Blocks => "Nobody is blocked.",
-        }
-    }
-
-    /// The page store key for this list.
-    fn page(self, id: &str) -> PageKind {
-        match self {
-            Self::Followers => PageKind::Followers(id.to_owned()),
-            Self::Following => PageKind::Following(id.to_owned()),
-            Self::Mutes => PageKind::Mutes,
-            Self::Blocks => PageKind::Blocks,
-        }
-    }
-
-    /// Whether rows carry an undo button.
-    fn undo(self) -> Option<&'static str> {
-        match self {
-            Self::Mutes => Some("Unmute"),
-            Self::Blocks => Some("Unblock"),
-            Self::Followers | Self::Following => None,
-        }
+/// The page store key for a list.
+fn page(kind: Kind, id: &str) -> PageKind {
+    match kind {
+        Kind::Followers => PageKind::Followers(id.to_owned()),
+        Kind::Following => PageKind::Following(id.to_owned()),
+        Kind::Mutes => PageKind::Mutes,
+        Kind::Blocks => PageKind::Blocks,
     }
 }
 
@@ -71,16 +40,16 @@ pub fn PeopleList(
     let revision = revision();
     // Asking the store first is what makes a second visit instant: only a list nothing is
     // held for has any reason to look busy.
-    let (loading, set_loading) = signal(!pages::held(&kind.page(&id)));
+    let (loading, set_loading) = signal(!pages::held(&page(kind, &id)));
     let (error, set_error) = signal(None::<String>);
     let alive = Alive::new();
 
     // `StoredValue` rather than a captured `String`: with only `Copy` captures the
-    // closure below is `Copy` too, so the effect and the "load more" button can share it.
+    // closure below is `Copy` too, so the effect and the paging control can share it.
     let id = StoredValue::new(id);
     let held = move || {
         revision.get();
-        pages::accounts(&kind.page(&id.get_value()))
+        pages::accounts(&page(kind, &id.get_value()))
     };
     let accounts = move || held().map(|(list, _)| list).unwrap_or_default();
     let cursor = move || held().and_then(|(_, cursor)| cursor);
@@ -89,7 +58,7 @@ pub fn PeopleList(
         let id = id.get_value();
 
         spawn_local(async move {
-            let answer = pages::ensure_after(kind.page(&id), after).await;
+            let answer = pages::ensure_after(page(kind, &id), after).await;
             match answer {
                 Ok(_) => alive.if_alive(|| set_loading.set(false)),
                 Err(message) => alive.if_alive(|| {
@@ -102,7 +71,8 @@ pub fn PeopleList(
 
     Effect::new(move |_| load(None));
 
-    let more = move |_| load(cursor());
+    let on_more = Callback::new(move |after: String| load(Some(after)));
+    let on_open = Callback::new(move |who: String| router::navigate(Route::Account(who)));
 
     let undo = Callback::new(move |account_id: String| {
         spawn_local(async move {
@@ -116,7 +86,7 @@ pub fn PeopleList(
                     // The command owns the page, so the row leaves it and every screen
                     // reading that page agrees.
                     dispatch(Command::PageAccountDropped {
-                        kind: kind.page(&id.get_value()),
+                        kind: page(kind, &id.get_value()),
                         account: account_id,
                     });
                 }),
@@ -126,30 +96,15 @@ pub fn PeopleList(
     });
 
     view! {
-        <div class="flex flex-col gap-2">
-            <Show when=move || !loading.get() && accounts().is_empty()>
-                <p class="text-sm opacity-60">{kind.empty()}</p>
-            </Show>
-
-            <ul class="flex flex-col gap-1">
-                <For each=accounts key=|account| account.id.clone() let:account>
-                    <PersonRow account=account label=kind.undo() on_undo=undo/>
-                </For>
-            </ul>
-
-            <Show when=move || cursor().is_some()>
-                <button
-                    class="btn btn-ghost btn-sm w-full"
-                    disabled=move || loading.get()
-                    on:click=more
-                >
-                    "Load more"
-                </button>
-            </Show>
-
-            <Show when=move || error.get().is_some()>
-                <p class="text-error text-xs">{move || error.get().unwrap_or_default()}</p>
-            </Show>
-        </div>
+        <PeoplePage
+            kind=kind
+            accounts=Signal::derive(accounts)
+            loading=loading.into()
+            error=error.into()
+            cursor=Signal::derive(cursor)
+            on_open=on_open
+            on_undo=undo
+            on_more=on_more
+        />
     }
 }

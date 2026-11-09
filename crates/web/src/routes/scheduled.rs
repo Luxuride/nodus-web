@@ -3,17 +3,18 @@
 //! This screen is the queue, not a way to add to it: a post is scheduled from the box
 //! that also holds its text, so there is one place to write and one place to look at what
 //! is waiting. Everything here can do is read the queue and cancel an entry.
-
-mod row;
+//!
+//! The screen is `nodus_view::pages::scheduled`; what stays here is the store read, the
+//! re-read after a cancel, and the client's clock.
 
 use leptos::prelude::*;
-
-use self::row::QueuedRow;
-use crate::state::alive::Alive;
-use crate::state::bridge::{actions, dispatch, pages, revision};
-use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
 use nodus_sdk::page::{PageItems, PageKind};
+use nodus_view::pages::scheduled::ScheduledPage;
+
+use crate::routes::format::relative_time;
+use crate::state::alive::Alive;
+use crate::state::bridge::{actions, dispatch, pages, revision};
 
 /// The queue of posts waiting to be published.
 #[component]
@@ -62,30 +63,19 @@ pub fn Scheduled() -> impl IntoView {
         });
     });
 
+    // The row shows the instance's own stamp next to the age, so the caller hands both: the
+    // page keeps the stamp when it has no clock of its own to lend.
+    let age_of = Callback::new(move |scheduled_at: String| {
+        format!("{scheduled_at} · {}", relative_time(&scheduled_at))
+    });
+
     view! {
-        <nodus_view::Screen>
-            <PageHeader
-                title="Scheduled"
-                description="Posts waiting to be published. Write one from the box above the home timeline."
-            />
-
-            {move || error.get().map(|message| view! {
-                <div class="alert alert-error py-2 text-sm"><span>{message}</span></div>
-            })}
-
-            <Show when=move || loading.get() && items().is_empty()>
-                <p class="text-sm opacity-60">"Loading the queue…"</p>
-            </Show>
-
-            <ul class="flex flex-col divide-y divide-base-300 rounded-box bg-base-100">
-                <For each=items key=|item| item.id.clone() let:item>
-                    <QueuedRow item=item on_cancel=cancel/>
-                </For>
-            </ul>
-
-            <Show when=move || !loading.get() && items().is_empty()>
-                <p class="text-sm opacity-60">"Nothing is waiting."</p>
-            </Show>
-        </nodus_view::Screen>
+        <ScheduledPage
+            items=Signal::derive(items)
+            loading=loading.into()
+            error=error.into()
+            age_of=age_of
+            on_cancel=cancel
+        />
     }
 }

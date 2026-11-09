@@ -2,19 +2,21 @@
 //!
 //! A conversation is a group of accounts and the last status they sent, which is why the
 //! screen shows the last message rather than a message list: opening one is a thread.
-
-mod row;
+//!
+//! The screen is `nodus_view::pages::messages`: the heading, the list container, the empty
+//! line, the paging control and the error line. What stays here is the store read, the two
+//! verbs the instance answers (mark read, mute) and the mute state itself, which the payload
+//! does not carry.
 
 use leptos::prelude::*;
-
-use crate::ui::page::PageHeader;
 use leptos::task::spawn_local;
+use nodus_sdk::page::{PageItems, PageKind};
+use nodus_sdk::Command;
+use nodus_view::pages::messages::MessagesPage;
 
-use self::row::ConversationRow;
+use crate::routes::format::relative_time;
 use crate::state::alive::Alive;
 use crate::state::bridge::{actions, dispatch, pages, revision};
-use nodus_sdk::Command;
-use nodus_sdk::page::{PageItems, PageKind};
 
 /// Mutes or unmutes a conversation, and remembers what was asked for.
 ///
@@ -79,7 +81,7 @@ pub fn Conversations() -> impl IntoView {
     let alive = Alive::new();
 
     // The list lives in the SDK: a visit paints it before any request is made, which is
-    // what removes the "Loading conversations…" frame on a revisit.
+    // what removes the placeholder cards on a revisit.
     let held = move || {
         revision.get();
         pages::items(&PageKind::Conversations, |items| match items {
@@ -109,47 +111,23 @@ pub fn Conversations() -> impl IntoView {
         apply_mute(id, mute_now, set_muted, set_error, alive);
     });
     let on_open = Callback::new(move |id: String| open_conversation(id, alive));
+    let on_more = Callback::new(move |after: String| load(Some(after)));
+    // The row's age is asked for one timestamp at a time, so the page reads the clock
+    // through this call and never on its own.
+    let age_of = Callback::new(move |created_at: String| relative_time(&created_at));
 
     view! {
-        <nodus_view::Screen>
-            <PageHeader title="Messages" description="Direct conversations with other accounts. Opening one marks it read."/>
-
-            // Only before the first answer: a held page renders immediately, and an
-            // empty held page is a fact, not a wait.
-            <Show when=move || loading.get() && items().is_empty()>
-                <p class="text-sm opacity-60">"Loading conversations…"</p>
-            </Show>
-            {move || error.get().map(|message| view! {
-                <div class="alert alert-error py-2 text-sm"><span>{message}</span></div>
-            })}
-
-            <ul class="flex flex-col divide-y divide-base-300 rounded-box bg-base-100">
-                <For each=items key=|item| item.id.clone() let:item>
-                    {
-                        let is_muted = muted.get().contains(&item.id);
-                        view! {
-                            <ConversationRow
-                                item=item
-                                is_muted=is_muted
-                                on_open=on_open
-                                on_mute=on_mute
-                            />
-                        }
-                    }
-                </For>
-            </ul>
-
-            <Show when=move || !loading.get() && items().is_empty() && error.get().is_none()>
-                <p class="text-sm opacity-60">"No conversations yet."</p>
-            </Show>
-            <Show when=move || cursor().is_some()>
-                <button
-                    class="btn btn-sm self-start"
-                    on:click=move |_| load(cursor())
-                >
-                    "Load more"
-                </button>
-            </Show>
-        </nodus_view::Screen>
+        <MessagesPage
+            conversations=Signal::derive(items)
+            muted=muted.into()
+            loading=loading.into()
+            error=error.into()
+            cursor=Signal::derive(cursor)
+            age_of=age_of
+            on_open=on_open
+            on_read=on_open
+            on_mute=on_mute
+            on_more=on_more
+        />
     }
 }

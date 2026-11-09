@@ -333,7 +333,7 @@ fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -
             href=path
             icon=icon
             active=Signal::derive(move || current.get() == marker)
-            on_click=Some(Callback::new(move || router::navigate(target.clone())))
+            on_click=Some(Callback::new(move |()| router::navigate(target.clone())))
         />
     }
 }

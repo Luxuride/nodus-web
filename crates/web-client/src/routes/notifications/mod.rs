@@ -47,15 +47,7 @@ pub fn Notifications() -> impl IntoView {
     let cursor = move || held().and_then(|(_, cursor)| cursor);
 
     Effect::new(move |_| {
-        spawn_local(async move {
-            match pages::ensure(PageKind::Notifications).await {
-                Ok(_) => alive.if_alive(|| set_loading.set(false)),
-                Err(message) => alive.if_alive(|| {
-                    set_error.set(Some(message));
-                    set_loading.set(false);
-                }),
-            }
-        });
+        crate::screen::spawn_with(set_error, set_loading, pages::ensure(PageKind::Notifications), |_| ());
     });
 
     // A request that was just answered must disappear, so the list is re-read rather than

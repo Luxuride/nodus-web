@@ -9,14 +9,12 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 use nodus_sdk::page::{PageItems, PageKind};
 use nodus_view::components::CardRenderer;
 use nodus_view::pages::saved::{SavedPage, Shelf};
 
 use super::status::StatusCard;
 use crate::router::Route;
-use crate::state::alive::Alive;
 use crate::state::bridge::{pages, revision};
 
 /// The page a shelf is read from. The view crate names the shelf; which request answers it is
@@ -54,14 +52,9 @@ pub fn Saved(shelf: String) -> impl IntoView {
     // The busy flag is set from what is held *before* the read starts: a shelf already in the
     // store paints at once, and only an empty one shows the placeholder cards.
     let load = move |which: Shelf, after: Option<String>| {
-        let alive = Alive::new();
         set_loading.set(!pages::held(&kind(which)));
-        set_error.set(None);
-        spawn_local(async move {
-            if let Err(message) = pages::ensure_after(kind(which), after).await {
-                alive.if_alive(|| set_error.set(Some(message)));
-            }
-            alive.if_alive(|| set_loading.set(false));
+        crate::screen::spawn_into(set_error, set_loading, async move {
+            pages::ensure_after(kind(which), after).await.map(|_| ())
         });
     };
     Effect::new(move |_| load(shelf.get_untracked(), None));

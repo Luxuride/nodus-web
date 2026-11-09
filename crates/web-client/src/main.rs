@@ -16,6 +16,7 @@ mod platform;
 mod public;
 mod router;
 mod routes;
+mod screen;
 mod scroll;
 mod shell;
 mod state;

@@ -6,7 +6,7 @@
 
 use leptos::prelude::*;
 
-use crate::router::{Route, link, navigate};
+use crate::router::{Route, navigate};
 use crate::state::alive::Alive;
 use crate::state::bridge;
 use crate::state::oauth;
@@ -52,35 +52,11 @@ pub fn Callback() -> impl IntoView {
 
     view! {
         <nodus_view::Screen width=nodus_view::Width::Narrow>
-            <div class="card border border-base-300 bg-base-100 shadow-sm">
-                <div class="card-body gap-4">
-                    <h1 class="card-title">"Signing in"</h1>
-                    {move || match error.get() {
-                        None => view! {
-                            <div class="flex items-center gap-2 text-sm opacity-70">
-                                <span class="loading loading-spinner loading-xs"></span>
-                                <span>"Finishing the handshake with your instance…"</span>
-                            </div>
-                        }
-                            .into_any(),
-                        Some(message) => view! {
-                            <div class="alert alert-soft alert-error text-sm" role="alert">
-                                <span>{message}</span>
-                            </div>
-                            // "/" is the sign-in screen while signed out, so this is the
-                            // way back to a fresh attempt.
-                            <a
-                                class="btn btn-ghost btn-sm self-start"
-                                href=Route::Feed.path()
-                                on:click=move |event| link(event, Route::Feed)
-                            >
-                                "Back to sign-in"
-                            </a>
-                        }
-                            .into_any(),
-                    }}
-                </div>
-            </div>
+            <nodus_view::pages::signing_in::SigningIn
+                error=error.get()
+                back=Some(Route::Feed.path())
+                on_back=Callback::new(move |()| navigate(Route::Feed))
+            />
         </nodus_view::Screen>
     }
 }

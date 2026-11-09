@@ -33,6 +33,7 @@ pub use saved_shelf as saved;
 #[path = "status/reply_card/mod.rs"]
 pub mod reply_card;
 pub mod scheduled;
+pub mod signing_in;
 pub mod search;
 pub mod settings;
 

@@ -5,3 +5,5 @@
 //! whether the browser or the server paints it.
 
 pub mod posts;
+
+pub mod accounts;

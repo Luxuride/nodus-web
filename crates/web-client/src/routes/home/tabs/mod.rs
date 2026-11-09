@@ -1,55 +1,51 @@
+//! The timelines this reader can read, under the composer.
+//!
+//! The strip itself is shared (`nodus_view::components::timeline_tabs`) so the server
+//! paints the same links the client offers; what stays here is which timelines this
+//! reader turned on, and that a click is a client-side navigation.
+
 use leptos::prelude::*;
+use nodus_view::components::timeline_tabs::{TimelineLink, TimelineTabs};
 
 use crate::router::{self, Route};
 use crate::state::feeds;
 
-/// The timelines this reader can read, under the composer.
-///
-/// These are links, not a tab signal: `/home`, `/feed`, `/local` and `/federated`
-/// are addresses, so a reload keeps the timeline the reader was reading and a
-/// shared link lands on the same one.
+/// The timeline strip.
 #[component]
 pub fn PrimaryTabs() -> impl IntoView {
     let route = router::route();
     let changed = feeds::revision();
 
-    let items = move || {
+    let links = Signal::derive(move || {
         if let Some(changed) = changed {
             changed.get();
         }
-        let mut items: Vec<(Route, &'static str)> = vec![(Route::Home, "Home")];
+        let mut links = vec![link(Route::Home, "Home")];
         if feeds::enabled(feeds::Feed::Recommended) {
-            items.push((Route::Feed, "Feed"));
+            links.push(link(Route::Feed, "Feed"));
         }
         if feeds::enabled(feeds::Feed::Local) {
-            items.push((Route::Local, "Local"));
+            links.push(link(Route::Local, "Local"));
         }
         if feeds::enabled(feeds::Feed::Federated) {
-            items.push((Route::Federated, "Federated"));
+            links.push(link(Route::Federated, "Federated"));
         }
-        items
-    };
+        links
+    });
 
     view! {
-        <div role="tablist" class="tabs tabs-box mb-2 w-full flex-wrap">
-            <For each=items key=|(target, _)| target.path() let:item>
-                {
-                    let (target, label) = item;
-                    let active = target.clone();
-                    let click = target.clone();
-                    view! {
-                        <a
-                            role="tab"
-                            class="tab"
-                            href=target.path()
-                            class:tab-active=move || route.get() == active
-                            on:click=move |event| router::link(event, click.clone())
-                        >
-                            {label}
-                        </a>
-                    }
-                }
-            </For>
-        </div>
+        <TimelineTabs
+            active=Signal::derive(move || route.get().path())
+            links=links
+            on_navigate=Callback::new(|path: String| router::navigate(Route::from_path(&path)))
+        />
+    }
+}
+
+/// One timeline as the shared strip wants it.
+fn link(route: Route, label: &str) -> TimelineLink {
+    TimelineLink {
+        label: label.to_owned(),
+        href: route.path(),
     }
 }

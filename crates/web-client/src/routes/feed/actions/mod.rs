@@ -9,7 +9,6 @@ use std::time::Duration;
 
 use leptos::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::MouseEvent;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{follow_item, not_interested, unfollow_item, with_sdk};
@@ -18,10 +17,10 @@ use super::share::{ShareReport, TOAST_MILLIS, copy_profile_link};
 
 /// The click handlers a card wires into its buttons.
 pub(super) struct ItemActions {
-    pub follow: Box<dyn FnMut(MouseEvent) + 'static>,
-    pub unfollow: Box<dyn FnMut(MouseEvent) + 'static>,
-    pub not_interested: Box<dyn FnMut(MouseEvent) + 'static>,
-    pub copy: Box<dyn FnMut(MouseEvent) + 'static>,
+    pub follow: Box<dyn Fn() + Send + Sync + 'static>,
+    pub unfollow: Box<dyn Fn() + Send + Sync + 'static>,
+    pub not_interested: Box<dyn Fn() + Send + Sync + 'static>,
+    pub copy: Box<dyn Fn() + Send + Sync + 'static>,
 }
 
 /// Builds the handlers for one item.
@@ -45,7 +44,7 @@ pub(super) fn item_actions(
 ) -> ItemActions {
     let follow = {
         let account_id = account_id.clone();
-        Box::new(move |_| {
+        Box::new(move || {
             if busy.get_untracked() {
                 return;
             }
@@ -60,12 +59,12 @@ pub(super) fn item_actions(
                     alive.if_alive(|| error.set(Some(message)));
                 }
             });
-        }) as Box<dyn FnMut(MouseEvent)>
+        }) as Box<dyn Fn() + Send + Sync>
     };
 
     let unfollow = {
         let account_id = account_id.clone();
-        Box::new(move |_| {
+        Box::new(move || {
             if busy.get_untracked() {
                 return;
             }
@@ -79,10 +78,10 @@ pub(super) fn item_actions(
                 unfollow_item(account_id).await;
                 alive.if_alive(|| busy.set(false));
             });
-        }) as Box<dyn FnMut(MouseEvent)>
+        }) as Box<dyn Fn() + Send + Sync>
     };
 
-    let not_interested = Box::new(move |_| {
+    let not_interested = Box::new(move || {
         if busy.get_untracked() {
             return;
         }
@@ -96,9 +95,9 @@ pub(super) fn item_actions(
                 alive.if_alive(|| error.set(Some(message)));
             }
         });
-    }) as Box<dyn FnMut(MouseEvent)>;
+    }) as Box<dyn Fn() + Send + Sync>;
 
-    let copy = Box::new(move |_| {
+    let copy = Box::new(move || {
         toast.set(None);
         let acct = acct.clone();
         // Read at click time, not at render time: the session may have finished
@@ -137,7 +136,7 @@ pub(super) fn item_actions(
                 Duration::from_millis(TOAST_MILLIS),
             );
         });
-    }) as Box<dyn FnMut(MouseEvent)>;
+    }) as Box<dyn Fn() + Send + Sync>;
 
     ItemActions {
         follow,

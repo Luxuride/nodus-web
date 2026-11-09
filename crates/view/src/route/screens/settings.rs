@@ -8,6 +8,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use nodus_instance::model::InstanceInfo;
 use nodus_state::page::{PageEntry, PageItems, PageKind};
+use nodus_web::shared::router::Route;
 
 use crate::pages::settings::account::{AccountItem, AccountsCard, ModerationLinks, SessionCard};
 use crate::pages::settings::feeds::{FeedItem, FeedsCard};
@@ -91,9 +92,14 @@ pub fn SettingsScreen(runtime: Arc<dyn Runtime>, section: SettingsSection) -> im
     let no_error = Signal::derive(|| None::<String>);
     let idle = Signal::derive(|| false);
 
+    let navigator = Arc::clone(&runtime);
+    let on_navigate = Some(Callback::new(move |next: SettingsSection| {
+        navigator.navigate(Route::Settings(next.slug().to_owned()).path());
+    }));
+
     if let Some(body) = runtime.settings_body(section) {
         return view! {
-            <SettingsPage section=Signal::derive(move || section) on_navigate=None>
+            <SettingsPage section=Signal::derive(move || section) on_navigate=on_navigate>
                 {let body = body.clone(); move || body()}
             </SettingsPage>
         }
@@ -101,7 +107,7 @@ pub fn SettingsScreen(runtime: Arc<dyn Runtime>, section: SettingsSection) -> im
     }
 
     view! {
-        <SettingsPage section=Signal::derive(move || section) on_navigate=None>
+        <SettingsPage section=Signal::derive(move || section) on_navigate=on_navigate>
             {move || match section {
                 SettingsSection::Account => view! {
                     <div class="flex flex-col gap-4">

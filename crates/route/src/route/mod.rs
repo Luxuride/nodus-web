@@ -343,6 +343,11 @@ pub trait Runtime: Send + Sync + 'static {
         None
     }
 
+    /// A route body only the browser can build: the editor, the staff probe.
+    fn body(&self, _route: &Route) -> Option<ChildrenFn> {
+        None
+    }
+
     /// The clock both paints use for post ages.
     fn now_millis(&self) -> f64;
 

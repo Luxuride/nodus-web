@@ -6,7 +6,6 @@
 
 use crate::router::{self, Route};
 use crate::routes::callback::Callback;
-use crate::routes::compose::{Compose, ComposeEdit};
 use crate::routes::home::Home;
 use crate::routes::sign_in::SignIn;
 use crate::shell;
@@ -132,10 +131,22 @@ pub(crate) fn App() -> impl IntoView {
                                 />
                             }
                             .into_any(),
-                            Route::Compose if signed_in => view! { <Compose/> }.into_any(),
-                            Route::ComposeEdit(id) if signed_in => {
-                                view! { <ComposeEdit id=id/> }.into_any()
+                            Route::Compose if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Compose
+                                    card=card.clone()
+                                />
                             }
+                            .into_any(),
+                            Route::ComposeEdit(id) if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::ComposeEdit(id)
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
                             Route::Mutes if signed_in => view! {
                                 <RouteView
                                     runtime=crate::state::runtime::runtime()
@@ -160,41 +171,22 @@ pub(crate) fn App() -> impl IntoView {
                                 />
                             }
                             .into_any(),
-                            Route::Moderation(section) if signed_in => {
-                                #[cfg(feature = "admin")]
-                                {
-                                    view! { <crate::routes::moderation::Moderation section=section/> }
-                                        .into_any()
-                                }
-                                #[cfg(not(feature = "admin"))]
-                                {
-                                    let _ = &section;
-                                    view! {
-                                        <nodus_ui::Note>
-                                            "This build has no moderation screens."
-                                        </nodus_ui::Note>
-                                    }
-                                    .into_any()
-                                }
+                            Route::Moderation(section) if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Moderation(section)
+                                    card=card.clone()
+                                />
                             }
-                            Route::Admin(section) if signed_in => {
-                                #[cfg(feature = "admin")]
-                                {
-                                    view! { <crate::routes::admin::Admin section=section/> }.into_any()
-                                }
-                                #[cfg(not(feature = "admin"))]
-                                {
-                                    let _ = &section;
-                                    view! {
-                                        <nodus_ui::Note>
-                                            "This build has no moderation screens. A moderator build "
-                                            "is " <code>"trunk build --release --features admin"</code>
-                                            "."
-                                        </nodus_ui::Note>
-                                    }
-                                    .into_any()
-                                }
+                            .into_any(),
+                            Route::Admin(section) if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Admin(section)
+                                    card=card.clone()
+                                />
                             }
+                            .into_any(),
                             Route::Settings(section) if signed_in => view! {
                                 <nodus_route::route::RouteView
                                     runtime=crate::state::runtime::runtime()
@@ -324,8 +316,6 @@ fn extra_doors() -> Option<nodus_ui::ExtraDoors> {
 fn extra_doors() -> Option<nodus_ui::ExtraDoors> {
     None
 }
-
-/// The foot of every screen now lives in `nodus_ui`, so the server paints it too.
 
 /// One entry in the rail: the class that marks the current screen, and a click that
 /// keeps the address bar in step without a full page load.

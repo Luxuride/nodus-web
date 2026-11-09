@@ -10,6 +10,7 @@ use leptos::task::spawn_local;
 use nodus_instance::model::{Account, Context, Relationship, Status};
 use nodus_sdk::page::{PageEntry, PageKind};
 use nodus_sdk::{Command, Timeline};
+use nodus_web::shared::router::Route;
 use nodus_shared::{AccountItem, PostItem};
 use nodus_pages::pages::settings::nav::SettingsSection;
 use nodus_route::route::{
@@ -352,6 +353,36 @@ impl Runtime for ClientRuntime {
             }
             done.run(result);
         });
+    }
+
+    fn body(&self, route: &Route) -> Option<ChildrenFn> {
+        match route {
+            Route::Compose => Some(Arc::new(|| {
+                view! { <crate::routes::compose::Compose/> }.into_any()
+            })),
+            Route::ComposeEdit(id) => {
+                let id = id.clone();
+                Some(Arc::new(move || {
+                    view! { <crate::routes::compose::ComposeEdit id=id.clone()/> }.into_any()
+                }))
+            }
+            #[cfg(feature = "admin")]
+            Route::Admin(section) => {
+                let section = section.clone();
+                Some(Arc::new(move || {
+                    view! { <crate::routes::admin::Admin section=section.clone()/> }.into_any()
+                }))
+            }
+            #[cfg(feature = "admin")]
+            Route::Moderation(section) => {
+                let section = section.clone();
+                Some(Arc::new(move || {
+                    view! { <crate::routes::moderation::Moderation section=section.clone()/> }
+                        .into_any()
+                }))
+            }
+            _ => None,
+        }
     }
 
     fn settings_body(&self, section: SettingsSection) -> Option<ChildrenFn> {

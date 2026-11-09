@@ -26,6 +26,23 @@ pub struct StaticRuntime {
 }
 
 impl StaticRuntime {
+    /// A runtime with no prefetched answers: every read is the screen's own unavailable state.
+    #[must_use]
+    pub fn empty() -> Arc<dyn Runtime> {
+        Arc::new(Self {
+            statuses: Vec::new(),
+            cursor: None,
+            pages: HashMap::new(),
+            query: HashMap::new(),
+            statuses_by_id: HashMap::new(),
+            contexts: HashMap::new(),
+            accounts: HashMap::new(),
+            relationships: HashMap::new(),
+            profile_statuses: None,
+            lists: None,
+        })
+    }
+
     /// A runtime that can paint exactly this page.
     #[must_use]
     pub fn page(statuses: Vec<Status>, cursor: Option<String>) -> Arc<dyn Runtime> {

@@ -17,7 +17,10 @@ use crate::components::CardRenderer;
 
 pub mod screens;
 use screens::account::AccountScreen;
+use screens::admin::{AdminScreen, ModerationScreen};
+use screens::compose::ComposeScreen;
 use screens::directory::DirectoryScreen;
+use screens::feed::FeedScreen;
 use screens::lists::ListsScreen;
 use screens::messages::MessagesScreen;
 use screens::notifications::NotificationsScreen;
@@ -25,6 +28,7 @@ use screens::people::PeopleList;
 use screens::saved::SavedScreen;
 use screens::scheduled::ScheduledScreen;
 use screens::search::SearchScreen;
+use screens::settings::SettingsScreen;
 use screens::thread::ThreadScreen;
 
 /// Which timeline a route asks for.
@@ -346,7 +350,33 @@ pub fn RouteView(
             <PeopleList runtime id=String::new() kind=crate::pages::people::Kind::Blocks/>
         }
         .into_any(),
-        other => {
+        Route::Feed => view! {
+            <FeedScreen runtime card/>
+        }
+        .into_any(),
+        Route::Compose | Route::ComposeEdit(_) => {
+            let edit = match route {
+                Route::ComposeEdit(id) => Some(id),
+                _ => None,
+            };
+            view! {
+                <ComposeScreen runtime edit/>
+            }
+            .into_any()
+        }
+        Route::Settings(section) => view! {
+            <SettingsScreen runtime section=crate::pages::settings::nav::SettingsSection::of(&section)/>
+        }
+        .into_any(),
+        Route::Admin(section) => view! {
+            <AdminScreen runtime section/>
+        }
+        .into_any(),
+        Route::Moderation(section) => view! {
+            <ModerationScreen runtime section/>
+        }
+        .into_any(),
+        other @ Route::OauthCallback => {
             let path = other.path();
             view! {
                 <crate::Screen>

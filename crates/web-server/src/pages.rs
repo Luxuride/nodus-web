@@ -405,6 +405,25 @@ pub(crate) fn percent_decode(value: &str) -> String {
     String::from_utf8_lossy(&decoded).into_owned()
 }
 
+/// The last route seam: any path the data readers did not claim is drawn by the same
+/// `RouteView` the browser will mount, with no prefetched answers.
+pub fn render_unclaimed(assets: &document::Assets, acct: &str, path: &str) -> String {
+    let route = Route::from_path(path);
+    let title = Screen::of_path(path)
+        .map(|screen| screen.title.to_owned())
+        .unwrap_or_else(|| "Nodus".to_owned());
+    let inner = painted(|| {
+        nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
+            runtime: StaticRuntime::empty(),
+            route,
+            card: card(),
+            header: None,
+            banner: None,
+        })
+    });
+    document::page_of(assets, acct, path, title.as_str(), &inner, None)
+}
+
 #[cfg(test)]
 mod painting {
     use leptos::prelude::{ElementChild as _, Get as _};
@@ -432,3 +451,4 @@ mod painting {
         assert!(html.contains("<li>1</li>"), "{html}");
     }
 }
+

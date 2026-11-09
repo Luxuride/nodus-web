@@ -25,6 +25,7 @@ pub use components::notification_card::*;
 pub use components::page_header::*;
 pub use components::rail::*;
 pub use components::screen::*;
+pub use components::shell::*;
 pub use components::status::body as status_body;
 pub use components::status::card as status_card;
 pub use components::status::footer as status_footer;

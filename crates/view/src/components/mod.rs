@@ -18,6 +18,7 @@ pub mod panel;
 pub mod props;
 pub mod rail;
 pub mod screen;
+pub mod shell;
 pub mod status;
 pub mod timeline_tabs;
 

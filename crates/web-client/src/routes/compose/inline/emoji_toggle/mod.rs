@@ -88,7 +88,10 @@ pub(super) fn EmojiToggle(
             />
             // Absolutely positioned so opening the picker does not push the bar taller and
             // move the button the writer just pressed.
-            <crate::ui::editor::EmojiPanel open=open/>
+            <nodus_editor::EmojiPanel
+                open=open
+                catalogue=crate::routes::compose::inline::emoji::catalogue()
+            />
         </nodus_ui::Anchor>
     }
 }

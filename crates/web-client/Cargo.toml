@@ -33,6 +33,7 @@ nodus-web = { path = "../web-shared" }
 nodus-ui = { path = "../ui" }
 nodus-pages = { path = "../pages" }
 nodus-route = { path = "../route" }
+nodus-editor = { path = "../editor" }
 leptos = { version = "0.8.23", features = ["csr"] }
 nodus-shared = { workspace = true }
 nodus-sdk = { workspace = true }

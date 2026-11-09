@@ -4,6 +4,7 @@ members = [
     "crates/ui",
     "crates/pages",
     "crates/route",
+    "crates/editor",
     "crates/web-shared",
     # One package per artifact, so a workspace build never enables both paints at once.
     "crates/web-client",

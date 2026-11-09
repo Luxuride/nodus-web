@@ -114,7 +114,7 @@ pub fn InlineComposer(
             />
             <DraftsPanel open=draft_token insert=resume/>
             <nodus_ui::Relative>
-                <crate::ui::editor::RichEditor
+                <nodus_editor::RichEditor
                     text=draft.text.read_only()
                     set_text=draft.text.write_only()
                     emoji=emoji_catalogue
@@ -290,7 +290,7 @@ struct Draft {
     /// Empty means "let the instance guess".
     language: RwSignal<String>,
     /// The `:token` the editor is completing, mirrored here so the hint list is daisyUI's.
-    emoji_query: RwSignal<Option<crate::ui::editor::EmojiQuery>>,
+    emoji_query: RwSignal<Option<nodus_editor::EmojiQuery>>,
     /// What the last successful post went out as: visibility and language, shown in the
     /// pickers' own style so the confirmation reads as the same choice, not a second claim.
     done: RwSignal<Option<(Visibility, String)>>,
@@ -530,12 +530,12 @@ fn focus_textarea() {
 /// dismisses); the list and its rows are shared, because the inline box and the full
 /// composer show the same hints.
 #[component]
-fn EmojiHints(query: ReadSignal<Option<crate::ui::editor::EmojiQuery>>) -> impl IntoView {
+fn EmojiHints(query: ReadSignal<Option<nodus_editor::EmojiQuery>>) -> impl IntoView {
     view! {
         <nodus_pages::pages::compose::inline::hints::EmojiHints
             value=Signal::derive(move || query.get())
             on_accept=Some(Callback::new(move |code: String| {
-                let _ = crate::ui::editor::accept_active(&code);
+                let _ = nodus_editor::accept_active(&code);
             }))
         />
     }

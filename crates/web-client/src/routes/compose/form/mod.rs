@@ -195,11 +195,11 @@ fn Body(
     text: ReadSignal<String>,
     set_text: WriteSignal<String>,
     submit: Callback<()>,
-    query: RwSignal<Option<crate::ui::editor::EmojiQuery>>,
+    query: RwSignal<Option<nodus_editor::EmojiQuery>>,
 ) -> impl IntoView {
     view! {
         <nodus_ui::FieldBox>
-            <crate::ui::editor::RichEditor
+            <nodus_editor::RichEditor
                 text=text
                 set_text=set_text
                 emoji=super::inline::emoji::catalogue()

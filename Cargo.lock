@@ -1451,6 +1451,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nodus-editor"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "leptos",
+ "nodus-instance",
+ "nodus-pages",
+ "nodus-ui",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "nodus-instance"
 version = "0.1.0"
 dependencies = [
@@ -1574,6 +1588,7 @@ dependencies = [
  "js-sys",
  "leptos",
  "nodus-discovery",
+ "nodus-editor",
  "nodus-instance",
  "nodus-pages",
  "nodus-route",

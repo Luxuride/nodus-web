@@ -4,5 +4,4 @@
 //! server's first paint and the mounted client cannot spell the same icon two ways.
 
 pub mod drafts;
-pub mod editor;
 pub mod language;

@@ -352,6 +352,8 @@ fn when_ready(
 pub fn EmojiPanel(
     /// Whether the panel is showing; the button that opens it owns the toggle.
     open: ReadSignal<bool>,
+    /// The instance's emoji, so the picker offers what this server can render.
+    catalogue: ReadSignal<Vec<CustomEmoji>>,
 ) -> impl IntoView {
     let host = NodeRef::<leptos::html::Div>::new();
     let mounted = StoredValue::new(false);
@@ -377,7 +379,7 @@ pub fn EmojiPanel(
         mounted.set_value(true);
 
         let target: web_sys::Element = node.unchecked_into();
-        let catalogue = crate::routes::compose::inline::emoji::catalogue().get_untracked();
+        let catalogue = catalogue.get_untracked();
 
         let on_pick = Closure::<dyn FnMut(String)>::new(move |text: String| {
             // A unicode emoji is text; a `:shortcode:` becomes an atom inside the editor.

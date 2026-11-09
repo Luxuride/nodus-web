@@ -11,7 +11,6 @@ use crate::routes::feed::Feed;
 use crate::routes::home::Home;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
-use crate::routes::status::PublicThread;
 use crate::shell;
 use crate::state::bridge::{init, revision, with_sdk};
 
@@ -276,7 +275,13 @@ pub(crate) fn App() -> impl IntoView {
                                 } else {
                                     host
                                 };
-                                view! { <PublicThread host=host id=id/> }.into_any()
+                                view! {
+                                    <nodus_view::route::RouteView
+                                        runtime=crate::state::runtime::runtime()
+                                        route=Route::Thread { host, id }
+                                        card=card.clone()
+                                    />
+                                }.into_any()
                             }
                             Route::Account(_) => {
                                 view! { <SignIn note="Sign in to read this."/> }.into_any()

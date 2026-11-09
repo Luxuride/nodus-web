@@ -9,7 +9,7 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use nodus_instance::model::{Account, Context, List, Relationship, Status};
 use nodus_state::page::{PageEntry, PageKind};
-use nodus_view::route::{Runtime, TimelineKind, TimelineReply};
+use nodus_view::route::{Runtime, SessionView, TimelineKind, TimelineReply};
 
 /// One prefetched timeline page.
 pub struct StaticRuntime {
@@ -23,12 +23,14 @@ pub struct StaticRuntime {
     relationships: HashMap<String, Relationship>,
     profile_statuses: Option<(Vec<Status>, Option<String>)>,
     lists: Option<Vec<List>>,
+    session: Option<SessionView>,
 }
 
 impl StaticRuntime {
-    /// A runtime with no prefetched answers: every read is the screen's own unavailable state.
+    /// A runtime with the signed-in reader and no prefetched reads.
     #[must_use]
-    pub fn empty() -> Arc<dyn Runtime> {
+    pub fn signed_in(acct: &str) -> Arc<dyn Runtime> {
+        let host = acct.rsplit_once('@').map_or("", |(_, host)| host);
         Arc::new(Self {
             statuses: Vec::new(),
             cursor: None,
@@ -40,6 +42,11 @@ impl StaticRuntime {
             relationships: HashMap::new(),
             profile_statuses: None,
             lists: None,
+            session: Some(SessionView {
+                host: host.to_owned(),
+                account_id: String::new(),
+                acct: acct.to_owned(),
+            }),
         })
     }
 
@@ -57,6 +64,7 @@ impl StaticRuntime {
             relationships: HashMap::new(),
             profile_statuses: None,
             lists: None,
+            session: None,
         })
     }
 
@@ -74,6 +82,7 @@ impl StaticRuntime {
             relationships: HashMap::new(),
             profile_statuses: None,
             lists: None,
+            session: None,
         })
     }
 
@@ -94,6 +103,7 @@ impl StaticRuntime {
             relationships: HashMap::new(),
             profile_statuses: None,
             lists: None,
+            session: None,
         })
     }
 
@@ -112,6 +122,7 @@ impl StaticRuntime {
             relationships: HashMap::new(),
             profile_statuses: None,
             lists: None,
+            session: None,
         })
     }
 
@@ -137,6 +148,7 @@ impl StaticRuntime {
             accounts: HashMap::from([(account.id.clone(), account)]),
             profile_statuses: Some((statuses, cursor)),
             lists: None,
+            session: None,
         })
     }
 
@@ -154,6 +166,7 @@ impl StaticRuntime {
             relationships: HashMap::new(),
             profile_statuses: None,
             lists: Some(lists),
+            session: None,
         })
     }
 }
@@ -190,6 +203,10 @@ impl Runtime for StaticRuntime {
 
     fn lists(&self) -> Option<Vec<List>> {
         self.lists.clone()
+    }
+
+    fn session(&self) -> Option<SessionView> {
+        self.session.clone()
     }
 
     fn page(&self, kind: &PageKind) -> Option<PageEntry> {

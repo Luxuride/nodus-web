@@ -89,6 +89,28 @@ impl Runtime for ClientRuntime {
         });
     }
 
+    fn load_public_thread(
+        &self,
+        host: String,
+        id: String,
+        status: Callback<Result<Status, String>>,
+        context: Callback<Result<Context, String>>,
+    ) {
+        let for_status = (host.clone(), id.clone());
+        spawn_local(async move {
+            let result = crate::public::status(&for_status.0, &for_status.1)
+                .await
+                .map_err(|failure| failure.message());
+            status.run(result);
+        });
+        spawn_local(async move {
+            let result = crate::public::context(&host, &id)
+                .await
+                .map_err(|failure| failure.message());
+            context.run(result);
+        });
+    }
+
     fn load_profile(
         &self,
         id: String,

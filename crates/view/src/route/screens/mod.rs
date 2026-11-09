@@ -1,4 +1,7 @@
-#![expect(clippy::needless_pass_by_value, reason = "Leptos components receive their props by value")]
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos components receive their props by value"
+)]
 
 //! Route bodies shared by both paints.
 

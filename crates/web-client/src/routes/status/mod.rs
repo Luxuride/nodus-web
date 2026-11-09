@@ -10,14 +10,12 @@ use std::sync::Arc;
 use leptos::prelude::*;
 
 use nodus_instance::model::Status;
-pub use public::PublicThread;
 
 use crate::router::{self, Route};
 
 mod body;
 mod footer;
 mod menu;
-mod public;
 pub(crate) mod sensitive;
 mod share;
 

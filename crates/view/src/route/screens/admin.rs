@@ -17,9 +17,8 @@ use crate::route::Runtime;
 pub fn AdminScreen(runtime: Arc<dyn Runtime>, section: String) -> impl IntoView {
     let _ = &runtime;
     let standing = Signal::derive(|| None::<StaffStanding>);
-    let missing: ChildrenFn = Arc::new(|| {
-        view! { <Note>"The staff tools need the app."</Note> }.into_any()
-    });
+    let missing: ChildrenFn =
+        Arc::new(|| view! { <Note>"The staff tools need the app."</Note> }.into_any());
     view! {
         <AdminPage active=section standing=standing>{missing()}</AdminPage>
     }
@@ -29,9 +28,8 @@ pub fn AdminScreen(runtime: Arc<dyn Runtime>, section: String) -> impl IntoView 
 pub fn ModerationScreen(runtime: Arc<dyn Runtime>, section: String) -> impl IntoView {
     let _ = &runtime;
     let standing = Signal::derive(|| None::<StaffStanding>);
-    let missing: ChildrenFn = Arc::new(|| {
-        view! { <Note>"The moderation tools need the app."</Note> }.into_any()
-    });
+    let missing: ChildrenFn =
+        Arc::new(|| view! { <Note>"The moderation tools need the app."</Note> }.into_any());
     view! {
         <ModerationPage active=section standing=standing>{missing()}</ModerationPage>
     }

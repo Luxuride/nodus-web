@@ -216,9 +216,11 @@ pub fn ListsScreen(runtime: Arc<dyn Runtime>, card: CardRenderer) -> impl IntoVi
     let (timeline_error, set_timeline_error) = signal(None::<String>);
     let snapshot = Signal::derive(move || {
         runtime.get_value().revision().get();
-        selected.get().map_or_else(TimelineReply::unavailable, |id| {
-            runtime.get_value().timeline(&TimelineKind::List(id))
-        })
+        selected
+            .get()
+            .map_or_else(TimelineReply::unavailable, |id| {
+                runtime.get_value().timeline(&TimelineKind::List(id))
+            })
     });
     let statuses = Signal::derive(move || snapshot.get().items);
     let cursor = Signal::derive(move || snapshot.get().cursor);

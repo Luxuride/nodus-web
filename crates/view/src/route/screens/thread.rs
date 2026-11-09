@@ -12,7 +12,35 @@ use crate::relative_age;
 use super::super::{Action, ActionResult, Runtime};
 
 #[component]
-pub fn ThreadScreen(runtime: Arc<dyn Runtime>, id: String, card: CardRenderer) -> impl IntoView {
+#[expect(
+    clippy::too_many_lines,
+    reason = "the anonymous and signed-in reads share one body"
+)]
+pub fn ThreadScreen(
+    runtime: Arc<dyn Runtime>,
+    host: String,
+    id: String,
+    card: CardRenderer,
+) -> AnyView {
+    if host.trim().is_empty() {
+        let typed = RwSignal::new(String::new());
+        let target = id.clone();
+        return view! {
+            <crate::pages::status::public::HostForm
+                typed=Signal::derive(move || typed.get())
+                on_input=Callback::new(move |value: String| typed.set(value))
+                on_read=Callback::new(move |()| {
+                    let host = typed.get_untracked().trim().to_owned();
+                    if host.is_empty() {
+                        return;
+                    }
+                    runtime.navigate(format!("/status/{host}/{target}"));
+                })
+            />
+        }
+        .into_any();
+    }
+
     let status = RwSignal::new(runtime.status(&id));
     let ancestors = RwSignal::new(
         runtime
@@ -30,6 +58,7 @@ pub fn ThreadScreen(runtime: Arc<dyn Runtime>, id: String, card: CardRenderer) -
     let alive = crate::Alive::new();
 
     let load_id = id.clone();
+    let load_host = host.clone();
     let load_status = {
         let runtime = Arc::clone(&runtime);
         Callback::new(move |()| {
@@ -52,7 +81,16 @@ pub fn ThreadScreen(runtime: Arc<dyn Runtime>, id: String, card: CardRenderer) -
                     Err(message) => error.set(Some(message)),
                 });
             });
-            runtime.load_thread(load_id.clone(), status_done, context_done);
+            if load_host.is_empty() {
+                runtime.load_thread(load_id.clone(), status_done, context_done);
+            } else {
+                runtime.load_public_thread(
+                    load_host.clone(),
+                    load_id.clone(),
+                    status_done,
+                    context_done,
+                );
+            }
         })
     };
     Effect::new(move |_| load_status.run(()));
@@ -110,6 +148,7 @@ pub fn ThreadScreen(runtime: Arc<dyn Runtime>, id: String, card: CardRenderer) -
             }}
         </Show>
     }
+    .into_any()
 }
 
 #[component]

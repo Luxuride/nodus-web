@@ -414,7 +414,7 @@ pub fn render_unclaimed(assets: &document::Assets, acct: &str, path: &str) -> St
         .unwrap_or_else(|| "Nodus".to_owned());
     let inner = painted(|| {
         nodus_view::route::RouteView(nodus_view::route::RouteViewProps {
-            runtime: StaticRuntime::empty(),
+            runtime: StaticRuntime::signed_in(acct),
             route,
             card: card(),
             header: None,
@@ -451,4 +451,3 @@ mod painting {
         assert!(html.contains("<li>1</li>"), "{html}");
     }
 }
-

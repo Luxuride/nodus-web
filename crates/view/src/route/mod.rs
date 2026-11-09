@@ -212,6 +212,19 @@ pub trait Runtime: Send + Sync + 'static {
     ) {
     }
 
+    /// Loads a post from a host that has no session, for a shared link.
+    fn load_public_thread(
+        &self,
+        _host: String,
+        _id: String,
+        status: Callback<Result<Status, String>>,
+        context: Callback<Result<Context, String>>,
+    ) {
+        let message = "This post needs a host that can be read.".to_owned();
+        status.run(Err(message.clone()));
+        context.run(Err(message));
+    }
+
     /// Loads a profile and the relationship that decides its verbs.
     fn load_profile(
         &self,
@@ -330,8 +343,8 @@ pub fn RouteView(
             <SearchScreen runtime card/>
         }
         .into_any(),
-        Route::Thread { id, .. } => view! {
-            <ThreadScreen runtime id card/>
+        Route::Thread { host, id } => view! {
+            <ThreadScreen runtime host id card/>
         }
         .into_any(),
         Route::Account(id) => view! {

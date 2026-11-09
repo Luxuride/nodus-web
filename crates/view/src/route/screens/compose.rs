@@ -14,9 +14,7 @@ use crate::route::Runtime;
 
 #[component]
 pub fn ComposeScreen(runtime: Arc<dyn Runtime>, edit: Option<String>) -> impl IntoView {
-    let status = edit
-        .as_ref()
-        .and_then(|id| runtime.status(id));
+    let status = edit.as_ref().and_then(|id| runtime.status(id));
     let error = Signal::derive(|| None::<String>);
 
     let body: ChildrenFn = Arc::new(|| {
@@ -31,9 +29,8 @@ pub fn ComposeScreen(runtime: Arc<dyn Runtime>, edit: Option<String>) -> impl In
         }
         .into_any()
     });
-    let controls: ChildrenFn = Arc::new(|| {
-        view! { <Note>"The editor needs the app."</Note> }.into_any()
-    });
+    let controls: ChildrenFn =
+        Arc::new(|| view! { <Note>"The editor needs the app."</Note> }.into_any());
 
     match (edit, status) {
         (Some(_), None) => view! { <ComposeLoading error=error/> }.into_any(),

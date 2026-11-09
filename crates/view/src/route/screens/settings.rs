@@ -57,7 +57,10 @@ fn tags(entry: Option<PageEntry>) -> Signal<Vec<TagItem>> {
 }
 
 #[component]
-#[expect(clippy::too_many_lines, reason = "one section switch is clearer together")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one section switch is clearer together"
+)]
 pub fn SettingsScreen(runtime: Arc<dyn Runtime>, section: SettingsSection) -> impl IntoView {
     let current = StoredValue::new(runtime.session());
     let host = Signal::derive(move || {
@@ -69,14 +72,12 @@ pub fn SettingsScreen(runtime: Arc<dyn Runtime>, section: SettingsSection) -> im
     let accounts = Signal::derive(move || {
         current
             .with_value(|current| {
-                current
-                    .as_ref()
-                    .map(|session| AccountItem {
-                        key: session.account_id.clone(),
-                        label: session.acct.clone(),
-                        host: session.host.clone(),
-                        current: true,
-                    })
+                current.as_ref().map(|session| AccountItem {
+                    key: session.account_id.clone(),
+                    label: session.acct.clone(),
+                    host: session.host.clone(),
+                    current: true,
+                })
             })
             .into_iter()
             .collect()

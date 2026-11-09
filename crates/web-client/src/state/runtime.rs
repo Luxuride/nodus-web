@@ -10,9 +10,16 @@ use leptos::task::spawn_local;
 use nodus_instance::model::{Account, Context, Relationship, Status};
 use nodus_sdk::page::{PageEntry, PageKind};
 use nodus_sdk::{Command, Timeline};
-use nodus_view::route::{Action, ActionResult, Runtime, SessionView, TimelineKind, TimelineReply};
+use nodus_shared::{AccountItem, PostItem};
+use nodus_view::route::{
+    Action, ActionResult, FeedKind, FeedPeopleView, FeedPostsView, Runtime, SessionView,
+    TimelineKind, TimelineReply,
+};
 
-use crate::state::bridge::{actions, dispatch, pages, revision, timeline, with_sdk};
+use crate::state::bridge::{
+    actions, dispatch, feed_ui, load_posts_once, pages, posts_ui, reload_feed, reload_posts,
+    revision, timeline, with_sdk,
+};
 
 /// The live runtime both a signed-in and a signed-out tree use.
 pub fn runtime() -> Arc<dyn Runtime> {
@@ -87,6 +94,82 @@ impl Runtime for ClientRuntime {
             }
             context.run(result);
         });
+    }
+
+    fn feed_people(&self) -> FeedPeopleView {
+        let revision = revision();
+        let ui = feed_ui();
+        with_sdk(|sdk| {
+            revision.get();
+            let state = sdk.state().feed.get();
+            FeedPeopleView {
+                items: state.visible().cloned().collect(),
+                degraded: state
+                    .degraded
+                    .first()
+                    .map(|flag| crate::routes::feed::degraded_line(*flag).to_owned()),
+                cursor: state.next_cursor,
+                error: ui.error.get(),
+                refreshing: ui.refreshing.get(),
+            }
+        })
+    }
+
+    fn feed_posts(&self) -> FeedPostsView {
+        let revision = revision();
+        let ui = posts_ui();
+        with_sdk(|sdk| {
+            revision.get();
+            let state = sdk.state().posts.get();
+            FeedPostsView {
+                items: state.items,
+                cursor: state.next_cursor,
+                error: ui.error.get(),
+                refreshing: ui.refreshing.get(),
+            }
+        })
+    }
+
+    fn load_feed(
+        &self,
+        kind: FeedKind,
+        cursor: Option<String>,
+        done: Callback<Result<(), String>>,
+    ) {
+        match kind {
+            FeedKind::People => {
+                reload_feed(cursor);
+                done.run(Ok(()));
+            }
+            FeedKind::Posts => {
+                if cursor.is_none() {
+                    load_posts_once();
+                } else {
+                    reload_posts(cursor);
+                }
+                done.run(Ok(()));
+            }
+        }
+    }
+
+    fn feed_people_row(&self) -> Option<Callback<AccountItem, AnyView>> {
+        Some(Callback::new(|item| {
+            view! { <crate::routes::feed::FeedItem item/> }.into_any()
+        }))
+    }
+
+    fn feed_posts_row(&self) -> Option<Callback<PostItem, AnyView>> {
+        Some(Callback::new(|item| {
+            view! { <crate::routes::feed::PostCard item/> }.into_any()
+        }))
+    }
+
+    fn feed_settings(&self) -> Option<Callback<()>> {
+        Some(Callback::new(|()| {
+            crate::router::navigate(crate::router::Route::Settings(
+                crate::router::SECTION_DEFAULT.to_owned(),
+            ));
+        }))
     }
 
     fn load_public_thread(

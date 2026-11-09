@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use nodus_instance::model::{Account, Context, Conversation, Filter, List, Relationship, Status};
+use nodus_shared::{AccountItem, PostItem};
 use nodus_state::page::{PageEntry, PageKind};
 use nodus_web::shared::router::Route;
 
@@ -59,6 +60,32 @@ impl TimelineReply {
             ..Self::default()
         }
     }
+}
+
+/// The recommended accounts already in hand.
+#[derive(Clone, Debug, Default)]
+pub struct FeedPeopleView {
+    pub items: Vec<AccountItem>,
+    pub degraded: Option<String>,
+    pub cursor: Option<String>,
+    pub error: Option<String>,
+    pub refreshing: bool,
+}
+
+/// The recommended posts already in hand.
+#[derive(Clone, Debug, Default)]
+pub struct FeedPostsView {
+    pub items: Vec<PostItem>,
+    pub cursor: Option<String>,
+    pub error: Option<String>,
+    pub refreshing: bool,
+}
+
+/// Which half of the feed a load names.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FeedKind {
+    People,
+    Posts,
 }
 
 /// The signed-in account, as much as a view needs.
@@ -210,6 +237,41 @@ pub trait Runtime: Send + Sync + 'static {
         _status: Callback<Result<Status, String>>,
         _context: Callback<Result<Context, String>>,
     ) {
+    }
+
+    /// The recommended accounts already in hand.
+    fn feed_people(&self) -> FeedPeopleView {
+        FeedPeopleView::default()
+    }
+
+    /// The recommended posts already in hand.
+    fn feed_posts(&self) -> FeedPostsView {
+        FeedPostsView::default()
+    }
+
+    /// Loads one feed page; `None` is the first page or a refresh.
+    fn load_feed(
+        &self,
+        _kind: FeedKind,
+        _cursor: Option<String>,
+        done: Callback<Result<(), String>>,
+    ) {
+        done.run(Err("The feed needs the app.".to_owned()));
+    }
+
+    /// The client's account row; the server has none because it has no items.
+    fn feed_people_row(&self) -> Option<Callback<AccountItem, AnyView>> {
+        None
+    }
+
+    /// The client's post row; the server has none because it has no items.
+    fn feed_posts_row(&self) -> Option<Callback<PostItem, AnyView>> {
+        None
+    }
+
+    /// Opens the feed settings, a browser route.
+    fn feed_settings(&self) -> Option<Callback<()>> {
+        None
     }
 
     /// Loads a post from a host that has no session, for a shared link.

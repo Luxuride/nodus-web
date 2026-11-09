@@ -7,7 +7,6 @@
 use crate::router::{self, Route};
 use crate::routes::callback::Callback;
 use crate::routes::compose::{Compose, ComposeEdit};
-use crate::routes::feed::Feed;
 use crate::routes::home::Home;
 use crate::routes::settings::Settings;
 use crate::routes::sign_in::SignIn;
@@ -70,7 +69,13 @@ pub(crate) fn App() -> impl IntoView {
                         let signed_in = signed_in.get();
                         match route.get() {
                             Route::OauthCallback => view! { <Callback/> }.into_any(),
-                            Route::Feed if signed_in => view! { <Feed/> }.into_any(),
+                            Route::Feed if signed_in => view! {
+                                <nodus_view::route::RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Feed
+                                    card=card.clone()
+                                />
+                            }.into_any(),
                             Route::Home if signed_in => {
                                 view! { <Home which=Timeline::Home/> }.into_any()
                             }

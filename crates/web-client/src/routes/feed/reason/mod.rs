@@ -99,7 +99,7 @@ pub(super) fn follower_label(count: i64) -> String {
 ///
 /// Muted body text, not a banner: a weaker ranking is a caveat about the list, not
 /// an error that stops the user.
-pub(super) fn degraded_line(reason: Degraded) -> &'static str {
+pub(crate) fn degraded_line(reason: Degraded) -> &'static str {
     match reason {
         Degraded::ColdStart => "Too few signals yet: these are the instance's cold-start picks.",
         Degraded::StaleSimilarity => {

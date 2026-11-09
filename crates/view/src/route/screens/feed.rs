@@ -7,33 +7,83 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_shared::{AccountItem, PostItem};
 
 use crate::components::CardRenderer;
 use crate::pages::feed::accounts::PeopleList;
 use crate::pages::feed::posts::PostList;
 use crate::pages::feed::{FeedPage, FeedTab};
-use crate::route::Runtime;
+use crate::route::{FeedKind, Runtime};
 
 #[component]
 pub fn FeedScreen(runtime: Arc<dyn Runtime>, card: CardRenderer) -> impl IntoView {
-    let _ = (&runtime, &card);
+    let _ = &card;
     let tab = RwSignal::new(FeedTab::Posts);
-    let people = Signal::derive(Vec::<AccountItem>::new);
-    let posts = Signal::derive(Vec::<PostItem>::new);
-    let no_error = Signal::derive(|| None::<String>);
-    let idle = Signal::derive(|| false);
-    let people_row = Callback::new(|_| ().into_any());
-    let post_row = Callback::new(|_| ().into_any());
+    let loaded_people = RwSignal::new(false);
+    let loaded_posts = RwSignal::new(false);
+
+    let people = Signal::derive({
+        let runtime = Arc::clone(&runtime);
+        move || runtime.feed_people()
+    });
+    let posts = Signal::derive({
+        let runtime = Arc::clone(&runtime);
+        move || runtime.feed_posts()
+    });
+
+    let load = Callback::new({
+        let runtime = Arc::clone(&runtime);
+        move |(kind, cursor): (FeedKind, Option<String>)| {
+            let runtime = Arc::clone(&runtime);
+            let done = Callback::new(move |_result: Result<(), String>| ());
+            runtime.load_feed(kind, cursor, done);
+        }
+    });
+    Effect::new({
+        let runtime = Arc::clone(&runtime);
+        move |_| {
+            if !loaded_people.get_untracked() && runtime.feed_people().items.is_empty() {
+                loaded_people.set(true);
+                load.run((FeedKind::People, None));
+            }
+        }
+    });
+    Effect::new({
+        let runtime = Arc::clone(&runtime);
+        move |_| {
+            if !loaded_posts.get_untracked() && runtime.feed_posts().items.is_empty() {
+                loaded_posts.set(true);
+                load.run((FeedKind::Posts, None));
+            }
+        }
+    });
+
+    let fallback = Callback::new(|_| {
+        view! { <crate::Note>"This row needs the app."</crate::Note> }.into_any()
+    });
+    let people_row = runtime.feed_people_row().unwrap_or(fallback);
+    let post_fallback = Callback::new(|_| {
+        view! { <crate::Note>"This row needs the app."</crate::Note> }.into_any()
+    });
+    let posts_row = runtime.feed_posts_row().unwrap_or(post_fallback);
+
     let people_slot: ChildrenFn = Arc::new(move || {
         view! {
             <PeopleList
-                items=people
-                error=no_error
-                refreshing=idle
-                degraded=Signal::derive(|| None::<String>)
-                cursor=Signal::derive(|| None::<String>)
+                items=Signal::derive(move || people.get().items.clone())
+                error=Signal::derive(move || people.get().error.clone())
+                refreshing=Signal::derive(move || people.get().refreshing)
+                degraded=Signal::derive(move || people.get().degraded.clone())
+                cursor=Signal::derive(move || people.get().cursor.clone())
                 row=people_row
+                on_refresh=Callback::new({
+                    let load = load;
+                    move |()| load.run((FeedKind::People, None))
+                })
+                on_more=Callback::new({
+                    let load = load;
+                    move |cursor: String| load.run((FeedKind::People, Some(cursor)))
+                })
+                on_settings=runtime.feed_settings()
             />
         }
         .into_any()
@@ -41,15 +91,24 @@ pub fn FeedScreen(runtime: Arc<dyn Runtime>, card: CardRenderer) -> impl IntoVie
     let posts_slot: ChildrenFn = Arc::new(move || {
         view! {
             <PostList
-                items=posts
-                error=no_error
-                refreshing=idle
-                cursor=Signal::derive(|| None::<String>)
-                row=post_row
+                items=Signal::derive(move || posts.get().items.clone())
+                error=Signal::derive(move || posts.get().error.clone())
+                refreshing=Signal::derive(move || posts.get().refreshing)
+                cursor=Signal::derive(move || posts.get().cursor.clone())
+                row=posts_row
+                on_refresh=Callback::new({
+                    let load = load;
+                    move |()| load.run((FeedKind::Posts, None))
+                })
+                on_more=Callback::new({
+                    let load = load;
+                    move |cursor: String| load.run((FeedKind::Posts, Some(cursor)))
+                })
             />
         }
         .into_any()
     });
+
     view! {
         <FeedPage
             tab=Signal::derive(move || tab.get())

@@ -8,8 +8,8 @@ use leptos::prelude::*;
 use nodus_shared::PostItem;
 
 use super::text::plain_text;
-use crate::state::bridge::{begin_impression, finish_impression};
 use crate::routes::format::relative_time;
+use crate::state::bridge::{begin_impression, finish_impression};
 
 /// A post card: who wrote it, what it says, and where to read the original.
 #[component]

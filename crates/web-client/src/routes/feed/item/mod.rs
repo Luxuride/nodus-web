@@ -18,7 +18,7 @@ use nodus_view::pages::feed::accounts::{Toast, ToastReport};
 /// Copy link. The parent keys the list on the follow flag, so undoing a follow
 /// remounts this card instead of leaving a stale "Following" label.
 #[component]
-pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
+pub(crate) fn FeedItem(item: AccountItem) -> impl IntoView {
     let AccountItem {
         item_id,
         account,
@@ -79,9 +79,8 @@ pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
             message: report.message,
         })
     });
-    let toast_children = std::sync::Arc::new(move || {
-        view! { <Toast report=report/> }.into_any()
-    }) as leptos::prelude::ChildrenFn;
+    let toast_children = std::sync::Arc::new(move || view! { <Toast report=report/> }.into_any())
+        as leptos::prelude::ChildrenFn;
 
     view! {
         <nodus_view::pages::feed::accounts::AccountCard

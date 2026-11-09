@@ -488,6 +488,7 @@ fn TimelineScreen(
     let revision = runtime.revision();
     let initial = runtime.timeline(&kind);
     let loading = RwSignal::new(!initial.held && !initial.unavailable);
+    let in_flight = RwSignal::new(false);
     let error = RwSignal::new(
         initial
             .unavailable
@@ -510,12 +511,14 @@ fn TimelineScreen(
         let runtime = Arc::clone(&runtime);
         let kind = kind.clone();
         move |cursor: Option<String>| {
-            if loading.get_untracked() {
+            if !alive.is_alive() || in_flight.get_untracked() {
                 return;
             }
+            in_flight.set(true);
             error.set(None);
             loading.set(true);
             let done = Callback::new(move |result: Result<(), String>| {
+                in_flight.set(false);
                 alive.if_alive(|| {
                     loading.set(false);
                     if let Err(message) = result {

@@ -99,9 +99,7 @@ pub fn SyncCard() -> impl IntoView {
     };
 
     view! {
-        <div class="card border border-base-300 bg-base-100 shadow-sm">
-            <div class="card-body gap-3 p-4">
-                <h2 class="card-title text-base">"Background sync"</h2>
+        <nodus_view::components::panel::Panel title="Background sync">
                 <p class="text-sm opacity-80">
                     "Turning this on lets the recommendation server keep an encrypted copy of your access token, sync your follows in the background, and rank without waiting for you to open the app. Turning it off deletes that copy. Interaction telemetry is a separate consent and stays off."
                 </p>
@@ -156,9 +154,8 @@ pub fn SyncCard() -> impl IntoView {
                         <span>{message}</span>
                     </div>
                 })}
-            </div>
+        </nodus_view::components::panel::Panel>
 
-            <ConfirmDialog confirming=confirming run=Callback::new(run)/>
-        </div>
+        <ConfirmDialog confirming=confirming run=Callback::new(run)/>
     }
 }

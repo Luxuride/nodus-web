@@ -33,9 +33,7 @@ pub fn InstanceCard() -> impl IntoView {
     });
 
     view! {
-        <section class="card mb-4 border border-base-300 bg-base-100 shadow-sm">
-            <div class="card-body gap-3 p-4">
-                <h2 class="card-title text-base">"This instance"</h2>
+        <nodus_view::components::panel::Panel title="This instance">
 
                 <Show when=move || failed.get()>
                     <p class="text-sm text-error">
@@ -51,7 +49,6 @@ pub fn InstanceCard() -> impl IntoView {
                     <Identity info=info/>
                     <Rules info=info/>
                 </Show>
-            </div>
-        </section>
+        </nodus_view::components::panel::Panel>
     }
 }

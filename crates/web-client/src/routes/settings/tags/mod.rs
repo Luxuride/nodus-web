@@ -66,9 +66,7 @@ pub fn FeaturedTagsCard() -> impl IntoView {
     };
 
     view! {
-        <section class="card bg-base-100">
-            <div class="card-body gap-3">
-                <h2 class="card-title text-base">"Featured tags"</h2>
+        <nodus_view::components::panel::Panel title="Featured tags">
                 <p class="text-sm opacity-70">
                     "Tags on your profile, so a visitor sees what you post about."
                 </p>
@@ -102,7 +100,6 @@ pub fn FeaturedTagsCard() -> impl IntoView {
                 {move || error.get().map(|message| view! {
                     <p class="text-sm text-error">{message}</p>
                 })}
-            </div>
-        </section>
+        </nodus_view::components::panel::Panel>
     }
 }

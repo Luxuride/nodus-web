@@ -11,9 +11,7 @@ use crate::router::{self, Route};
 #[component]
 pub(crate) fn ModerationLinks() -> impl IntoView {
     view! {
-        <div class="card mb-4 border border-base-300 bg-base-100 shadow-sm">
-            <div class="card-body gap-2 p-4">
-                <h2 class="card-title text-base">"Moderation"</h2>
+        <nodus_view::components::panel::Panel title="Moderation">
                 <p class="text-sm opacity-70">
                     "Accounts you have muted or blocked stay hidden until you undo it here."
                 </p>
@@ -33,7 +31,6 @@ pub(crate) fn ModerationLinks() -> impl IntoView {
                         "Blocked accounts"
                     </a>
                 </div>
-            </div>
-        </div>
+        </nodus_view::components::panel::Panel>
     }
 }

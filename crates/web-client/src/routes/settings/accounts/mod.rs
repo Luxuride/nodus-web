@@ -46,9 +46,7 @@ pub fn AccountsCard() -> impl IntoView {
     };
 
     view! {
-        <section class="card bg-base-100 shadow-sm">
-            <div class="card-body gap-3">
-                <h2 class="card-title">"Accounts"</h2>
+        <nodus_view::components::panel::Panel title="Accounts">
                 <ul class="flex flex-col gap-2">
                     {move || {
                         let current = active();
@@ -103,7 +101,6 @@ pub fn AccountsCard() -> impl IntoView {
                 >
                     "Sign out of this account"
                 </button>
-            </div>
-        </section>
+        </nodus_view::components::panel::Panel>
     }
 }

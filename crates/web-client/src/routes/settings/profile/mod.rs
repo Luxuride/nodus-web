@@ -80,9 +80,7 @@ pub(crate) fn ProfileCard() -> impl IntoView {
     };
 
     view! {
-        <section class="card bg-base-100">
-            <div class="card-body gap-3">
-                <h2 class="card-title">"Profile"</h2>
+        <nodus_view::components::panel::Panel title="Profile">
                 <p class="text-sm opacity-70">
                     "How this account appears to the people who find it."
                 </p>
@@ -118,7 +116,6 @@ pub(crate) fn ProfileCard() -> impl IntoView {
                     </button>
                     <span class="text-sm">{move || message.get().unwrap_or_default()}</span>
                 </div>
-            </div>
-        </section>
+        </nodus_view::components::panel::Panel>
     }
 }

@@ -14,13 +14,10 @@ pub fn ClockCard() -> impl IntoView {
     let pick = move |format: ClockFormat| clock_format::set(format);
 
     view! {
-        <section class="card mb-4 border border-base-300 bg-base-100">
-            <div class="card-body gap-2 p-4">
-                <h2 class="card-title text-base">"Clock"</h2>
-                <p class="text-xs opacity-70">
-                    "Times in the composer and the schedule panel follow this. Nothing is
-                     sent to the instance either way."
-                </p>
+        <nodus_view::components::panel::Panel
+            title="Clock"
+            description="Times in the composer and the schedule panel follow this. Nothing is sent to the instance either way."
+        >
                 <div class="flex gap-2">
                     <button
                         type="button"
@@ -44,7 +41,6 @@ pub fn ClockCard() -> impl IntoView {
                         {move || current().time(21, 30)}
                     </span>
                 </div>
-            </div>
-        </section>
+        </nodus_view::components::panel::Panel>
     }
 }

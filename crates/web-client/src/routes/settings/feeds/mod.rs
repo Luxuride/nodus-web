@@ -17,9 +17,7 @@ pub fn FeedsCard() -> impl IntoView {
     };
 
     view! {
-        <section class="card border border-base-300 bg-base-100">
-            <div class="card-body p-4">
-                <h2 class="card-title text-base">"Timelines"</h2>
+        <nodus_view::components::panel::Panel title="Timelines">
                 <p class="text-sm opacity-70">
                     "Which timelines the navigation offers. Hiding one does not delete anything: turn it back on and it is where it was."
                 </p>
@@ -60,8 +58,7 @@ pub fn FeedsCard() -> impl IntoView {
                      has. The Feed is this client's own recommendation screen, and it can be
                      closed like the others."
                 </p>
-            </div>
-        </section>
+        </nodus_view::components::panel::Panel>
     }
     .into_any()
 }

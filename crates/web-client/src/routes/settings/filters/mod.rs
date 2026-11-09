@@ -59,9 +59,7 @@ pub fn FiltersCard() -> impl IntoView {
     });
 
     view! {
-        <section class="card bg-base-100 shadow-sm">
-            <div class="card-body gap-3">
-                <h2 class="card-title text-base">"Filters"</h2>
+        <nodus_view::components::panel::Panel title="Filters">
                 <p class="text-sm opacity-70">
                     "A filter hides a post, or shows it behind a warning. The instance applies \
                      it to timelines it returns."
@@ -82,7 +80,6 @@ pub fn FiltersCard() -> impl IntoView {
                 </Show>
 
                 <NewFilterForm on_created=Callback::new(move |()| reload.run(())) set_error=set_error/>
-            </div>
-        </section>
+        </nodus_view::components::panel::Panel>
     }
 }

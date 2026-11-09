@@ -20,9 +20,7 @@ pub(super) fn SensitiveCard() -> impl IntoView {
     };
 
     view! {
-        <div class="card bg-base-100 shadow-sm">
-            <div class="card-body gap-2">
-                <h2 class="card-title text-base">"Sensitive media"</h2>
+        <nodus_view::components::panel::Panel title="Sensitive media">
                 <label class="flex cursor-pointer items-center justify-between gap-4">
                     <span class="text-sm">
                         "Show sensitive media without asking"
@@ -38,7 +36,6 @@ pub(super) fn SensitiveCard() -> impl IntoView {
                         on:change=toggle
                     />
                 </label>
-            </div>
-        </div>
+        </nodus_view::components::panel::Panel>
     }
 }

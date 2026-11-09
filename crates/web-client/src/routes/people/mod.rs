@@ -6,8 +6,8 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_sdk::page::PageKind;
 use nodus_sdk::Command;
+use nodus_sdk::page::PageKind;
 use nodus_view::pages::people::PeoplePage;
 
 use crate::router::{self, Route};

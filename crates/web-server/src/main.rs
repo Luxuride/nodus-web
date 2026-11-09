@@ -13,9 +13,10 @@
 //! - `NODUS_SESSIONS` — the JSON file sessions survive a restart in (default
 //!   `/var/lib/nodus/sessions.json`; set it to `-` for memory only).
 
+mod content;
+mod document;
 mod html;
 mod mastodon;
-mod render;
 mod session;
 
 use std::net::SocketAddr;
@@ -30,8 +31,8 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::json;
 
+use crate::document::Assets;
 use crate::mastodon::Client;
-use crate::render::Assets;
 use crate::session::{COOKIE, Session, Sessions};
 
 /// How many statuses the server paints. One page, the same size the client asks for: the
@@ -65,11 +66,11 @@ impl App {
 /// A public timeline, painted with the same body the home page uses.
 async fn public_feed(State(app): State<Arc<App>>, headers: HeaderMap, local: bool) -> Response {
     let Some(session) = session_of(&app, &headers) else {
-        return Html(render::landing(&app.bundle())).into_response();
+        return Html(document::landing(&app.bundle())).into_response();
     };
     let client = match Client::new(&session.host, &session.token) {
         Ok(client) => client,
-        Err(message) => return Html(render::error(&app.bundle(), &message)).into_response(),
+        Err(message) => return Html(document::error(&app.bundle(), &message)).into_response(),
     };
     let (which, title, path) = if local {
         ("local", "Local", "/local")
@@ -77,7 +78,7 @@ async fn public_feed(State(app): State<Arc<App>>, headers: HeaderMap, local: boo
         ("federated", "Federated", "/federated")
     };
     match client.feed(local, PAGE).await {
-        Ok((statuses, cursor)) => Html(render::feed(
+        Ok((statuses, cursor)) => Html(document::feed(
             &app.bundle(),
             &session.acct,
             which,
@@ -87,7 +88,7 @@ async fn public_feed(State(app): State<Arc<App>>, headers: HeaderMap, local: boo
             cursor.as_deref(),
         ))
         .into_response(),
-        Err(message) => Html(render::error(&app.bundle(), &message)).into_response(),
+        Err(message) => Html(document::error(&app.bundle(), &message)).into_response(),
     }
 }
 
@@ -241,7 +242,7 @@ async fn index(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     if session_of(&app, &headers).is_some() {
         home(State(app), headers).await
     } else {
-        Html(render::landing(&app.bundle())).into_response()
+        Html(document::landing(&app.bundle())).into_response()
     }
 }
 
@@ -260,7 +261,7 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
         return StatusCode::NOT_FOUND.into_response();
     }
     let Some(session) = session_of(&app, &headers) else {
-        return Html(render::shell(&app.bundle(), None, path)).into_response();
+        return Html(document::shell(&app.bundle(), None, path)).into_response();
     };
     // The rail draws the moderation doors for a moderator, and it is drawn before any
     // wasm runs, so the answer has to come from the session that was established at
@@ -280,7 +281,7 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
             answer
         }
     };
-    render::set_staff(admin);
+    document::set_staff(admin);
     let assets = app.bundle();
     let painted = match Client::new(&session.host, &session.token) {
         Ok(client) => read_page(&client, &assets, &session.acct, path, uri.query()).await,
@@ -291,7 +292,7 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
     };
     match painted {
         Some(html) => Html(html).into_response(),
-        None => Html(render::shell(&assets, Some(&session.acct), path)).into_response(),
+        None => Html(document::shell(&assets, Some(&session.acct), path)).into_response(),
     }
 }
 
@@ -301,37 +302,37 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
 /// one than an error page for a screen the client can still fill in itself.
 async fn read_page(
     client: &Client,
-    assets: &render::Assets,
+    assets: &document::Assets,
     acct: &str,
     path: &str,
     query: Option<&str>,
 ) -> Option<String> {
     let page = match path {
         "/notifications" => client.notifications(PAGE).await.map(|items| {
-            render::list_page(
+            document::list_page(
                 assets,
                 acct,
                 path,
                 "Notifications",
                 "Notifications",
                 "Follows, boosts, favourites, mentions and poll results, newest first.",
-                &render::rows(
-                    &items.iter().map(render::notification_row).collect::<Vec<_>>(),
+                &document::rows(
+                    &items.iter().map(document::notification_row).collect::<Vec<_>>(),
                     "Nothing has happened yet.",
                 ),
                 Some(serde_json::json!({ "kind": "notifications", "items": items, "cursor": null }).to_string()),
             )
         }).ok(),
         "/messages" => client.conversations(PAGE).await.map(|items| {
-            render::list_page(
+            document::list_page(
                 assets,
                 acct,
                 path,
                 "Messages",
                 "Messages",
                 "Private conversations. A message is only ever visible to the people in it.",
-                &render::rows(
-                    &items.iter().map(render::conversation_row).collect::<Vec<_>>(),
+                &document::rows(
+                    &items.iter().map(document::conversation_row).collect::<Vec<_>>(),
                     "There are no conversations yet.",
                 ),
                 Some(serde_json::json!({ "kind": "conversations", "items": items, "cursor": null }).to_string()),
@@ -341,45 +342,45 @@ async fn read_page(
             read_saved(client, assets, acct, path, path.ends_with("bookmarks")).await
         }
         "/lists" => client.lists().await.map(|items| {
-            render::list_page(
+            document::list_page(
                 assets,
                 acct,
                 path,
                 "Lists",
                 "Lists",
                 "Curated groups of accounts, with their own timeline.",
-                &render::rows(
-                    &items.iter().map(render::list_row).collect::<Vec<_>>(),
+                &document::rows(
+                    &items.iter().map(document::list_row).collect::<Vec<_>>(),
                     "There are no lists yet.",
                 ),
                 Some(serde_json::json!({ "kind": "lists", "items": items, "cursor": null }).to_string()),
             )
         }).ok(),
         "/scheduled" => client.scheduled().await.map(|items| {
-            render::list_page(
+            document::list_page(
                 assets,
                 acct,
                 path,
                 "Scheduled",
                 "Scheduled",
                 "Posts waiting to be published. Write one from the box above the home timeline.",
-                &render::rows(
-                    &items.iter().map(render::scheduled_row).collect::<Vec<_>>(),
+                &document::rows(
+                    &items.iter().map(document::scheduled_row).collect::<Vec<_>>(),
                     "Nothing is scheduled.",
                 ),
                 Some(serde_json::json!({ "kind": "scheduled", "items": items, "cursor": null }).to_string()),
             )
         }).ok(),
         "/directory" => client.directory(true).await.map(|items| {
-            render::list_page(
+            document::list_page(
                 assets,
                 acct,
                 path,
                 "People",
                 "People",
                 "Accounts this instance suggests, ordered by how recently they were active.",
-                &render::rows(
-                    &items.iter().map(render::account_row).collect::<Vec<_>>(),
+                &document::rows(
+                    &items.iter().map(document::account_row).collect::<Vec<_>>(),
                     "This instance suggests nobody yet.",
                 ),
                 Some(serde_json::json!({ "kind": "directory", "items": items, "cursor": null }).to_string()),
@@ -398,7 +399,7 @@ async fn read_page(
 /// Before the routes with a name in them: one account, or one thread.
 async fn read_entity(
     client: &Client,
-    assets: &render::Assets,
+    assets: &document::Assets,
     acct: &str,
     path: &str,
 ) -> Option<String> {
@@ -406,7 +407,7 @@ async fn read_entity(
         if !id.is_empty() && !id.contains('/') {
             let account = client.account(id).await.ok()?;
             let (statuses, cursor) = client.account_statuses(id, PAGE).await.ok()?;
-            return Some(render::profile_page(
+            return Some(document::profile_page(
                 assets,
                 acct,
                 &account,
@@ -422,13 +423,13 @@ async fn read_entity(
     }
     let status = client.status(id).await.ok()?;
     let context = client.context(id).await.ok()?;
-    Some(render::thread_page(assets, acct, &status, &context))
+    Some(document::thread_page(assets, acct, &status, &context))
 }
 
 /// Favourites or bookmarks: one screen, two shelves, the same shape.
 async fn read_saved(
     client: &Client,
-    assets: &render::Assets,
+    assets: &document::Assets,
     acct: &str,
     path: &str,
     bookmarks: bool,
@@ -445,15 +446,18 @@ async fn read_saved(
             "Posts you starred. Only you can see this list.",
         )
     };
-    Some(render::list_page(
+    Some(document::list_page(
         assets,
         acct,
         path,
         title,
         title,
         description,
-        &render::rows(
-            &statuses.iter().map(render::status_card).collect::<Vec<_>>(),
+        &document::rows(
+            &statuses
+                .iter()
+                .map(document::status_card)
+                .collect::<Vec<_>>(),
             "Nothing saved yet.",
         ),
         Some(
@@ -470,7 +474,7 @@ async fn read_saved(
 /// The search page, the one route whose argument comes from the query string.
 async fn read_search(
     client: &Client,
-    assets: &render::Assets,
+    assets: &document::Assets,
     acct: &str,
     path: &str,
     query: Option<&str>,
@@ -490,17 +494,17 @@ async fn read_search(
     let mut rows = results
         .accounts
         .iter()
-        .map(render::account_row)
+        .map(document::account_row)
         .collect::<Vec<_>>();
-    rows.extend(results.statuses.iter().map(render::status_card));
-    Some(render::list_page(
+    rows.extend(results.statuses.iter().map(document::status_card));
+    Some(document::list_page(
         assets,
         acct,
         path,
         "Search",
         "Search",
         &format!("Results for \"{query}\""),
-        &render::rows(&rows, "Nothing matched."),
+        &document::rows(&rows, "Nothing matched."),
         None,
     ))
 }
@@ -540,20 +544,20 @@ fn percent_decode(value: &str) -> String {
 /// browser used to make after the wasm booted is made here, and its answer is the markup.
 async fn home(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     let Some(session) = session_of(&app, &headers) else {
-        return Html(render::landing(&app.bundle())).into_response();
+        return Html(document::landing(&app.bundle())).into_response();
     };
     let client = match Client::new(&session.host, &session.token) {
         Ok(client) => client,
-        Err(message) => return Html(render::error(&app.bundle(), &message)).into_response(),
+        Err(message) => return Html(document::error(&app.bundle(), &message)).into_response(),
     };
     match client.home(PAGE).await {
-        Ok((statuses, cursor)) => Html(render::home(
+        Ok((statuses, cursor)) => Html(document::home(
             &app.bundle(),
             &session.acct,
             &statuses,
             cursor.as_deref(),
         ))
         .into_response(),
-        Err(message) => Html(render::error(&app.bundle(), &message)).into_response(),
+        Err(message) => Html(document::error(&app.bundle(), &message)).into_response(),
     }
 }

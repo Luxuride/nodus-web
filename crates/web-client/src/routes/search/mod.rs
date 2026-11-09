@@ -90,7 +90,8 @@ pub fn Search() -> impl IntoView {
     let on_query = Callback::new(move |text: String| set_query.set(text));
     let on_search = ask;
     let age_of = Callback::new(move |created_at: String| relative_time(&created_at));
-    let card = Callback::new(move |status: Status| view! { <StatusCard status=status/> }.into_any());
+    let card =
+        Callback::new(move |status: Status| view! { <StatusCard status=status/> }.into_any());
 
     view! {
         <SearchPage

@@ -9,4 +9,4 @@
 
 pub mod shared;
 
-pub use shared::router::{Route, ADMIN_DEFAULT, BASE, CALLBACK_PATH, MODERATION_DEFAULT};
+pub use shared::router::{ADMIN_DEFAULT, BASE, CALLBACK_PATH, MODERATION_DEFAULT, Route};

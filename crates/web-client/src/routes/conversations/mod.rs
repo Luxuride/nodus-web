@@ -10,8 +10,8 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_sdk::page::{PageItems, PageKind};
 use nodus_sdk::Command;
+use nodus_sdk::page::{PageItems, PageKind};
 use nodus_view::pages::messages::MessagesPage;
 
 use crate::routes::format::relative_time;

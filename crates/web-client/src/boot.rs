@@ -86,4 +86,3 @@ fn mark_hydrated() {
         let _ = js_sys::Reflect::set(&window, &"__nodus".into(), &wasm_bindgen::JsValue::TRUE);
     }
 }
-

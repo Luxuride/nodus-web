@@ -10,6 +10,7 @@
 //! the page keeps only what both paints agree on: the container, the keys, the empty state,
 //! the paging control and the error line.
 
+#[path = "../shelf/mod.rs"]
 mod shelf;
 
 pub use shelf::Shelf;

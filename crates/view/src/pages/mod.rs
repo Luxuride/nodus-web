@@ -9,13 +9,25 @@
 //! the module: `/notifications` is `notifications`, and a screen with parts keeps them in the
 //! same directory as submodules rather than in a shared cupboard.
 
-pub mod accounts;
+// The tree mirrors the addresses, including the parts that vary: `[id]` and `[shelf]` are
+// the dynamic segments, declared with `#[path]` because a segment is not an identifier.
+#[path = "accounts/[id]/mod.rs"]
+pub mod account;
+pub use account as accounts;
+
 pub mod directory;
 pub mod lists;
 pub mod messages;
 pub mod notifications;
-pub mod people;
-pub mod saved;
+#[path = "moderation/[section]/mod.rs"]
+pub mod moderation;
+pub use moderation as people;
+#[path = "saved/[shelf]/mod.rs"]
+pub mod saved_shelf;
+pub use saved_shelf as saved;
+
 pub mod scheduled;
 pub mod search;
-pub mod status;
+#[path = "status/[id]/mod.rs"]
+pub mod status_page;
+pub use status_page as status;

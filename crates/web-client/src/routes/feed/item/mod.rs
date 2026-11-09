@@ -9,6 +9,8 @@ use super::share::ShareReport;
 use crate::state::alive::Alive;
 use crate::state::bridge::{begin_impression, finish_impression};
 
+use nodus_view::pages::feed::accounts::{Toast, ToastReport};
+
 /// One ranked account: who it is, why it is here, and the three actions.
 ///
 /// The card is the whole product in one unit, so everything a user needs to decide
@@ -69,8 +71,16 @@ pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
     };
 
     let error_signal = error;
+    // The card outlives each report, so the toast is handed down as a slot and reads the
+    // shared signal for as long as it is mounted.
+    let report = Signal::derive(move || {
+        toast.get().map(|report| ToastReport {
+            ok: report.ok,
+            message: report.message,
+        })
+    });
     let toast_children = std::sync::Arc::new(move || {
-        view! { <CopyToast toast=toast/> }.into_any()
+        view! { <Toast report=report/> }.into_any()
     }) as leptos::prelude::ChildrenFn;
 
     view! {
@@ -91,28 +101,5 @@ pub(super) fn FeedItem(item: AccountItem) -> impl IntoView {
             on_copy=Callback::new(move |()| copy())
             toast=toast_children
         />
-    }
-}
-
-/// The transient "profile link copied" report, or nothing.
-///
-/// A toast rather than an inline message because the card may unmount at any moment
-/// (a follow flips the list key), and a report that vanishes with its card is not a
-/// report.
-#[component]
-fn CopyToast(toast: RwSignal<Option<ShareReport>>) -> impl IntoView {
-    view! {
-        {move || toast.get().map(|report| {
-            let tone = if report.ok {
-                "alert alert-success alert-soft text-sm"
-            } else {
-                "alert alert-error alert-soft text-sm"
-            };
-            view! {
-                <div class="toast toast-end" role="status">
-                    <div class=tone>{report.message}</div>
-                </div>
-            }
-        })}
     }
 }

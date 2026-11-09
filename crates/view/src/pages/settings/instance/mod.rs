@@ -1,11 +1,18 @@
-//! Who the server says it is, and what it asks of someone joining.
+//! The instance behind this account: what it calls itself, what it asks of you, who runs it.
+//!
+//! Nothing here reads `/api/v2/instance`: the caller does that and hands the answer down as
+//! a signal, because this crate has no transport.
 
 use leptos::prelude::*;
 use nodus_instance::model::InstanceInfo;
 
 /// The name, the version, the banner and the facts a joiner asks about.
 #[component]
-pub fn Identity(info: ReadSignal<Option<InstanceInfo>>) -> impl IntoView {
+pub fn Identity(
+    /// What the server said about itself, once it has answered.
+    #[prop(into)]
+    info: Signal<Option<InstanceInfo>>,
+) -> impl IntoView {
     let thumbnail = move || {
         info.get()
             .and_then(|info| info.thumbnail)
@@ -73,5 +80,39 @@ pub fn Identity(info: ReadSignal<Option<InstanceInfo>>) -> impl IntoView {
             <dt class="opacity-60">"Software"</dt>
             <dd class="truncate">{software}</dd>
         </dl>
+    }
+}
+
+/// The rules, or a plain statement that the server publishes none.
+#[component]
+pub fn Rules(
+    /// What the server said about itself, once it has answered.
+    #[prop(into)]
+    info: Signal<Option<InstanceInfo>>,
+) -> impl IntoView {
+    let rules = move || info.get().map_or_else(Vec::new, |info| info.rules);
+    let empty = move || rules().is_empty();
+
+    view! {
+        <Show when=move || !empty()>
+            <div>
+                <h3 class="mb-1 text-sm font-medium">"Rules"</h3>
+                <ol class="list-decimal pl-5 text-sm">
+                    <For each=rules key=|rule| rule.id.clone() let:rule>
+                        <li class="py-0.5">
+                            <span>{rule.text.clone()}</span>
+                            {rule
+                                .hint
+                                .clone()
+                                .map(|hint| view! { <span class="block text-xs opacity-60">{hint}</span> })}
+                        </li>
+                    </For>
+                </ol>
+            </div>
+        </Show>
+
+        <Show when=empty>
+            <p class="text-sm opacity-60">"This instance publishes no rules."</p>
+        </Show>
     }
 }

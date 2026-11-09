@@ -3,6 +3,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{FilterAction, FilterDraft};
+use nodus_view::pages::settings::form::FilterFields;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
@@ -62,35 +63,15 @@ pub fn NewFilterForm(
     };
 
     view! {
-        <div class="flex flex-col gap-2">
-            <input
-                class="input input-bordered input-sm"
-                placeholder="Name, for example \"crypto\""
-                prop:value=title
-                on:input=move |event| set_title.set(event_target_value(&event))
-            />
-            <input
-                class="input input-bordered input-sm"
-                placeholder="Phrases, separated by commas"
-                prop:value=phrases
-                on:input=move |event| set_phrases.set(event_target_value(&event))
-            />
-            <label class="label cursor-pointer justify-start gap-2">
-                <input
-                    type="checkbox"
-                    class="toggle toggle-sm"
-                    prop:checked=hide
-                    on:change=move |event| set_hide.set(event_target_checked(&event))
-                />
-                <span class="label-text">"Hide these posts instead of warning"</span>
-            </label>
-            <button
-                class="btn btn-primary btn-sm self-start"
-                disabled=move || busy.get()
-                on:click=move |_| submit(())
-            >
-                {move || if busy.get() { "Working…" } else { "Add filter" }}
-            </button>
-        </div>
+        <FilterFields
+            name=Signal::derive(move || title.get())
+            phrases=Signal::derive(move || phrases.get())
+            hide=Signal::derive(move || hide.get())
+            busy=Signal::derive(move || busy.get())
+            on_name=Some(Callback::new(move |value: String| set_title.set(value)))
+            on_phrases=Some(Callback::new(move |value: String| set_phrases.set(value)))
+            on_hide=Some(Callback::new(move |value: bool| set_hide.set(value)))
+            on_add=Some(Callback::new(move |()| submit(())))
+        />
     }
 }

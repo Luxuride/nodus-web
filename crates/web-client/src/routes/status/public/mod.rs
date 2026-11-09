@@ -1,17 +1,17 @@
 //! A post opened from a shared link, with no session.
 //!
-//! Read-only on purpose: every verb in the card needs a token, and pretending otherwise
-//! would offer buttons that cannot work. What a visitor gets is the post, its thread, and
-//! one honest sentence about signing in.
+//! The screen is shared; this file owns what a visitor's link decides — which host to ask,
+//! and what the two reads put in the page. Read-only on purpose: every verb in the card
+//! needs a token, and pretending otherwise would offer buttons that cannot work.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::Status;
+use nodus_view::pages::status::public::{HostForm, PublicThreadPage};
 
-use super::StatusBody;
 use crate::public;
 use crate::router::{self, Route};
-use crate::routes::format::{display_name, relative_time};
+use crate::routes::format::relative_time;
 use crate::state::alive::Alive;
 
 /// One post and its thread, read anonymously from the instance that hosts it.
@@ -26,35 +26,21 @@ pub fn PublicThread(host: String, id: String) -> AnyView {
     if host.trim().is_empty() {
         let (typed, set_typed) = signal(String::new());
         let for_submit = id.clone();
-        let submit = move |event: web_sys::SubmitEvent| {
-            event.prevent_default();
-            let host = typed.get_untracked().trim().to_owned();
-            if host.is_empty() {
-                return;
-            }
-            router::navigate(Route::Thread {
-                host,
-                id: for_submit.clone(),
-            });
-        };
         return view! {
-            <form class="card bg-base-100 shadow-sm" on:submit=submit>
-                <div class="card-body gap-3">
-                    <h1 class="card-title text-base">"Read this post"</h1>
-                    <p class="text-sm opacity-70">
-                        "A post id only means something on the instance that issued it. Name the instance to read from."
-                    </p>
-                    <input
-                        class="input input-sm w-full"
-                        placeholder="mastodon.example"
-                        prop:value=move || typed.get()
-                        on:input=move |event| set_typed.set(event_target_value(&event))
-                    />
-                    <button class="btn btn-primary btn-sm self-end" type="submit">
-                        "Read post"
-                    </button>
-                </div>
-            </form>
+            <HostForm
+                typed=Signal::derive(move || typed.get())
+                on_input=Callback::new(move |value: String| set_typed.set(value))
+                on_read=Callback::new(move |()| {
+                    let host = typed.get_untracked().trim().to_owned();
+                    if host.is_empty() {
+                        return;
+                    }
+                    router::navigate(Route::Thread {
+                        host,
+                        id: for_submit.clone(),
+                    });
+                })
+            />
         }
         .into_any();
     }
@@ -92,89 +78,18 @@ pub fn PublicThread(host: String, id: String) -> AnyView {
         });
     });
 
-    let shown = move || status.get();
-    let parents = move || ancestors.get();
-    let children = move || replies.get();
+    let age_of = Callback::new(move |created: String| relative_time(&created));
 
     view! {
-        <article class="flex flex-col gap-3">
-            <p class="text-xs opacity-60">
-                {format!("Reading {host} without signing in. Public posts only.")}
-            </p>
-
-            <Show when=move || loading.get()>
-                <p class="text-sm opacity-60">"Loading the post…"</p>
-            </Show>
-
-            <Show when=move || error.get().is_some()>
-                <div class="alert alert-warning text-sm">
-                    {move || error.get().unwrap_or_default()}
-                </div>
-            </Show>
-
-            <For each=parents key=|status| status.id.clone() let:status>
-                <ReadOnly status=status/>
-            </For>
-
-            <Show when=move || shown().is_some()>
-                <ReadOnly status=shown().unwrap_or_else(|| unreachable!("guarded by the Show"))/>
-            </Show>
-
-            <Show when=move || !children().is_empty()>
-                <h2 class="mt-2 text-sm font-medium opacity-70">"Replies"</h2>
-                <For each=children key=|status| status.id.clone() let:status>
-                    <ReadOnly status=status/>
-                </For>
-            </Show>
-
-            <p class="mt-2 text-xs opacity-60">
-                "Sign in from the home screen to reply, boost or favourite."
-            </p>
-        </article>
+        <PublicThreadPage
+            host=host
+            status=Signal::derive(move || status.get())
+            ancestors=Signal::derive(move || ancestors.get())
+            replies=Signal::derive(move || replies.get())
+            loading=Signal::derive(move || loading.get())
+            error=Signal::derive(move || error.get())
+            age_of=age_of
+        />
     }
     .into_any()
-}
-
-/// A post rendered without any action that needs a token.
-#[component]
-fn ReadOnly(status: Status) -> impl IntoView {
-    let (shown, set_shown) = signal(status);
-    view! {
-        <div class="card bg-base-100 shadow-sm">
-            <div class="card-body gap-2 p-3">
-                <header class="flex items-center gap-2">
-                    <img
-                        class="size-8 rounded-full bg-base-300 object-cover"
-                        src=move || shown.get().account.avatar.clone()
-                        alt=move || shown.get().account.acct.clone()
-                        loading="lazy"
-                        referrerpolicy="no-referrer"
-                    />
-                    <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold">
-                            {move || {
-                                let account = shown.get().account;
-                                display_name(&account.display_name, &account.acct)
-                            }}
-                        </p>
-                        <p class="truncate text-xs opacity-60">
-                            // A remote account's `acct` already carries its domain, and
-                            // prefixing that with `@` produces `@@` in the first character
-                            // a reader sees.
-                            {move || {
-                                let account = shown.get().account;
-                                let handle = if account.acct.contains('@') {
-                                    account.acct.clone()
-                                } else {
-                                    format!("@{}", account.acct)
-                                };
-                                format!("{handle} · {}", relative_time(&shown.get().created_at))
-                            }}
-                        </p>
-                    </div>
-                </header>
-                <StatusBody shown=shown set_shown=set_shown/>
-            </div>
-        </div>
-    }
 }

@@ -6,15 +6,16 @@
 
 use leptos::prelude::*;
 
+use nodus_view::pages::settings::sync::SyncIntent;
+
 use super::authorize;
-use super::confirm::Intent;
 use crate::state::alive::Alive;
 use crate::state::bridge::set_sync;
 
 /// Runs `intent` once the user confirmed it.
 pub(super) fn run(
-    intent: Intent,
-    confirming: RwSignal<Option<Intent>>,
+    intent: SyncIntent,
+    confirming: RwSignal<Option<SyncIntent>>,
     result: RwSignal<Option<String>>,
     busy: RwSignal<bool>,
     alive: Alive,

@@ -11,9 +11,3 @@
 pub fn relative_time(rfc3339: &str) -> String {
     nodus_view::relative_age(rfc3339, js_sys::Date::now())
 }
-
-/// The name to show for an account: the display name, or the handle when it is empty.
-#[must_use]
-pub fn display_name(display_name: &str, acct: &str) -> String {
-    nodus_view::display_name(display_name, acct)
-}

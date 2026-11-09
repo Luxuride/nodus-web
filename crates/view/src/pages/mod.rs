@@ -34,7 +34,9 @@ pub use saved_shelf as saved;
 pub mod reply_card;
 pub mod scheduled;
 pub mod search;
+pub mod settings;
 
 #[path = "status/[id]/mod.rs"]
 pub mod status_page;
+pub mod timeline;
 pub use status_page as status;

@@ -157,3 +157,21 @@ pages/admin/              /admin/{section}
 
 `pages/status/public.rs` is the shared-post document at `/s/…` — a server-rendered page, not the
 client's status route, and it keeps its own name because its URL says so.
+
+## State (2026-11-09, second pass)
+
+Shared and wired: every settings card (`components::panel::Panel`), the administration and
+moderation areas (`pages::admin`, `pages::moderation`), the composer (`pages::compose`), the reply
+box (`pages::status::reply_card`), the status menu, the feed page and its cards
+(`pages::feed::{FeedPage, posts::PostCard, accounts::{Identity, ReasonBlock, AccountCard}}`), the
+timeline strip (`components::timeline_tabs`), and `pages::timeline::StatusList` — the list, its
+keys, its empty note and its "Load more", with the post itself supplied as a
+`components::card_renderer::CardRenderer`.
+
+The three traps that cost the most compile cycles, now encoded in the code's comments:
+`Option<Callback<..>>` props need `#[prop(optional_no_strip)]` (plain `optional` strips the
+`Option` and the setter then demands a bare callback, so `None` becomes an enabled button); a
+`String` read inside a `Show`/`fallback` closure must sit in a `StoredValue`, and an `Arc` called
+inside `<For>` must be `StoredValue::new(arc)` read with `with_value`, or the closure is `FnOnce`
+(`error[E0525]`); and a component that forwards a caller's optional verb passes it straight through
+— unwrapping at the call site with a no-op `Callback` is what breaks the chain.

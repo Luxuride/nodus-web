@@ -2,6 +2,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use nodus_view::pages::settings::form::FeaturedTagField;
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
@@ -46,21 +47,11 @@ pub fn AddTag(
     };
 
     view! {
-        <div class="flex gap-2">
-            <input
-                type="text"
-                class="input input-bordered input-sm grow"
-                placeholder="rust"
-                prop:value=move || name.get()
-                on:input=move |event| set_name.set(event_target_value(&event))
-            />
-            <button
-                class="btn btn-primary btn-sm"
-                disabled=move || busy.get()
-                on:click=move |_| add()
-            >
-                "Feature"
-            </button>
-        </div>
+        <FeaturedTagField
+            name=Signal::derive(move || name.get())
+            busy=Signal::derive(move || busy.get())
+            on_name=Some(Callback::new(move |value: String| set_name.set(value)))
+            on_add=Some(Callback::new(move |()| add()))
+        />
     }
 }

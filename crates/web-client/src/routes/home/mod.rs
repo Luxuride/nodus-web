@@ -9,7 +9,6 @@
 mod banner;
 
 use leptos::prelude::*;
-use nodus_instance::model::FilterContext;
 
 mod tabs;
 
@@ -20,7 +19,6 @@ pub use header::TimelineHeader;
 pub use tabs::PrimaryTabs;
 
 use self::banner::Banner;
-use crate::routes::filtering::Filtered;
 use crate::state::alive::Alive;
 use crate::state::bridge::{revision, timeline};
 use crate::ui::page::PageHeader;
@@ -109,6 +107,11 @@ pub fn Home(which: Timeline) -> impl IntoView {
         });
     };
 
+    let renderer: nodus_view::components::card_renderer::CardRenderer = std::sync::Arc::new(|status| {
+        use leptos::prelude::IntoAny;
+        view! { <crate::routes::status::StatusCard status=status/> }.into_any()
+    });
+
     view! {
         // One width for every primary timeline: switching between Home, Feed, Local and
         // Federated must not move the column. The extra padding Feed used to carry is
@@ -137,18 +140,6 @@ pub fn Home(which: Timeline) -> impl IntoView {
                 </div>
             </Show>
 
-            // A list, not a run of bare `<li>`s: a screen reader announces the posts as
-            // one list, and the cards keep their own `li` roots.
-            <ul class="flex flex-col gap-2">
-                <For
-                    each=move || held().0
-                    key=|status| status.id.clone()
-                    let:status
-                >
-                    <Filtered status=status context=FilterContext::Home/>
-                </For>
-            </ul>
-
             <Show when=move || {
                 !loading.get() && held().0.is_empty() && error.get().is_none()
             }>
@@ -160,15 +151,13 @@ pub fn Home(which: Timeline) -> impl IntoView {
                 </div>
             </Show>
 
-            <Show when=move || held().1.is_some()>
-                <button
-                    class="btn btn-ghost btn-sm w-full"
-                    disabled=move || loading.get()
-                    on:click=move |_| load_more()
-                >
-                    {move || if loading.get() { "Loading…" } else { "Load more" }}
-                </button>
-            </Show>
+            <nodus_view::pages::timeline::StatusList
+                items=Signal::derive(move || held().0)
+                card=renderer
+                loading=Signal::derive(move || loading.get())
+                more=Signal::derive(move || held().1.is_some())
+                on_more=Callback::new(move |()| load_more())
+            />
         </nodus_view::Screen>
     }
 }

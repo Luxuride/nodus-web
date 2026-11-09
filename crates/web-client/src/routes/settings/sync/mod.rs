@@ -6,20 +6,16 @@
 //! elsewhere. And the state changes only after the request succeeded: a toggle that
 //! flips on a failed call claims a consent nobody granted.
 //!
-//! Both directions ask first. Enabling starts the server processing an account's
-//! data; disabling deletes the copy it holds. Neither is a toggle-sized decision, so
-//! the button opens a confirmation that says exactly what will happen, and the modal
-//! is a `modal-open` div rather than a `<dialog>` so it needs no imperative
-//! `show_modal()` call and re-renders with the rest of the view.
+//! The rows and the dialog are shared; this file owns the reads, the confirmation
+//! state and what a confirmed intent does.
 
 use leptos::prelude::*;
+use nodus_view::pages::settings::sync::{ConfirmDialog, SyncIntent, SyncRows};
 
-use self::confirm::{ConfirmDialog, Intent};
 use crate::state::alive::Alive;
 use crate::state::bridge::{load_sync_consent, revision, with_sdk};
 
 mod authorize;
-mod confirm;
 mod decide;
 
 /// The card's own state, created once, outside every component.
@@ -33,7 +29,7 @@ mod decide;
 /// [`install`] runs from `main` before the first mount, where no owner exists, so these
 /// signals have no owner and no navigation can dispose them.
 struct SyncUi {
-    confirming: RwSignal<Option<Intent>>,
+    confirming: RwSignal<Option<SyncIntent>>,
     busy: RwSignal<bool>,
     result: RwSignal<Option<String>>,
 }
@@ -56,7 +52,7 @@ pub fn install() {
 
 /// The shared handles, cheap to copy.
 fn ui() -> (
-    RwSignal<Option<Intent>>,
+    RwSignal<Option<SyncIntent>>,
     RwSignal<bool>,
     RwSignal<Option<String>>,
 ) {
@@ -71,11 +67,10 @@ pub fn SyncCard() -> impl IntoView {
 
     // What the server holds, not what this tab remembers. `None` means it has not
     // answered yet, which is a third state and must not be rendered as "off".
-    let consent = move || {
+    let state = Signal::derive(move || {
         revision.get();
-        with_sdk(|sdk| sdk.state().sync.get())
-    };
-    let state = move || consent().map(|consent| consent.enabled);
+        with_sdk(|sdk| sdk.state().sync.get().map(|consent| consent.enabled))
+    });
 
     // Asked once per visit. Reading no signal keeps this from re-firing on every
     // state change, which would turn each answer into the next request.
@@ -85,77 +80,33 @@ pub fn SyncCard() -> impl IntoView {
         });
     });
 
-    let run = move |intent: Intent| {
+    let run = move |intent: SyncIntent| {
         decide::run(intent, confirming, result, busy, Alive::new());
     };
 
     // What the button asks for: the opposite of what the server currently holds.
     let asked = move || {
-        if state() == Some(true) {
-            Intent::Disable
+        if state.get() == Some(true) {
+            SyncIntent::Disable
         } else {
-            Intent::Enable
+            SyncIntent::Enable
         }
     };
 
     view! {
         <nodus_view::components::panel::Panel title="Background sync">
-                <p class="text-sm opacity-80">
-                    "Turning this on lets the recommendation server keep an encrypted copy of your access token, sync your follows in the background, and rank without waiting for you to open the app. Turning it off deletes that copy. Interaction telemetry is a separate consent and stays off."
-                </p>
-                <p class="flex items-center gap-2 text-sm">
-                    <span
-                        class=move || match state() {
-                            Some(true) => "badge badge-success badge-sm",
-                            Some(false) => "badge badge-ghost badge-sm",
-                            None => "badge badge-ghost badge-sm opacity-50",
-                        }
-                    >
-                        // Not "off" until the server says so: an unknown consent is
-                        // unknown, and showing a default makes the page load look like
-                        // a decision the reader just made.
-                        {move || match state() {
-                            Some(true) => "on",
-                            Some(false) => "off",
-                            None => "…",
-                        }}
-                    </span>
-                    <span class="opacity-70">
-                        {move || match state() {
-                            Some(true) => "This account is synced by the server.",
-                            Some(false) => "Follows are only read while this app is open.",
-                            None => "Asking the server what it holds…",
-                        }}
-                    </span>
-                </p>
-                <div class="card-actions justify-end">
-                    <button
-                        class=move || if state() == Some(true) {
-                            "btn btn-ghost btn-sm"
-                        } else {
-                            "btn btn-primary btn-sm"
-                        }
-                        // A button that acts on a guess is worse than no button.
-                        disabled=move || state().is_none() || busy.get()
-                        on:click=move |_| confirming.set(Some(asked()))
-                    >
-                        <Show when=move || busy.get()>
-                            <span class="loading loading-spinner loading-xs"></span>
-                        </Show>
-                        {move || match state() {
-                            Some(true) => "Turn off background sync",
-                            Some(false) => "Enable background sync",
-                            None => "Background sync",
-                        }}
-                    </button>
-                </div>
-                {move || result.get().map(|message| view! {
-                    <div class="alert alert-soft alert-info py-2 text-sm" role="status">
-                        <span>{message}</span>
-                    </div>
-                })}
+            <SyncRows
+                state=state
+                busy=Signal::derive(move || busy.get())
+                result=Signal::derive(move || result.get())
+                on_ask=Some(Callback::new(move |()| confirming.set(Some(asked()))))
+            />
         </nodus_view::components::panel::Panel>
 
-        <ConfirmDialog confirming=confirming run=Callback::new(run)/>
+        <ConfirmDialog
+            confirming=Signal::derive(move || confirming.get())
+            on_cancel=Some(Callback::new(move |()| confirming.set(None)))
+            on_confirm=Some(Callback::new(move |intent: SyncIntent| run(intent)))
+        />
     }
 }

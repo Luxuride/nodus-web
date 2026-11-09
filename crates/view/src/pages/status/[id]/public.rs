@@ -69,6 +69,10 @@ pub fn HostForm(
 
 /// One post and its thread, read anonymously from the instance that hosts it.
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "a Leptos component receives its props by value"
+)]
 pub fn PublicThreadPage(
     /// The instance the post is read from.
     host: String,

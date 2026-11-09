@@ -3,15 +3,10 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::InstanceInfo;
+use nodus_view::pages::settings::instance::{Identity, Rules};
 
 use crate::state::alive::Alive;
 use crate::state::bridge::actions;
-
-mod identity;
-mod rules;
-
-use identity::Identity;
-use rules::Rules;
 
 /// Reads `/api/v2/instance` and states it plainly.
 ///

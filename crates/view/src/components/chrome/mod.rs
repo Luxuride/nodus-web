@@ -11,9 +11,11 @@
 //! arrives as an absent callback rather than as different markup.
 
 pub mod more_button;
+pub mod tab_list;
 pub mod skeleton;
 pub mod timeline_header;
 
 pub use more_button::MoreButton;
+pub use tab_list::{Tab, TabList};
 pub use skeleton::Skeleton;
 pub use timeline_header::TimelineHeader;

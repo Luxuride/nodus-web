@@ -24,7 +24,7 @@ use nodus_instance::model::{
     Account, Context, Conversation, List, Notification, ScheduledStatus, Status,
 };
 
-use crate::server::html::body as body_html;
+use crate::html::body as body_html;
 
 /// The assets `trunk` produced. Discovered at startup, because the names carry content
 /// hashes: writing them down here would mean a stale page after every build.
@@ -86,7 +86,7 @@ impl Assets {
 
 /// Escapes text for HTML attributes and text nodes.
 ///
-/// Status bodies are not escaped here any more: they are rewritten by [`crate::server::html`],
+/// Status bodies are not escaped here any more: they are rewritten by [`crate::html`],
 /// which keeps the parts of Mastodon's markup that a post is made of.
 #[must_use]
 pub fn escape(text: &str) -> String {

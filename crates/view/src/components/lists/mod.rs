@@ -18,11 +18,13 @@
 //!   branch inside them.
 
 pub mod account_row;
+pub mod rows;
 pub mod conversation_row;
 pub mod list_row;
 pub mod scheduled_row;
 
 pub use account_row::AccountRow;
+pub use rows::Rows;
 pub use conversation_row::ConversationRow;
 pub use list_row::ListRow;
 pub use scheduled_row::ScheduledRow;

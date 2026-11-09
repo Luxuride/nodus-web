@@ -1512,23 +1512,24 @@ dependencies = [
 [[package]]
 name = "nodus-web"
 version = "0.1.0"
+
+[[package]]
+name = "nodus-web-client"
+version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "gloo-net",
  "js-sys",
  "leptos",
- "lol_html",
  "nodus-discovery",
  "nodus-instance",
- "nodus-runtime",
  "nodus-sdk",
  "nodus-shared",
  "nodus-view",
+ "nodus-web",
  "serde",
  "serde_json",
- "tracing",
  "url",
- "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -1536,23 +1537,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "nodus-web-client"
-version = "0.1.0"
-dependencies = [
- "nodus-web",
-]
-
-[[package]]
 name = "nodus-web-server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "leptos",
+ "lol_html",
+ "nodus-instance",
+ "nodus-sdk",
+ "nodus-view",
  "nodus-web",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

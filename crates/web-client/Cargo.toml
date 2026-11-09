@@ -6,13 +6,12 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 repository.workspace = true
-description = "The browser artifact: the wasm module trunk builds from the shared app crate."
+description = "The browser artifact: the wasm module trunk builds, mounting the shared app."
 
-# A binary-only package. It exists so that building *this* artifact never enables the
-# server's features: with one package holding both binaries, `cargo build --workspace`
-# unifies `hydrate` and `ssr` and the app crate compiles with `leptos/csr` *and*
-# `leptos/ssr` at once — which does not build. One paint per package, and the workspace
-# build is safe.
+# A binary-only package, and its own crate root. The DOM code lives here (it cannot compile
+# for x86_64), the server lives in `nodus-web-server`, and neither package can enable the
+# other's renderer: Cargo unifies features per invocation, so one package holding both
+# would compile `leptos` with `csr` and `ssr` at once — which does not build.
 [[bin]]
 name = "nodus-web"
 path = "src/main.rs"
@@ -20,20 +19,67 @@ path = "src/main.rs"
 [features]
 default = ["hydrate"]
 
-# What this artifact is. Named rather than implied so the client build can be spelled out:
-# `trunk build --release --features admin`.
-hydrate = ["nodus-web/hydrate"]
+# What this artifact is, spelled out so the build is explicit: `trunk build --release`.
+hydrate = ["leptos/csr", "nodus-instance/wasm"]
 
-# The moderation screens. Same meaning as in the app crate; kept here so `--features admin`
-# means the same thing to `trunk` and to `cargo build -p nodus-web-client`.
-admin = ["nodus-web/admin"]
+# The moderation screens. Same meaning as in the shared vocabulary; the screens themselves
+# live in this crate, so the feature is read here.
+admin = []
 
 [dependencies]
-# The one unified library. Both artifacts render the same pages from it; only the
-# renderer behind `leptos` differs, and that is the feature's business, not this file's.
-nodus-web = { path = "../web", default-features = false }
+# The one shared vocabulary: the route table and the addresses it maps to.
+nodus-web = { path = "../web" }
+# Every screen is composed from these components; the server renders the same ones.
+nodus-view = { path = "../view" }
+leptos = { version = "0.8.23", features = ["csr"] }
+nodus-shared = { workspace = true }
+nodus-sdk = { workspace = true }
+nodus-discovery = { workspace = true }
+nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0", features = ["wasm"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+console_error_panic_hook = "0.1"
+# `localStorage` session record, holding the token that sign-in produced. Hand-encoded on
+# purpose: one obvious format in one obvious place.
+url = "2"
+# The two form-encoded `POST`s of the OAuth flow. No JSON feature: responses are read with
+# the browser's own parser.
+gloo-net = { version = "0.6", default-features = false, features = ["http"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+# The browser has no `std::time::Instant`: `web-time` reads `performance.now()`.
+web-time = "1.1"
+web-sys = { version = "0.3", features = [
+    "Clipboard",
+    "Crypto",
+    "History",
+    "Location",
+    "IntersectionObserver",
+    "IntersectionObserverEntry",
+    "IntersectionObserverInit",
+    "MediaQueryList",
+    "MediaQueryListEvent",
+    "PointerEvent",
+    "ProgressEvent",
+    "XmlHttpRequest",
+    "XmlHttpRequestResponseType",
+    "XmlHttpRequestUpload",
+    "Navigator",
+    "Storage",
+    "SubtleCrypto",
+    "Url",
+    "UrlSearchParams",
+    "Blob",
+    "File",
+    "FileList",
+    "HtmlDetailsElement",
+    "HtmlInputElement",
+    "HtmlTextAreaElement",
+    "Window",
+] }
 
-# `trunk` looks for this in the package that owns `index.html`, so it is named here
-# rather than in the app crate: the crate that is built is the crate that is configured.
+# `trunk` looks for this in the package that owns `index.html`, so it is named here rather
+# than in the shared crate: the crate that is built is the crate that is configured.
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz"]

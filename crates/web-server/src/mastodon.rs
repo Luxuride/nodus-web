@@ -11,7 +11,7 @@ use nodus_instance::model::{
     Status,
 };
 use nodus_instance::{HttpInstance, Instance, InstanceApi};
-use nodus_runtime::reads::{Headless, Reads};
+use nodus_sdk::reads::{Headless, Reads};
 
 /// A signed-in instance, ready to ask.
 #[derive(Debug, Clone)]

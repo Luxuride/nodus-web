@@ -8,7 +8,7 @@ import { build } from "esbuild";
 import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 
-const OUT = "crates/web/public/vendor";
+const OUT = "crates/web-client/public/vendor";
 
 const targets = [
   {

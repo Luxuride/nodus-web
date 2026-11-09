@@ -1,7 +1,7 @@
 //! Generates the two browser artifacts the app cannot be built without.
 //!
-//! `crates/web/public/vendor/` (the ProseMirror bundle, the picker and the emoji data
-//! file) and `crates/web/style/tailwind.css` (Tailwind + daisyUI) are **derived**: they
+//! `crates/web-client/public/vendor/` (the ProseMirror bundle, the picker and the emoji
+//! data file) and `crates/web-client/style/tailwind.css` (Tailwind + daisyUI) are derived: they
 //! are produced from `js/`, `style/app.css`, `package.json` and `package-lock.json`,
 //! which are the only things under version control. Nothing here is a source file, so
 //! nothing here belongs in a commit.
@@ -40,10 +40,10 @@ fn main() {
     }
 
     let outputs = [
-        web.join("crates/web/public/vendor/editor.js"),
-        web.join("crates/web/public/vendor/picker.js"),
-        web.join("crates/web/public/vendor/emoji-data.json"),
-        web.join("crates/web/style/tailwind.css"),
+        web.join("crates/web-client/public/vendor/editor.js"),
+        web.join("crates/web-client/public/vendor/picker.js"),
+        web.join("crates/web-client/public/vendor/emoji-data.json"),
+        web.join("crates/web-client/style/tailwind.css"),
     ];
 
     if outputs.iter().all(|output| exists(output)) && !stale(&web, &outputs) {
@@ -95,7 +95,11 @@ fn stale(web: &Path, outputs: &[PathBuf]) -> bool {
 fn newest_mtime(paths: &[PathBuf]) -> Option<std::time::SystemTime> {
     paths
         .iter()
-        .filter_map(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok())
+        .filter_map(|path| {
+            std::fs::metadata(path)
+                .and_then(|meta| meta.modified())
+                .ok()
+        })
         .max()
 }
 

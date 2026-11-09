@@ -15,8 +15,12 @@ use leptos::ev::MouseEvent;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
+// Named by the staff doors in `app`, which only exist in a moderator build.
+#[cfg(feature = "admin")]
+pub use crate::shared::router::{ADMIN_DEFAULT, MODERATION_DEFAULT};
+
 pub use crate::shared::router::{
-    ADMIN_DEFAULT, BASE, MODERATION_DEFAULT, Route, SECTION_DEFAULT, SHELF_DEFAULT,
+    Route, SECTION_DEFAULT, SHELF_DEFAULT,
 };
 
 /// The click listener's closure type, named once so the `thread_local!` stays readable.

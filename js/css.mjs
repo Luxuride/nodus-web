@@ -12,7 +12,7 @@ import { gzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 
 const cli = "node_modules/.bin/tailwindcss";
-const out = "crates/web/style/tailwind.css";
+const out = "crates/web-client/style/tailwind.css";
 
 if (!existsSync(cli)) {
   console.warn(`nodus: ${cli} is missing; keep the committed ${out} or run npm install`);

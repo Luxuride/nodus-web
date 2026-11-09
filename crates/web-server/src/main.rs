@@ -13,6 +13,11 @@
 //! - `NODUS_SESSIONS` — the JSON file sessions survive a restart in (default
 //!   `/var/lib/nodus/sessions.json`; set it to `-` for memory only).
 
+mod html;
+mod mastodon;
+mod render;
+mod session;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -25,9 +30,9 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::json;
 
-use nodus_web::server::mastodon::Client;
-use nodus_web::server::render::{self, Assets};
-use nodus_web::server::session::{COOKIE, Session, Sessions};
+use crate::mastodon::Client;
+use crate::render::Assets;
+use crate::session::{COOKIE, Session, Sessions};
 
 /// How many statuses the server paints. One page, the same size the client asks for: the
 /// point is to remove the first request, not to reimplement pagination.

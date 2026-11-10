@@ -5,6 +5,7 @@
 //! is deliberately the *short* path — text, media, visibility, and a link to the full
 //! composer for anything else (scheduling, a content warning, a reply's thread context).
 
+use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 
 use leptos::prelude::*;
@@ -33,6 +34,18 @@ use drafts_panel::DraftsPanel;
 use emoji::Suggestions;
 use poll::PollEditor;
 use schedule::SchedulePanel;
+
+type Unload = wasm_bindgen::closure::Closure<dyn FnMut(web_sys::Event)>;
+
+thread_local! {
+    /// The composer that is currently mounted, and the unload listener that saves its text.
+    ///
+    /// A route change disposes the composer but not a forgotten window listener. Keeping the
+    /// one live listener here lets its cleanup remove the exact closure, so a reload cannot
+    /// run a draft read against an owner that is gone.
+    static UNLOAD: RefCell<Option<(u64, Unload)>> = const { RefCell::new(None) };
+    static UNLOAD_NEXT: Cell<u64> = const { Cell::new(0) };
+}
 
 /// How long a post may be. Mastodon's default; an instance may configure another, and the
 /// counter says "the instance refuses" rather than pretending this number is a law.
@@ -220,7 +233,9 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
     });
     let on_unload = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(
         move |_event: web_sys::Event| {
-            let (text, visibility, language) = live.get_value();
+            let Some((text, visibility, language)) = live.try_get_value() else {
+                return;
+            };
             // The `:draft` token is a command, not writing: keeping it would fill the list with
             // the very word that opens it.
             if !is_command(&text) {
@@ -228,12 +243,38 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
             }
         },
     );
+    let listener_id = UNLOAD_NEXT.with(|next| {
+        let id = next.get() + 1;
+        next.set(id);
+        id
+    });
     if let Some(window) = web_sys::window() {
+        UNLOAD.with(|slot| {
+            if let Some((_, previous)) = slot.borrow_mut().take() {
+                let _ = window.remove_event_listener_with_callback(
+                    "beforeunload",
+                    previous.as_ref().unchecked_ref(),
+                );
+            }
+        });
         let _ = window
             .add_event_listener_with_callback("beforeunload", on_unload.as_ref().unchecked_ref());
+        UNLOAD.with(|slot| *slot.borrow_mut() = Some((listener_id, on_unload)));
     }
-    on_unload.forget();
     on_cleanup(move || {
+        if let Some(window) = web_sys::window() {
+            UNLOAD.with(|slot| {
+                let mut slot = slot.borrow_mut();
+                if slot.as_ref().is_some_and(|(owner, _)| *owner == listener_id) {
+                    if let Some((_, listener)) = slot.take() {
+                        let _ = window.remove_event_listener_with_callback(
+                            "beforeunload",
+                            listener.as_ref().unchecked_ref(),
+                        );
+                    }
+                }
+            });
+        }
         // A rebuild of this view is not leaving: only a navigation keeps the text.
         if crate::state::epoch::get() == epoch_at_mount {
             return;

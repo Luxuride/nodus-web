@@ -135,9 +135,8 @@ pub fn set_staff(staff: bool) {
 }
 
 /// The two doors a moderator has, drawn from the same list the client draws.
-fn staff_doors() -> leptos::prelude::AnyView {
-    use imperative::rail_rows;
-    rail_rows()
+fn staff_doors(path: &str) -> leptos::prelude::AnyView {
+    imperative::rail_rows(path)
 }
 
 /// Markup for the extra rail rows, kept beside the frame so both come from one place.
@@ -146,21 +145,25 @@ mod imperative {
 
     /// The moderation and administration rows.
     #[must_use]
-    pub fn rail_rows() -> AnyView {
+    pub fn rail_rows(path: &str) -> AnyView {
+        let path = path.to_owned();
         view! {
             <nodus_ui::RailEntry
                 label="Moderation"
                 href="/moderation"
                 hint="The queue, the accounts and what the server allows"
                 icon=nodus_ui::icons::Icon::Shield
-                active=Signal::derive(|| false)
+                active=Signal::derive({
+                    let path = path.clone();
+                    move || nodus_ui::within("/moderation", &path)
+                })
             />
             <nodus_ui::RailEntry
                 label="Administration"
                 href="/admin"
                 hint="What this instance publishes and allows"
                 icon=nodus_ui::icons::Icon::Globe
-                active=Signal::derive(|| false)
+                active=Signal::derive(move || nodus_ui::within("/admin", &path))
             />
         }
         .into_any()
@@ -173,6 +176,7 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
     // The frame, the rail and the icons come from `nodus-view`, the same components the
     // browser mounts. That is the whole point: two templates drift, one tree cannot.
     let path = path.to_owned();
+    let door_path = path.clone();
     let inner = inner.to_owned();
     Owner::new().with(|| {
         let body = inner.clone();
@@ -186,9 +190,9 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
                 leptos::html::div().inner_html(body.clone()).into_any()
             }),
             on_home: None,
-            extra: STAFF
-                .with(std::cell::Cell::get)
-                .then(|| std::sync::Arc::new(staff_doors) as nodus_ui::ExtraDoors),
+            extra: STAFF.with(std::cell::Cell::get).then(move || {
+                std::sync::Arc::new(move || staff_doors(&door_path)) as nodus_ui::ExtraDoors
+            }),
         })
         .to_html()
     })

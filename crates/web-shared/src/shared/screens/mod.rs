@@ -32,6 +32,8 @@ pub enum ScreenKind {
     Saved { bookmarks: bool },
     /// Lists and their timelines.
     Lists,
+    /// The phone's directory of every other screen.
+    More,
     /// Posts waiting to be published.
     Scheduled,
     /// People this instance publishes in its directory.
@@ -114,6 +116,7 @@ pub const SCREENS: &[Screen] = &[
     Screen { path: "/saved/favourites", title: "Saved", kind: ScreenKind::Saved { bookmarks: false } },
     Screen { path: "/saved/bookmarks", title: "Saved", kind: ScreenKind::Saved { bookmarks: true } },
     Screen { path: "/lists", title: "Lists", kind: ScreenKind::Lists },
+    Screen { path: "/more", title: "More", kind: ScreenKind::More },
     Screen { path: "/scheduled", title: "Scheduled", kind: ScreenKind::Scheduled },
     Screen { path: "/directory", title: "People", kind: ScreenKind::Directory },
     Screen { path: "/search", title: "Search", kind: ScreenKind::Search },

@@ -100,6 +100,7 @@ pub(crate) async fn read_page(
     };
 
     let page = match screen.kind {
+        ScreenKind::More => None,
         ScreenKind::Notifications => client
             .notifications(PAGE)
             .await

@@ -19,7 +19,7 @@ use wasm_bindgen::JsCast;
 #[cfg(feature = "admin")]
 pub use crate::shared::router::{ADMIN_DEFAULT, MODERATION_DEFAULT};
 
-pub use crate::shared::router::{Route, SECTION_DEFAULT, SHELF_DEFAULT};
+pub use crate::shared::router::{Route, SECTION_DEFAULT};
 
 /// The click listener's closure type, named once so the `thread_local!` stays readable.
 type LinkHandler = wasm_bindgen::closure::Closure<dyn FnMut(web_sys::MouseEvent)>;

@@ -1,10 +1,10 @@
-//! The shell a phone gets: a bar at the bottom, a sheet for everything else.
+//! The shell a phone gets: a bar at the bottom, and one page for everything else.
 //!
 //! The rail is the right shape for a wide window — twelve destinations, always in the same
 //! place, each one visible. On a phone the same list eats a third of the screen before the
 //! first post, so the narrow layout keeps the five destinations a phone is used to having
-//! under the thumb and puts the rest behind one button. Nothing becomes unreachable: the
-//! sheet is the rail, in a drawer.
+//! under the thumb and puts the rest behind one destination. Nothing becomes unreachable:
+//! More is the rail, as a page of its own, so the bar stays under the thumb while it is open.
 //!
 //! The destinations arrive as data (`BarTab`) because this crate has no `Route`: the client
 //! builds the list from its router, the server never renders a phone shell. Every row is an
@@ -12,10 +12,17 @@
 //! makes it a client-side change instead of a document load), and when it does not — as in the
 //! server — the href is the whole behaviour.
 
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos components receive their props by value"
+)]
+
 use leptos::prelude::*;
 
 use crate::components::icons::Icon;
-use crate::components::rail::icon_of;
+use crate::components::page_header::PageHeader;
+use crate::components::rail::{icon_of, within};
+use crate::components::screen::Screen;
 
 /// One destination: a label, a picture, and where it goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -99,14 +106,20 @@ pub fn MobileTop(
 /// The five destinations a phone gets under the thumb, in reading order.
 #[component]
 pub fn MobileBar(
-    /// Whether the sheet is open; the "More" cell toggles it.
-    open: RwSignal<bool>,
     /// The path the app is on, so one cell can be marked current.
     current: Signal<String>,
     /// The cells, in reading order.
     tabs: Vec<BarTab>,
+    /// The cell for everything else; its path is the More page's address.
+    more: BarTab,
+    /// Whether a destination in More is the one being shown.
+    #[prop(into)]
+    more_active: Signal<bool>,
     #[prop(optional_no_strip)] on_navigate: Option<Callback<String>>,
 ) -> impl IntoView {
+    let more_path = StoredValue::new(more.path.clone());
+    let more_label = more.label.clone();
+    let more_icon = more.icon;
     view! {
         <nav
             class="fixed inset-x-0 bottom-0 z-40 border-t border-base-300 bg-base-100/95 backdrop-blur xl:hidden"
@@ -118,15 +131,23 @@ pub fn MobileBar(
                     <BarCell tab=tab current=current on_navigate=on_navigate/>
                 </For>
                 <li class="flex-1">
-                    <button
-                        type="button"
-                        class="flex min-h-12 w-full flex-col items-center justify-center gap-0.5 py-2.5 text-[0.7rem] font-medium leading-none"
-                        on:click=move |_| open.update(|shown| *shown = !*shown)
-                        aria-label="All destinations"
+                    <a
+                        class="flex min-h-12 flex-col items-center justify-center gap-0.5 py-2.5 text-[0.7rem] font-medium leading-none"
+                        class:opacity-60=move || !more_active.get()
+                        class:text-primary=move || more_active.get()
+                        aria-current=move || more_active.get().then_some("page")
+                        href=more_path.get_value()
+                        title=more_label.clone()
+                        on:click=move |event| {
+                            if let Some(on_navigate) = on_navigate {
+                                event.prevent_default();
+                                on_navigate.run(more_path.get_value());
+                            }
+                        }
                     >
-                        <Icon icon=Icon::More class="size-5"/>
-                        <span class="max-w-full truncate">"More"</span>
-                    </button>
+                        <Icon icon=more_icon class="size-5"/>
+                        <span class="max-w-full truncate">{more_label.clone()}</span>
+                    </a>
                 </li>
             </ul>
         </nav>
@@ -148,9 +169,9 @@ fn BarCell(
         <li class="flex-1">
             <a
                 class="flex min-h-12 flex-col items-center justify-center gap-0.5 py-2.5 text-[0.7rem] font-medium leading-none"
-                class:opacity-60=move || current.get() != path.get_value()
-                class:text-primary=move || current.get() == path.get_value()
-                aria-current=move || (current.get() == path.get_value()).then_some("page")
+                class:opacity-60=move || !within(&path.get_value(), &current.get())
+                class:text-primary=move || within(&path.get_value(), &current.get())
+                aria-current=move || within(&path.get_value(), &current.get()).then_some("page")
                 href=path.get_value()
                 on:click=move |event| {
                     if let Some(on_navigate) = on_navigate {
@@ -167,14 +188,12 @@ fn BarCell(
     }
 }
 
-/// The rest of the destinations, in a sheet that slides up from the bottom bar.
+/// Every destination the bottom bar does not hold, as a page that keeps the bar visible.
 ///
-/// A sheet rather than a page: opening it must not change the address bar, so closing it
-/// returns the reader to exactly the screen they were on.
+/// It is a route, not a drawer: the address bar says `/more`, the back button closes it, and
+/// the bar underneath still marks the section the reader came from.
 #[component]
-pub fn MobileSheet(
-    /// Whether the sheet is showing.
-    open: RwSignal<bool>,
+pub fn MorePage(
     /// The path the app is on, so one row can be marked current.
     current: Signal<String>,
     /// The groups, in reading order.
@@ -182,56 +201,28 @@ pub fn MobileSheet(
     #[prop(optional_no_strip)] on_navigate: Option<Callback<String>>,
 ) -> impl IntoView {
     view! {
-        <div
-            class="fixed inset-0 z-50 xl:hidden"
-            class:hidden=move || !open.get()
-            role="dialog"
-            aria-modal="true"
-            aria-label="All destinations"
-        >
-            <button
-                type="button"
-                class="absolute inset-0 w-full bg-black/40"
-                aria-label="Close"
-                on:click=move |_| open.set(false)
-            ></button>
-            <div class="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-base-300 bg-base-100 pb-24 shadow-2xl">
-                <div class="flex items-center justify-between px-4 pt-3">
-                    <h2 class="text-sm font-semibold">"Everything else"</h2>
-                    <button
-                        type="button"
-                        class="btn btn-ghost btn-sm btn-square"
-                        aria-label="Close"
-                        on:click=move |_| open.set(false)
-                    >
-                        <Icon icon=Icon::Close/>
-                    </button>
-                </div>
-                <ul class="menu w-full px-2 py-2">
-                    <For each=move || groups.clone() key=|group| group.title.clone() let:group>
-                        <li class="menu-title">{group.title.clone()}</li>
-                        <For each=move || group.items.clone() key=|item| item.path.clone() let:item>
-                            <SheetRow
-                                tab=item
-                                current=current
-                                open=open
-                                on_navigate=on_navigate
-                            />
-                        </For>
+        <Screen>
+            <PageHeader
+                title="More"
+                description="Everything the bottom bar keeps out of the way."
+            />
+            <ul class="menu w-full gap-1 rounded-box bg-base-100 p-2 shadow-sm">
+                <For each=move || groups.clone() key=|group| group.title.clone() let:group>
+                    <li class="menu-title">{group.title.clone()}</li>
+                    <For each=move || group.items.clone() key=|item| item.path.clone() let:item>
+                        <MoreRow tab=item current=current on_navigate=on_navigate/>
                     </For>
-                </ul>
-            </div>
-        </div>
+                </For>
+            </ul>
+        </Screen>
     }
 }
 
-/// One row in the sheet: closes the sheet, then navigates, so the reader sees the screen
-/// rather than the drawer sliding away over it.
+/// One row in More: the whole row is a link, and its section stays marked inside a submenu.
 #[component]
-fn SheetRow(
+fn MoreRow(
     tab: BarTab,
     current: Signal<String>,
-    open: RwSignal<bool>,
     #[prop(optional_no_strip)] on_navigate: Option<Callback<String>>,
 ) -> impl IntoView {
     let path = StoredValue::new(tab.path.clone());
@@ -240,10 +231,10 @@ fn SheetRow(
         <li>
             <a
                 class="flex w-full items-center gap-2 py-2 font-medium"
-                class:menu-active=move || current.get() == path.get_value()
+                class:menu-active=move || within(&path.get_value(), &current.get())
+                aria-current=move || within(&path.get_value(), &current.get()).then_some("page")
                 href=path.get_value()
                 on:click=move |event| {
-                    open.set(false);
                     if let Some(on_navigate) = on_navigate {
                         event.prevent_default();
                         on_navigate.run(path.get_value());

@@ -32,6 +32,29 @@ pub fn icon_of(label: &str) -> Icon {
     }
 }
 
+/// Whether `path` is this destination or one of its sections.
+///
+/// `/settings/profile` belongs to Settings, and `/saved/bookmarks` belongs to Saved; the
+/// rail marks the section, not only the one address that happens to be its default.
+#[must_use]
+pub fn within(href: &str, path: &str) -> bool {
+    if href == "/" {
+        return path == "/";
+    }
+    if path == href {
+        return true;
+    }
+    for section in ["/settings", "/saved", "/admin", "/moderation"] {
+        if let Some(index) = href.find(&format!("{section}/")) {
+            let root = &href[..index + section.len()];
+            if path == root || path.starts_with(&format!("{root}/")) {
+                return true;
+            }
+        }
+    }
+    path.starts_with(&format!("{href}/"))
+}
+
 /// Doors only some readers have, as a function so the same value can be drawn by both
 /// paints: the server closes over server markup, the browser closes over live components.
 pub type ExtraDoors = Arc<dyn Fn() -> AnyView + Send + Sync>;
@@ -153,7 +176,7 @@ pub fn Rail(
                                         <li>
                                             <a
                                                 class="flex w-full items-center gap-2 font-medium"
-                                                class:menu-active=move || active.get() == href
+                                                class:menu-active=move || within(href, &active.get())
                                                 href=href
                                                 title=destination.hint
                                             >

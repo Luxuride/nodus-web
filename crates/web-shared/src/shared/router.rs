@@ -56,6 +56,8 @@ pub enum Route {
     Scheduled,
     /// Hand-picked accounts with a timeline each.
     Lists,
+    /// The phone's door to everything the bottom bar does not hold.
+    More,
     /// Writing a new status.
     Compose,
     /// Editing one of the viewer's own statuses.
@@ -110,6 +112,7 @@ impl Route {
             Self::Saved(which) => format!("/saved/{which}"),
             Self::Scheduled => "/scheduled".to_owned(),
             Self::Lists => "/lists".to_owned(),
+            Self::More => "/more".to_owned(),
             Self::Compose => "/compose".to_owned(),
             Self::ComposeEdit(id) => format!("/compose/{id}"),
             Self::Mutes => "/mutes".to_owned(),
@@ -204,6 +207,7 @@ impl Route {
             "/saved" => Self::Saved(SHELF_DEFAULT.to_owned()),
             "/scheduled" => Self::Scheduled,
             "/lists" => Self::Lists,
+            "/more" => Self::More,
             "/compose" => Self::Compose,
             "/mutes" => Self::Mutes,
             "/blocks" => Self::Blocks,

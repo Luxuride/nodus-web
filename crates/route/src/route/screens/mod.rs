@@ -12,6 +12,7 @@ pub mod directory;
 pub mod feed;
 pub mod lists;
 pub mod messages;
+pub mod more;
 pub mod notifications;
 pub mod people;
 pub mod saved;

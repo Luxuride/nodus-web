@@ -356,6 +356,11 @@ pub trait Runtime: Send + Sync + 'static {
         None
     }
 
+    /// The screen a More page was opened from, so its own section stays marked.
+    fn last_path(&self) -> Option<String> {
+        None
+    }
+
     /// A destination click. The server has nowhere to navigate and leaves the default.
     fn drop_account(&self, _kind: &PageKind, _account: &str) {}
 
@@ -373,6 +378,10 @@ where
 
 /// The route renderer both paints call.
 #[component]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per route: the match is the router, and splitting it hides a missing screen"
+)]
 pub fn RouteView(
     runtime: Arc<dyn Runtime>,
     route: Route,
@@ -431,6 +440,14 @@ pub fn RouteView(
             <ListsScreen runtime card/>
         }
         .into_any(),
+        Route::More => {
+            let path = runtime.last_path().unwrap_or_else(|| route.path());
+            let navigate = Some(Callback::new(move |path: String| runtime.navigate(path)));
+            view! {
+                <crate::route::screens::more::MoreScreen path=path on_navigate=navigate/>
+            }
+            .into_any()
+        }
         Route::Mutes => view! {
             <PeopleList runtime id=String::new() kind=crate::pages::people::Kind::Mutes/>
         }

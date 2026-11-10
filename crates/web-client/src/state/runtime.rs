@@ -8,20 +8,31 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::{Account, Context, Relationship, Status};
-use nodus_sdk::page::{PageEntry, PageKind};
-use nodus_sdk::{Command, Timeline};
-use nodus_web::shared::router::Route;
-use nodus_shared::{AccountItem, PostItem};
 use nodus_pages::pages::settings::nav::SettingsSection;
 use nodus_route::route::{
     Action, ActionResult, FeedKind, FeedPeopleView, FeedPostsView, Runtime, SessionView,
     TimelineKind, TimelineReply,
 };
+use nodus_sdk::page::{PageEntry, PageKind};
+use nodus_sdk::{Command, Timeline};
+use nodus_shared::{AccountItem, PostItem};
+use nodus_web::shared::router::Route;
 
 use crate::state::bridge::{
     actions, dispatch, feed_ui, load_posts_once, pages, posts_ui, reload_feed, reload_posts,
     revision, timeline, with_sdk,
 };
+
+thread_local! {
+    static LAST_PATH: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+}
+
+/// Remembers the screen under a More page, so its section stays marked while the page is open.
+pub fn remember_path(path: &str) {
+    if path != Route::More.path() {
+        LAST_PATH.with(|last| *last.borrow_mut() = path.to_owned());
+    }
+}
 
 /// The live runtime both a signed-in and a signed-out tree use.
 pub fn runtime() -> Arc<dyn Runtime> {
@@ -404,6 +415,13 @@ impl Runtime for ClientRuntime {
             kind: kind.clone(),
             account: account.to_owned(),
         });
+    }
+
+    fn last_path(&self) -> Option<String> {
+        LAST_PATH.with(|last| {
+            let path = last.borrow();
+            (!path.is_empty()).then(|| path.clone())
+        })
     }
 
     fn navigate(&self, path: String) {

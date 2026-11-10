@@ -33,6 +33,7 @@ pub(crate) fn App() -> impl IntoView {
 
     let revision = revision();
     let route = router::route();
+    Effect::new(move |_| crate::state::runtime::remember_path(&route.get().path()));
     // A `Memo`, not a closure: the screen match below reads this, and a plain closure
     // would re-run it on every state notification — rebuilding the current screen
     // (disposing its owner, dropping its state, re-firing its effects) each time the
@@ -42,9 +43,6 @@ pub(crate) fn App() -> impl IntoView {
         revision.get();
         with_sdk(|sdk| sdk.state().session.get().is_some())
     });
-
-    // The sheet is a signal, not a route: opening it must not change the address bar.
-    let sheet = RwSignal::new(false);
 
     let card: CardRenderer = std::sync::Arc::new(|status| {
         view! { <crate::routes::status::StatusCard status/> }.into_any()
@@ -165,6 +163,14 @@ pub(crate) fn App() -> impl IntoView {
                                 />
                             }
                             .into_any(),
+                            Route::More if signed_in => view! {
+                                <RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::More
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
                             Route::Moderation(section) if signed_in => view! {
                                 <RouteView
                                     runtime=crate::state::runtime::runtime()
@@ -244,6 +250,9 @@ pub(crate) fn App() -> impl IntoView {
                             Route::Lists => {
                                 view! { <SignIn note="Sign in to manage your lists."/> }.into_any()
                             }
+                            Route::More => {
+                                view! { <SignIn note="Sign in to see every destination."/> }.into_any()
+                            }
                             Route::Compose | Route::ComposeEdit(_) => {
                                 view! { <SignIn note="Sign in to write a status."/> }.into_any()
                             }
@@ -285,8 +294,7 @@ pub(crate) fn App() -> impl IntoView {
                         }
             })/>
         <Show when=move || signed_in.get()>
-            <shell::MobileBar open=sheet/>
-            <shell::MobileSheet open=sheet/>
+            <shell::MobileBar/>
         </Show>
         <crate::media::ImageModal/>
         <div class="hidden xl:block">
@@ -313,6 +321,15 @@ fn extra_doors() -> Option<nodus_ui::ExtraDoors> {
     None
 }
 
+/// Whether two routes name the same rail section, even when they choose different subsections.
+#[cfg(feature = "admin")]
+fn same_section(current: &Route, target: &Route) -> bool {
+    match (current, target) {
+        (Route::Admin(_), Route::Admin(_)) | (Route::Moderation(_), Route::Moderation(_)) => true,
+        _ => current == target,
+    }
+}
+
 /// One entry in the rail: the class that marks the current screen, and a click that
 /// keeps the address bar in step without a full page load.
 ///
@@ -333,7 +350,7 @@ fn RailItem(label: &'static str, icon: Icon, hint: &'static str, route: Route) -
             hint=hint
             href=path
             icon=icon
-            active=Signal::derive(move || current.get() == marker)
+            active=Signal::derive(move || same_section(&current.get(), &marker))
             on_click=Some(Callback::new(move |()| router::navigate(target.clone())))
         />
     }

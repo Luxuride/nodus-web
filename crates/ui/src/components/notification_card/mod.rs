@@ -54,7 +54,9 @@ pub fn NotificationCard(
                     <time class="text-xs opacity-50" datetime=created_at>{age}</time>
                 </div>
                 {extra.with_value(|extra| extra.as_ref().map(|extra| extra()))}
-                {body.with_value(|body| body.as_ref().map(|body| body()))}
+                <div class="nodus-notification-body min-w-0">
+                    {body.with_value(|body| body.as_ref().map(|body| body()))}
+                </div>
             </div>
         </li>
     }

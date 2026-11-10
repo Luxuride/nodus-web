@@ -7,6 +7,8 @@
 
 use leptos::prelude::*;
 
+use crate::icons::Icon;
+
 /// Edit and delete, for the author.
 ///
 /// `id` is the status id, which is also the edit address. With no `on_edit` the anchor is the
@@ -30,20 +32,35 @@ pub fn StatusMenu(
     let disabled = on_delete.is_none();
 
     view! {
-        <a class="btn btn-ghost btn-xs" href=format!("/compose/{id}") on:click=move |event| follow_edit(&event, on_edit)>
-            "Edit"
-        </a>
-        <button
-            class="btn btn-ghost btn-xs text-error"
-            disabled=disabled
-            on:click=move |_| {
-                if let Some(on_delete) = on_delete {
-                    on_delete.run(());
-                }
-            }
-        >
-            "Delete"
-        </button>
+        <details class="dropdown">
+            <summary
+                class="btn btn-ghost btn-sm btn-square h-9 min-h-9 w-9 sm:h-8 sm:min-h-8 sm:w-8"
+                title="More actions"
+                aria-label="More actions"
+            >
+                <Icon icon=Icon::More/>
+            </summary>
+            <ul class="menu dropdown-content z-20 mt-1 w-36 rounded-box border border-base-300 bg-base-100 p-1 shadow-lg">
+                <li>
+                    <a href=format!("/compose/{id}") on:click=move |event| follow_edit(&event, on_edit)>
+                        "Edit"
+                    </a>
+                </li>
+                <li>
+                    <button
+                        class="text-error"
+                        disabled=disabled
+                        on:click=move |_| {
+                            if let Some(on_delete) = on_delete {
+                                on_delete.run(());
+                            }
+                        }
+                    >
+                        "Delete"
+                    </button>
+                </li>
+            </ul>
+        </details>
     }
 }
 

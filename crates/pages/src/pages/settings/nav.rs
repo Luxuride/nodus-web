@@ -66,7 +66,7 @@ pub fn SettingsTabs(
     #[prop(optional_no_strip)] on_navigate: Option<Callback<SettingsSection>>,
 ) -> impl IntoView {
     view! {
-        <div role="tablist" class="tabs tabs-box mb-4 w-fit flex-wrap">
+        <div role="tablist" class="tabs tabs-box mb-4 w-full flex-wrap sm:w-fit">
             <For each=|| SettingsSection::ALL key=|item| item.slug() let:item>
                 {
                     let href = format!("/settings/{}", item.slug());

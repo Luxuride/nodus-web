@@ -120,7 +120,7 @@ pub fn MobileBar(
                 <li class="flex-1">
                     <button
                         type="button"
-                        class="flex w-full flex-col items-center gap-0.5 py-2 text-[0.65rem] font-medium leading-none"
+                        class="flex min-h-12 w-full flex-col items-center justify-center gap-0.5 py-2.5 text-[0.7rem] font-medium leading-none"
                         on:click=move |_| open.update(|shown| *shown = !*shown)
                         aria-label="All destinations"
                     >
@@ -147,9 +147,10 @@ fn BarCell(
     view! {
         <li class="flex-1">
             <a
-                class="flex flex-col items-center gap-0.5 py-2 text-[0.65rem] font-medium leading-none"
+                class="flex min-h-12 flex-col items-center justify-center gap-0.5 py-2.5 text-[0.7rem] font-medium leading-none"
                 class:opacity-60=move || current.get() != path.get_value()
                 class:text-primary=move || current.get() == path.get_value()
+                aria-current=move || (current.get() == path.get_value()).then_some("page")
                 href=path.get_value()
                 on:click=move |event| {
                     if let Some(on_navigate) = on_navigate {

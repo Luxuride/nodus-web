@@ -145,7 +145,7 @@ fn grid(
 fn status_text(content: &str) -> AnyView {
     view! {
         <div
-            class="break-words [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
+            class="break-words [overflow-wrap:anywhere] [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
             inner_html=content.to_owned()
         ></div>
     }

@@ -22,7 +22,8 @@ pub fn ThreadScreen(
     id: String,
     card: CardRenderer,
 ) -> AnyView {
-    if host.trim().is_empty() {
+    let local = host.trim().is_empty() && runtime.session().is_some();
+    if host.trim().is_empty() && !local {
         let typed = RwSignal::new(String::new());
         let target = id.clone();
         return view! {

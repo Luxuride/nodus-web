@@ -14,10 +14,10 @@ use crate::state::bridge::{init, revision, with_sdk};
 use leptos::prelude::*;
 #[cfg(feature = "admin")]
 use leptos::task::spawn_local;
+use nodus_route::route::RouteView;
 use nodus_ui::components::CardRenderer;
 #[cfg(feature = "admin")]
 use nodus_ui::icons::Icon;
-use nodus_route::route::RouteView;
 
 /// Application shell: the rail, and the screen the address bar asks for.
 #[component]
@@ -55,6 +55,7 @@ pub(crate) fn App() -> impl IntoView {
             signed_in=Signal::derive(move || signed_in.get())
             path=Signal::derive(move || router::route().get().path())
             extra=extra_doors()
+            on_home=Callback::new(|()| router::navigate(Route::Home))
             inner=std::sync::Arc::new(move || {
                         // The callback comes first, before the signed-in gate: the
                         // instance redirects here while the app is still signed out, and
@@ -288,9 +289,11 @@ pub(crate) fn App() -> impl IntoView {
             <shell::MobileSheet open=sheet/>
         </Show>
         <crate::media::ImageModal/>
-        <nodus_ui::AppFooter host=Signal::derive(move || {
-            with_sdk(|sdk| sdk.state().session.get().map(|session| session.host))
-        })/>
+        <div class="hidden xl:block">
+            <nodus_ui::AppFooter host=Signal::derive(move || {
+                with_sdk(|sdk| sdk.state().session.get().map(|session| session.host))
+            })/>
+        </div>
     }
 }
 

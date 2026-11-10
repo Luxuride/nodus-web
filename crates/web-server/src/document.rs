@@ -185,6 +185,7 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
             inner: std::sync::Arc::new(move || {
                 leptos::html::div().inner_html(body.clone()).into_any()
             }),
+            on_home: None,
             extra: STAFF
                 .with(std::cell::Cell::get)
                 .then(|| std::sync::Arc::new(staff_doors) as nodus_ui::ExtraDoors),

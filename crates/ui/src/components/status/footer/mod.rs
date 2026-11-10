@@ -53,17 +53,18 @@ pub fn StatusFooter(
     let after = StoredValue::new(after_verbs);
 
     view! {
-        <footer class="flex items-center justify-between gap-2 border-t border-base-200 pt-2">
-            <span class="text-xs opacity-60">{format!("{} replies", status.replies_count)}</span>
-            <div class="flex items-center gap-1">
+        <footer class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-base-200 pt-2">
+            <span class="shrink-0 text-xs opacity-60">{format!("{} replies", status.replies_count)}</span>
+            <div class="flex w-full min-w-0 flex-wrap items-center justify-between gap-0.5 sm:w-auto sm:justify-end sm:gap-1">
                 <a
-                    class="btn btn-ghost btn-sm"
+                    class="btn btn-ghost btn-sm h-9 min-h-9 px-1 sm:h-8 sm:min-h-8 sm:px-3"
                     href=format!("/status/{}", status.id)
                     title="Reply to this post"
+                    aria-label="Reply to this post"
                     on:click=move |event| follow_reply(&event, target, on_reply)
                 >
                     <Icon icon=Icon::Reply/>
-                    <span class="ml-1">"Reply"</span>
+                    <span class="ml-1 hidden sm:inline">"Reply"</span>
                 </a>
                 {edited.then(|| view! { <span class="text-xs opacity-50">"edited"</span> })}
                 {before.with_value(|before| before.as_ref().map(|children| children()))}
@@ -144,9 +145,9 @@ fn verb(
     id: StoredValue<String>,
 ) -> AnyView {
     let class = if active {
-        "btn btn-ghost btn-sm btn-active"
+        "btn btn-ghost btn-sm btn-active h-9 min-h-9 px-1 sm:h-8 sm:min-h-8 sm:px-3"
     } else {
-        "btn btn-ghost btn-sm"
+        "btn btn-ghost btn-sm h-9 min-h-9 px-1 sm:h-8 sm:min-h-8 sm:px-3"
     };
     let badge = count.map(|count| view! { <span class="ml-1 tabular-nums">{count}</span> });
     if let Some(on_click) = on_click {

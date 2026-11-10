@@ -27,3 +27,20 @@
 /* Tailwind scans these for class names. Pointed at the views rather than the whole
  * crate so a class name mentioned in a doc comment does not drag in its CSS. */
 @source "../src/**/*.rs";
+@source "../../ui/src/**/*.rs";
+@source "../../pages/src/**/*.rs";
+@source "../../route/src/**/*.rs";
+@source "../../web-client/src/**/*.rs";
+
+/* A status card inside a notification is context, not a second card: keep the header,
+ * body and actions, drop the frame and the inner padding. */
+.nodus-notification-body > ul > .card {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.nodus-notification-body > ul > .card > .card-body {
+  padding: 0;
+  gap: 0.5rem;
+}

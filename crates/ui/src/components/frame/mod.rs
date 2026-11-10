@@ -17,13 +17,24 @@ pub fn Frame(
     inner: ChildrenFn,
     /// Doors only some readers have.
     extra: Option<ExtraDoors>,
+    /// Goes home without a document load when the app can answer.
+    #[prop(optional)]
+    on_home: Option<Callback<()>>,
 ) -> impl IntoView {
     let inner = StoredValue::new(inner);
     view! {
         <div class="min-h-screen bg-base-200 text-base-content">
             <Show when=move || signed_in.get()>
                 <header class="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-base-300 bg-base-100 px-3 py-2 xl:hidden">
-                    <a class="font-semibold tracking-tight" href="/">"Nodus"</a>
+                    <a class="font-semibold tracking-tight" href="/" on:click=move |event| {
+                        if let Some(on_home) = on_home {
+                            #[cfg(target_arch = "wasm32")]
+                            event.prevent_default();
+                            #[cfg(not(target_arch = "wasm32"))]
+                            let _ = &event;
+                            on_home.run(());
+                        }
+                    }>"Nodus"</a>
                 </header>
             </Show>
             <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row">

@@ -6,6 +6,8 @@
 
 use leptos::prelude::*;
 
+use crate::icons::Icon;
+
 /// Copies the post's shareable link.
 ///
 /// With no `on_copy` the button keeps its box and is disabled: the server has no clipboard,
@@ -23,15 +25,20 @@ pub fn ShareButton(
 
     view! {
         <button
-            class="btn btn-ghost btn-sm"
+            class="btn btn-ghost btn-sm h-9 min-h-9 px-1 sm:h-8 sm:min-h-8 sm:px-3"
             disabled=disabled
+            title=move || if copied.get() { "Copied" } else { "Copy link" }
+            aria-label=move || if copied.get() { "Copied" } else { "Copy link" }
             on:click=move |_| {
                 if let Some(on_copy) = on_copy {
                     on_copy.run(());
                 }
             }
         >
-            {move || if copied.get() { "Copied" } else { "Link" }}
+            <Icon icon=Icon::Link/>
+            <span class="ml-1 hidden sm:inline">
+                {move || if copied.get() { "Copied" } else { "Link" }}
+            </span>
         </button>
     }
 }

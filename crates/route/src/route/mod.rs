@@ -380,6 +380,9 @@ pub fn RouteView(
     #[prop(optional_no_strip)] header: Option<ChildrenFn>,
     #[prop(optional_no_strip)] banner: Option<ChildrenFn>,
 ) -> impl IntoView {
+    if let Some(body) = runtime.body(&route) {
+        return body().into_any();
+    }
     match route {
         Route::Home | Route::Local | Route::Federated => {
             let kind = match route {

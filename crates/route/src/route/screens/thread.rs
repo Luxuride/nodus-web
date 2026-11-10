@@ -55,6 +55,7 @@ pub fn ThreadScreen(
             .map(|context| context.descendants)
             .unwrap_or_default(),
     );
+    let ready = RwSignal::new(false);
     let error = RwSignal::new(None::<String>);
     let alive = crate::Alive::new();
 
@@ -63,9 +64,6 @@ pub fn ThreadScreen(
     let load_status = {
         let runtime = Arc::clone(&runtime);
         Callback::new(move |()| {
-            if status.get_untracked().is_some() {
-                return;
-            }
             let runtime = Arc::clone(&runtime);
             let status_done = Callback::new(move |result: Result<Status, String>| {
                 alive.if_alive(|| match result {
@@ -81,6 +79,7 @@ pub fn ThreadScreen(
                     }
                     Err(message) => error.set(Some(message)),
                 });
+                ready.set(true);
             });
             if load_host.is_empty() {
                 runtime.load_thread(load_id.clone(), status_done, context_done);
@@ -100,15 +99,17 @@ pub fn ThreadScreen(
         let runtime = Arc::clone(&runtime);
         move |created: String| relative_age(&created, runtime.now_millis())
     });
-    let reply_slot: ChildrenFn = Arc::new({
-        let runtime = Arc::clone(&runtime);
-        let parent = id.clone();
-        move || {
-            view! {
-                <ReplyComposer runtime=Arc::clone(&runtime) parent=parent.clone() replies=replies />
+    let reply_slot: ChildrenFn = runtime.reply_composer(id.clone(), replies).unwrap_or_else(|| {
+        Arc::new({
+            let runtime = Arc::clone(&runtime);
+            let parent = id.clone();
+            move || {
+                view! {
+                    <ReplyComposer runtime=Arc::clone(&runtime) parent=parent.clone() replies=replies />
+                }
+                .into_any()
             }
-            .into_any()
-        }
+        })
     });
     let card = StoredValue::new(card);
     let reply_slot = StoredValue::new(reply_slot);
@@ -116,7 +117,7 @@ pub fn ThreadScreen(
 
     view! {
         <Show
-            when=move || status.get().is_some()
+            when=move || status.get().is_some() && ready.get()
             fallback=move || {
                 view! {
                     <crate::Screen>

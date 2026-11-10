@@ -77,7 +77,6 @@ pub(super) fn EmojiToggle(
         }
     });
 
-
     on_cleanup(|| {
         LISTENER.with(|slot| {
             if let Some(listener) = slot.borrow_mut().take()

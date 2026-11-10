@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{MediaAttachment, Visibility};
+use nodus_instance::model::{MediaAttachment, Status, Visibility};
 use nodus_pages::pages::compose::inline::Posted;
 use nodus_pages::pages::compose::inline::{
     InlineComposer as InlineCard, InlineComposerProps as InlineCardProps,
@@ -70,11 +70,22 @@ fn custom_time(value: &str) -> Option<String> {
 #[component]
 pub fn InlineComposer(
     /// The timeline to refresh after a post, so the new status is visible at once.
-    which: StoredValue<nodus_sdk::Timeline>,
+    #[prop(optional_no_strip)]
+    which: Option<StoredValue<nodus_sdk::Timeline>>,
     /// Bumped to ask the timeline to reload.
-    set_reload: WriteSignal<u32>,
+    #[prop(optional_no_strip)]
+    set_reload: Option<WriteSignal<u32>>,
+    /// The status this box answers, when it is a reply.
+    #[prop(optional_no_strip)]
+    reply_to: Option<String>,
+    /// The thread as the instance took it, so a reply page can append it.
+    #[prop(optional_no_strip)]
+    on_posted: Option<Callback<Vec<Status>>>,
+    /// The line above the box; empty means "New post".
+    #[prop(optional, into)]
+    heading: String,
 ) -> impl IntoView {
-    let draft = Draft::new(which, set_reload);
+    let draft = Draft::new(which, set_reload, reply_to, on_posted);
     // One catalogue for both controls — the suggestions popup and the picker ask the
     // instance once, not once per keystroke and once per open.
     let emoji_catalogue = emoji::catalogue();
@@ -101,7 +112,12 @@ pub fn InlineComposer(
 
     // The shortcode completion follows the caret, which the editor reports as plain text
     // changes: a token is open exactly while the draft ends in one.
-    Effect::new(move |_| set_emoji_open.set(emoji::pending(&draft.text.get()).is_some()));
+    Effect::new(move |_| {
+        let Some(text) = draft.text.try_get() else {
+            return;
+        };
+        set_emoji_open.set(emoji::pending(&text).is_some());
+    });
 
     // `:draft` and the kept-text lifecycle, in one place: this component was already at the
     // line limit, and the resume path is a feature of its own.
@@ -195,6 +211,7 @@ pub fn InlineComposer(
     // The slots are handed over in the props struct: view syntax can pass an affordance but
     // not the absence of one, and the card needs both slots filled.
     InlineCard(InlineCardProps {
+        heading,
         body,
         controls,
         error: Some(draft.error.into()),
@@ -229,7 +246,16 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
     let epoch_at_mount = crate::state::epoch::get();
     let live = StoredValue::new((String::new(), Visibility::Public, String::new()));
     Effect::new(move |_| {
-        live.set_value((kept_text.get(), kept_visibility.get(), kept_language.get()));
+        let (Some(text), Some(visibility), Some(language)) = (
+            kept_text.try_get(),
+            kept_visibility.try_get(),
+            kept_language.try_get(),
+        ) else {
+            return;
+        };
+        if live.try_get_value().is_some() {
+            live.set_value((text, visibility, language));
+        }
     });
     let on_unload = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(
         move |_event: web_sys::Event| {
@@ -265,7 +291,10 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
         if let Some(window) = web_sys::window() {
             UNLOAD.with(|slot| {
                 let mut slot = slot.borrow_mut();
-                if slot.as_ref().is_some_and(|(owner, _)| *owner == listener_id) {
+                if slot
+                    .as_ref()
+                    .is_some_and(|(owner, _)| *owner == listener_id)
+                {
                     if let Some((_, listener)) = slot.take() {
                         let _ = window.remove_event_listener_with_callback(
                             "beforeunload",
@@ -279,7 +308,9 @@ fn draft_controls(draft: &Draft) -> (Signal<bool>, Callback<usize>) {
         if crate::state::epoch::get() == epoch_at_mount {
             return;
         }
-        let text = kept_text.get_untracked();
+        let Some(text) = kept_text.try_get_untracked() else {
+            return;
+        };
         if !is_command(&text) {
             crate::ui::drafts::keep(
                 &text,
@@ -336,12 +367,19 @@ struct Draft {
     /// pickers' own style so the confirmation reads as the same choice, not a second claim.
     done: RwSignal<Option<(Visibility, String)>>,
     alive: Alive,
-    which: StoredValue<nodus_sdk::Timeline>,
-    set_reload: WriteSignal<u32>,
+    which: Option<StoredValue<nodus_sdk::Timeline>>,
+    set_reload: Option<WriteSignal<u32>>,
+    reply_to: Option<StoredValue<String>>,
+    on_posted: Option<Callback<Vec<Status>>>,
 }
 
 impl Draft {
-    fn new(which: StoredValue<nodus_sdk::Timeline>, set_reload: WriteSignal<u32>) -> Self {
+    fn new(
+        which: Option<StoredValue<nodus_sdk::Timeline>>,
+        set_reload: Option<WriteSignal<u32>>,
+        reply_to: Option<String>,
+        on_posted: Option<Callback<Vec<Status>>>,
+    ) -> Self {
         Self {
             text: RwSignal::new(String::new()),
             visibility: RwSignal::new(Visibility::Public),
@@ -364,6 +402,8 @@ impl Draft {
             alive: Alive::new(),
             which,
             set_reload,
+            reply_to: reply_to.map(StoredValue::new),
+            on_posted,
         }
     }
 
@@ -387,6 +427,8 @@ impl Draft {
             alive: self.alive,
             which: self.which,
             set_reload: self.set_reload,
+            reply_to: self.reply_to,
+            on_posted: self.on_posted,
         }
     }
 }
@@ -409,8 +451,10 @@ struct Signals {
     language: RwSignal<String>,
     done: RwSignal<Option<(Visibility, String)>>,
     alive: Alive,
-    which: StoredValue<nodus_sdk::Timeline>,
-    set_reload: WriteSignal<u32>,
+    which: Option<StoredValue<nodus_sdk::Timeline>>,
+    set_reload: Option<WriteSignal<u32>>,
+    reply_to: Option<StoredValue<String>>,
+    on_posted: Option<Callback<Vec<Status>>>,
 }
 
 impl Signals {
@@ -423,6 +467,7 @@ impl Signals {
             return;
         }
         let mut status = actions::NewStatus::text(body, self.visibility.get_untracked());
+        status.reply_to = self.reply_to.map(|id| id.get_value());
         status.media_ids = self
             .media
             .get_untracked()
@@ -444,6 +489,8 @@ impl Signals {
         };
 
         let chosen = self.visibility.get_untracked();
+        let language = status.language.clone();
+        let parts = crate::routes::compose::thread::statuses(status, LIMIT);
         let custom = self.custom.get_untracked();
         let at = custom_time(&custom);
         if !custom.is_empty() && at.is_none() {
@@ -452,12 +499,20 @@ impl Signals {
             ));
             return;
         }
+        if at.is_some() && parts.len() > 1 {
+            self.error.set(Some(
+                "A thread is posted now; clear the time to send it as a thread.".to_owned(),
+            ));
+            return;
+        }
 
         self.busy.set(true);
         self.error.set(None);
         self.notice.set(None);
         let snapshot = Snapshot {
-            status,
+            parts,
+            visibility: chosen,
+            language,
             custom,
             text: self.text,
             busy: self.busy,
@@ -471,24 +526,27 @@ impl Signals {
             alive: self.alive,
             which: self.which,
             set_reload: self.set_reload,
+            on_posted: self.on_posted,
         };
         spawn_local(async move {
-            let outcome = match at {
-                Some(at) => actions::schedule(&snapshot.status.text, chosen, &at)
+            if let Some(at) = at {
+                let outcome = actions::schedule(&snapshot.parts[0].text, chosen, &at)
                     .await
-                    .map(|()| format!("Scheduled: {}", Notice::of(&snapshot.custom))),
-                None => actions::publish(&snapshot.status)
-                    .await
-                    .map(|_| String::new()),
-            };
-            snapshot.finish(outcome).await;
+                    .map(|()| format!("Scheduled: {}", Notice::of(&snapshot.custom)));
+                snapshot.finish_scheduled(outcome).await;
+            } else {
+                let outcome = actions::publish_thread(&snapshot.parts).await;
+                snapshot.finish(outcome).await;
+            }
         });
     }
 }
 
 /// What a submit needs after the request is in flight.
 struct Snapshot {
-    status: actions::NewStatus,
+    parts: Vec<actions::NewStatus>,
+    visibility: Visibility,
+    language: Option<String>,
     custom: String,
     text: RwSignal<String>,
     busy: RwSignal<bool>,
@@ -500,45 +558,66 @@ struct Snapshot {
     poll_open: RwSignal<bool>,
     options: RwSignal<Vec<String>>,
     alive: Alive,
-    which: StoredValue<nodus_sdk::Timeline>,
-    set_reload: WriteSignal<u32>,
+    which: Option<StoredValue<nodus_sdk::Timeline>>,
+    set_reload: Option<WriteSignal<u32>>,
+    on_posted: Option<Callback<Vec<Status>>>,
 }
 
 impl Snapshot {
-    async fn finish(self, outcome: Result<String, String>) {
+    async fn finish(self, outcome: actions::ThreadOutcome) {
+        if !self.alive.is_alive() {
+            return;
+        }
+        if let Some(on_posted) = self.on_posted {
+            if !outcome.statuses.is_empty() {
+                on_posted.run(outcome.statuses.clone());
+            }
+        }
+        if outcome.statuses.is_empty() {
+            self.error.set(outcome.error);
+            self.busy.set(false);
+            return;
+        }
+        self.done.set(Some((
+            self.visibility,
+            self.language.clone().unwrap_or_default(),
+        )));
+        crate::ui::drafts::clear();
+        self.text.set(String::new());
+        self.media.set(Vec::new());
+        self.custom_at.set(String::new());
+        self.poll_open.set(false);
+        self.options.set(vec![String::new(), String::new()]);
+        if let Some(which) = self.which {
+            let _ = timeline::refresh(which.get_value(), None).await;
+        }
+        if self.alive.is_alive() {
+            self.error.set(outcome.error);
+            self.busy.set(false);
+            if let Some(set_reload) = self.set_reload {
+                set_reload.update(|generation| *generation += 1);
+            }
+        }
+    }
+
+    async fn finish_scheduled(self, outcome: Result<String, String>) {
         match outcome {
             Ok(scheduled) => {
-                // The draft is gone once the instance has it; nothing is kept for a retry,
-                // because a retry after a success is a duplicate post.
                 if !self.alive.is_alive() {
                     return;
-                }
-                // The pickers' answer, echoed back: what actually went out. Only for a real
-                // post — a scheduled one names its time in `notice` instead.
-                if scheduled.is_empty() {
-                    self.done.set(Some((
-                        self.status.visibility,
-                        self.status.language.clone().unwrap_or_default(),
-                    )));
                 }
                 crate::ui::drafts::clear();
                 self.text.set(String::new());
                 self.media.set(Vec::new());
                 self.custom_at.set(String::new());
-                // The poll travelled with the request; leaving the panel open with the same
-                // options would post it again on the next click.
                 self.poll_open.set(false);
                 self.options.set(vec![String::new(), String::new()]);
-                // A scheduled post is not in the timeline yet, so refreshing it would fetch
-                // the same page and change nothing.
-                if scheduled.is_empty() {
-                    let _ = timeline::refresh(self.which.get_value(), None).await;
-                }
                 if self.alive.is_alive() {
-                    self.notice
-                        .set(Some(scheduled).filter(|line| !line.is_empty()));
+                    self.notice.set(Some(scheduled));
                     self.busy.set(false);
-                    self.set_reload.update(|generation| *generation += 1);
+                    if let Some(set_reload) = self.set_reload {
+                        set_reload.update(|generation| *generation += 1);
+                    }
                 }
             }
             Err(message) => {

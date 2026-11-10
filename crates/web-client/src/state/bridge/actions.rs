@@ -265,6 +265,61 @@ pub async fn publish(status: &NewStatus) -> Result<Status, String> {
     call(transport()?.post_status(&status.draft())).await
 }
 
+/// What a thread publish managed to send, and why it stopped when it did.
+pub struct ThreadOutcome {
+    /// The posts the instance accepted, oldest first.
+    pub statuses: Vec<Status>,
+    /// The refusal that stopped the chain, if it stopped before the last post.
+    pub error: Option<String>,
+}
+
+/// Publishes posts in order, each answering the one before.
+///
+/// A failure does not pretend the earlier posts were rolled back: the instance has them,
+/// so the outcome carries them home and the composer can show the thread that exists.
+pub async fn publish_thread(parts: &[NewStatus]) -> ThreadOutcome {
+    let mut statuses = Vec::new();
+    let mut parent = parts.first().and_then(|part| part.reply_to.clone());
+    let transport = match transport() {
+        Ok(transport) => transport,
+        Err(message) => {
+            return ThreadOutcome {
+                statuses,
+                error: Some(message),
+            };
+        }
+    };
+    for part in parts {
+        let mut status = part.clone();
+        status.reply_to = parent.clone();
+        match call(transport.post_status(&status.draft())).await {
+            Ok(posted) => {
+                parent = Some(posted.id.clone());
+                statuses.push(posted);
+            }
+            Err(message) => {
+                let error = if statuses.is_empty() {
+                    message
+                } else {
+                    format!(
+                        "Posted {} of {} posts, then stopped: {message}",
+                        statuses.len(),
+                        parts.len()
+                    )
+                };
+                return ThreadOutcome {
+                    statuses,
+                    error: Some(error),
+                };
+            }
+        }
+    }
+    ThreadOutcome {
+        statuses,
+        error: None,
+    }
+}
+
 /// Sets or replaces one attachment's alt text.
 ///
 /// The instance answers with the media as it now stands, so the caller can replace its

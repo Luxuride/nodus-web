@@ -60,6 +60,7 @@ pub fn ComposerBar(
     schedule_panel: Option<ChildrenFn>,
 ) -> impl IntoView {
     let count = move || text.get().chars().count();
+    let posts = move || crate::pages::compose::thread::posts(&text.get(), limit);
     // "Grey like send": a post button that cannot post must look like a button that
     // cannot post, not like a primary action waiting to be pressed.
     let postable = move || !busy.get() && !text.get().trim().is_empty() && on_submit.is_some();
@@ -119,8 +120,14 @@ pub fn ComposerBar(
                     class="text-xs tabular-nums"
                     class=("hidden", move || count() == 0)
                     class=("opacity-50", move || count() <= limit)
-                    class=("text-error", move || count() > limit)
-                    title="The instance refuses a post longer than this"
+                    class=("text-warning", move || count() > limit)
+                    title=move || {
+                        if posts() > 1 {
+                            format!("This will go out as {} posts", posts())
+                        } else {
+                            "The instance refuses a post longer than this".to_owned()
+                        }
+                    }
                 >
                     {move || format!("{}/{limit}", count())}
                 </span>
@@ -141,10 +148,11 @@ pub fn ComposerBar(
                             }
                         }
                     >
-                        {move || match (busy.get(), scheduling.get()) {
-                            (true, _) => "Posting…",
-                            (false, true) => "Schedule",
-                            (false, false) => "Post",
+                        {move || match (busy.get(), scheduling.get(), posts() > 1) {
+                            (true, _, _) => "Posting…",
+                            (false, true, _) => "Schedule",
+                            (false, false, true) => "Thread",
+                            (false, false, false) => "Post",
                         }}
                     </button>
                     <button
@@ -179,6 +187,11 @@ pub fn ComposerBar(
                     }}
                 </div>
             </div>
+            <Show when=move || { posts() > 1 && !scheduling.get() }>
+                <p class="w-full text-xs opacity-60">
+                    {move || format!("Will be posted as a thread of {} posts.", posts())}
+                </p>
+            </Show>
         </div>
     }
 }

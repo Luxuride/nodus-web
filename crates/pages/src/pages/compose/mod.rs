@@ -9,6 +9,7 @@ use leptos::prelude::*;
 pub mod attachments;
 pub mod form;
 pub mod inline;
+pub mod thread;
 
 pub use form::ComposeForm;
 pub use inline::InlineComposer;

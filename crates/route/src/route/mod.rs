@@ -212,6 +212,16 @@ pub trait Runtime: Send + Sync + 'static {
     }
 
     /// A status already in hand, if the platform keeps one.
+    /// The normal composer, when this paint can write. The server has no client editor, so
+    /// its thread keeps the plain reply card.
+    fn reply_composer(
+        &self,
+        _parent: String,
+        _replies: RwSignal<Vec<Status>>,
+    ) -> Option<ChildrenFn> {
+        None
+    }
+
     fn status(&self, _id: &str) -> Option<Status> {
         None
     }

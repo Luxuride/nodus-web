@@ -92,29 +92,52 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
             language.get_untracked(),
         );
         let editing = editing.get_value();
+        let parts = if editing.is_some() {
+            vec![status]
+        } else {
+            super::thread::statuses(status, super::inline::LIMIT)
+        };
         let alive = Alive::new();
         set_busy.set(true);
         set_error.set(None);
         spawn_local(async move {
             let answer = match &editing {
-                Some(id) => actions::edit(id, &status).await,
-                None => actions::publish(&status).await,
+                Some(id) => actions::edit(id, &parts[0])
+                    .await
+                    .map(|status| vec![status]),
+                None => {
+                    let outcome = actions::publish_thread(&parts).await;
+                    if outcome.statuses.is_empty() {
+                        Err(outcome.error.unwrap_or_default())
+                    } else {
+                        Ok(outcome.statuses)
+                    }
+                }
             };
-            if let Err(message) = answer {
-                alive.if_alive(|| {
-                    set_error.set(Some(message));
-                    set_busy.set(false);
-                });
-                return;
-            }
-            // An edit lands on the thread, which shows the new revision; a fresh status has
-            // no page of its own, so home is where it appears.
+            let posted = match answer {
+                Ok(posted) => posted,
+                Err(message) => {
+                    alive.if_alive(|| {
+                        set_error.set(Some(message));
+                        set_busy.set(false);
+                    });
+                    return;
+                }
+            };
+            // An edit lands on the thread, which shows the new revision; a thread lands on
+            // its first post; a single fresh status has no page of its own, so home.
             router::navigate(match &editing {
                 Some(id) => Route::Thread {
                     host: crate::state::bridge::session::remembered_host().unwrap_or_default(),
                     id: id.clone(),
                 },
-                None => Route::Home,
+                None => match posted.first() {
+                    Some(status) if posted.len() > 1 => Route::Thread {
+                        host: crate::state::bridge::session::remembered_host().unwrap_or_default(),
+                        id: status.id.clone(),
+                    },
+                    _ => Route::Home,
+                },
             });
             alive.if_alive(|| set_busy.set(false));
         });

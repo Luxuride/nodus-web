@@ -222,6 +222,18 @@ impl Runtime for ClientRuntime {
         });
     }
 
+    fn reply_composer(&self, parent: String, replies: RwSignal<Vec<Status>>) -> Option<ChildrenFn> {
+        Some(Arc::new(move || {
+            view! {
+                <crate::routes::status::reply::ReplyComposer
+                    parent=parent.clone()
+                    replies=replies
+                />
+            }
+            .into_any()
+        }))
+    }
+
     fn session(&self) -> Option<SessionView> {
         with_sdk(|sdk| {
             sdk.state().session.get().map(|session| SessionView {

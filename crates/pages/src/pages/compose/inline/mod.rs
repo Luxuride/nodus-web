@@ -38,6 +38,9 @@ pub struct Posted {
 /// A box above the timeline: write, attach, post.
 #[component]
 pub fn InlineComposer(
+    /// The line above the box; empty means "New post".
+    #[prop(optional, into)]
+    heading: String,
     /// The suggestions, the drafts popup and the editor.
     body: ChildrenFn,
     /// The bar, the poll and the attachment list, in that order.
@@ -54,10 +57,15 @@ pub fn InlineComposer(
 ) -> impl IntoView {
     let body = StoredValue::new(body);
     let controls = StoredValue::new(controls);
+    let heading = StoredValue::new(if heading.is_empty() {
+        "New post".to_owned()
+    } else {
+        heading
+    });
 
     view! {
         <crate::ComposerCard>
-            <h2 class="text-xs font-semibold uppercase tracking-wide opacity-50">"New post"</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-wide opacity-50">{heading.get_value()}</h2>
             {body.with_value(|body| body())}
             {controls.with_value(|controls| controls())}
 

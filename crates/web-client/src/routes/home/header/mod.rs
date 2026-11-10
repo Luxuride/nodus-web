@@ -18,7 +18,7 @@ pub fn TimelineHeader() -> impl IntoView {
     let publish_to = StoredValue::new(Timeline::Home);
 
     view! {
-        <InlineComposer which=publish_to set_reload=set_reload/>
+        <InlineComposer which=Some(publish_to) set_reload=Some(set_reload)/>
         <PrimaryTabs/>
     }
 }

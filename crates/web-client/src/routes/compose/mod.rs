@@ -15,6 +15,7 @@ use crate::state::bridge::actions;
 mod attachments;
 mod form;
 pub mod inline;
+mod thread;
 pub(crate) use form::ComposeForm;
 
 /// Writing a new status.

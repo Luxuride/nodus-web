@@ -27,6 +27,7 @@ pub fn ComposerActions(
             text=text
             busy=busy
             editing=editing
+            limit=super::super::inline::LIMIT
             on_submit=on_submit
             on_cancel=Callback::new(move |()| router::navigate(Route::Home))
         />

@@ -19,6 +19,9 @@ pub fn ComposerActions(
     /// Whether this composer edits a post that already exists, which renames the button.
     #[prop(optional)]
     editing: bool,
+    /// The character limit, when a longer body becomes a thread.
+    #[prop(optional)]
+    limit: Option<usize>,
     /// Sends the post.
     #[prop(optional)]
     on_submit: Option<Callback<()>>,
@@ -28,6 +31,16 @@ pub fn ComposerActions(
 ) -> impl IntoView {
     view! {
         <div class="flex items-center gap-2">
+            <Show when=move || !editing && limit.is_some_and(|limit| crate::pages::compose::thread::posts(&text.get(), limit) > 1)>
+                <p class="text-xs opacity-60">
+                    {move || {
+                        let posts = limit.map_or(1, |limit| {
+                            crate::pages::compose::thread::posts(&text.get(), limit)
+                        });
+                        format!("This will go out as a thread of {posts} posts.")
+                    }}
+                </p>
+            </Show>
             <button
                 class="btn btn-primary btn-sm"
                 disabled=move || busy.get() || text.get().trim().is_empty() || on_submit.is_none()
@@ -41,6 +54,8 @@ pub fn ComposerActions(
                     "Sending…".to_owned()
                 } else if editing {
                     "Save changes".to_owned()
+                } else if limit.is_some_and(|limit| crate::pages::compose::thread::posts(&text.get(), limit) > 1) {
+                    "Post thread".to_owned()
                 } else {
                     "Post".to_owned()
                 }}

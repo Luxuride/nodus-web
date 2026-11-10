@@ -41,7 +41,9 @@ pub fn ComposerOptions(
         warning_open: warning_open.into(),
         sensitive: sensitive.into(),
         spoiler: spoiler.into(),
-        on_visibility: Some(Callback::new(move |chosen: Visibility| set_visibility.set(chosen))),
+        on_visibility: Some(Callback::new(move |chosen: Visibility| {
+            set_visibility.set(chosen)
+        })),
         on_toggle_warning: Some(Callback::new(move |()| {
             set_warning_open.update(|open| *open = !*open);
         })),

@@ -15,9 +15,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use nodus_instance::model::Visibility;
-use nodus_pages::pages::compose::inline::bar::{
-    ComposerBar as Bar, ComposerBarProps as BarProps,
-};
+use nodus_pages::pages::compose::inline::bar::{ComposerBar as Bar, ComposerBarProps as BarProps};
 
 use super::{LIMIT, SchedulePanel};
 
@@ -70,9 +68,9 @@ pub(super) fn ComposerBar(
         view! { <super::emoji_toggle::EmojiToggle open=emoji_open set_open=set_emoji_open busy=busy/> }
             .into_any()
     }) as ChildrenFn;
-    let schedule_panel = Arc::new(move || {
-        view! { <SchedulePanel at=at set_at=set_at open=open/> }.into_any()
-    }) as ChildrenFn;
+    let schedule_panel =
+        Arc::new(move || view! { <SchedulePanel at=at set_at=set_at open=open/> }.into_any())
+            as ChildrenFn;
 
     // The props struct is filled directly because view syntax can hand a component a slot but
     // not the absence of one.
@@ -84,10 +82,14 @@ pub(super) fn ComposerBar(
         when,
         limit: LIMIT,
         schedule_open: open.into(),
-        on_visibility: Some(Callback::new(move |chosen: Visibility| set_visibility.set(chosen))),
+        on_visibility: Some(Callback::new(move |chosen: Visibility| {
+            set_visibility.set(chosen)
+        })),
         on_add_media: Some(on_add_media),
         on_add_poll: Some(on_add_poll),
-        on_toggle_schedule: Some(Callback::new(move |()| open.update(|shown| *shown = !*shown))),
+        on_toggle_schedule: Some(Callback::new(move |()| {
+            open.update(|shown| *shown = !*shown)
+        })),
         on_submit: Some(on_submit),
         language: Some(picker),
         emoji_picker: Some(emoji_picker),

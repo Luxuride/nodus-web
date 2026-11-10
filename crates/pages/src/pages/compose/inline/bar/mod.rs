@@ -11,6 +11,8 @@
 use leptos::prelude::*;
 use nodus_instance::model::Visibility;
 
+use crate::components::icons::{Icon, Icon::Image, Icon::List};
+
 /// The bar and the two buttons it ends with.
 #[component]
 #[expect(
@@ -75,8 +77,9 @@ pub fn ComposerBar(
         <div class="flex flex-wrap items-center gap-2">
             <button
                 type="button"
-                class="btn btn-outline btn-sm gap-1 border-dashed"
+                class="btn btn-outline btn-sm gap-1 border-dashed max-sm:btn-square"
                 title="Add images, video or audio"
+                aria-label="Add images, video or audio"
                 disabled=move || busy.get() || on_add_media.is_none()
                 on:click=move |_| {
                     if let Some(on_add_media) = on_add_media {
@@ -84,14 +87,15 @@ pub fn ComposerBar(
                     }
                 }
             >
-                <span class="text-base leading-none">"+"</span>
-                <span>"Media"</span>
+                <Icon icon=Image/>
+                <span class="max-sm:hidden">"Media"</span>
             </button>
 
             <button
                 type="button"
-                class="btn btn-outline btn-sm gap-1 border-dashed"
+                class="btn btn-outline btn-sm gap-1 border-dashed max-sm:btn-square"
                 title="Ask a question instead"
+                aria-label="Ask a question instead"
                 disabled=move || busy.get() || on_add_poll.is_none()
                 on:click=move |_| {
                     if let Some(on_add_poll) = on_add_poll {
@@ -99,8 +103,8 @@ pub fn ComposerBar(
                     }
                 }
             >
-                <span class="text-base leading-none">"+"</span>
-                <span>"Poll"</span>
+                <Icon icon=List/>
+                <span class="max-sm:hidden">"Poll"</span>
             </button>
 
             <VisibilityPicker visibility=visibility on_visibility=on_visibility/>
@@ -113,6 +117,7 @@ pub fn ComposerBar(
 
                 <span
                     class="text-xs tabular-nums"
+                    class=("hidden", move || count() == 0)
                     class=("opacity-50", move || count() <= limit)
                     class=("text-error", move || count() > limit)
                     title="The instance refuses a post longer than this"
@@ -186,7 +191,7 @@ fn VisibilityPicker(
 ) -> impl IntoView {
     view! {
         <select
-            class="select select-bordered select-sm w-fit"
+            class="select select-bordered select-sm w-fit max-sm:w-24"
             aria-label="Who can see this post"
             disabled=move || on_visibility.is_none()
             on:change=move |event| {

@@ -33,10 +33,8 @@ pub fn ComposeForm(
 
     view! {
         <Screen>
-            <div class="form-control">
-                <span class="label-text text-xs opacity-60">{label}</span>
-                {body.with_value(|body| body())}
-            </div>
+            <h1 class="px-1 text-xl font-semibold tracking-tight">{label}</h1>
+            {body.with_value(|body| body())}
 
             {children.with_value(|children| children())}
 

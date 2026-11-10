@@ -31,10 +31,9 @@ pub fn ReplyCard(
                 }
             }
         >
-            <div class="card-body gap-2 p-4">
+            <div class="card-body gap-2 p-3 sm:p-4">
                 <textarea
-                    class="textarea textarea-bordered w-full"
-                    rows="3"
+                    class="textarea textarea-bordered min-h-20 w-full resize-none"
                     placeholder="Write a reply…"
                     aria-label="Write a reply"
                     disabled=busy
@@ -48,7 +47,7 @@ pub fn ReplyCard(
                 <div class="flex items-center justify-between gap-2">
                     <span class="text-xs opacity-60">"Public reply"</span>
                     <button
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-primary btn-sm h-9 min-h-9 px-4"
                         type="submit"
                         disabled=busy || empty
                     >

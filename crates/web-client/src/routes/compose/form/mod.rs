@@ -121,9 +121,9 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     });
 
     let label = if editing.get_value().is_some() {
-        "Edit this status"
+        "Edit this post"
     } else {
-        "Say something"
+        "New post"
     };
     // The frame — the screen column, the line above the box, the error under it — is the
     // view's; the editor and the three rows under it are this crate's, and the frame takes

@@ -1,4 +1,4 @@
-//! The phone's directory of every destination outside the bottom bar.
+//! The phone's destinations that do not fit under the thumb.
 
 use leptos::prelude::*;
 use nodus_web::shared::router::{Route, SECTION_DEFAULT, SHELF_DEFAULT};
@@ -9,21 +9,9 @@ use crate::components::shell::{BarTab, MorePage, SheetGroup};
 fn groups() -> Vec<SheetGroup> {
     vec![
         SheetGroup {
-            title: "Read".to_owned(),
+            title: "Browse".to_owned(),
             items: vec![
-                BarTab::new("Feed", Icon::Sparkle, Route::Feed.path()),
-                BarTab::new("Home", Icon::Home, Route::Home.path()),
-                BarTab::new("Local", Icon::Users, Route::Local.path()),
-                BarTab::new("Federated", Icon::Globe, Route::Federated.path()),
-            ],
-        },
-        SheetGroup {
-            title: "Find".to_owned(),
-            items: vec![BarTab::new("People", Icon::Users, Route::Directory.path())],
-        },
-        SheetGroup {
-            title: "Library".to_owned(),
-            items: vec![
+                BarTab::new("People", Icon::Users, Route::Directory.path()),
                 BarTab::new(
                     "Saved",
                     Icon::Bookmark,
@@ -47,7 +35,7 @@ fn groups() -> Vec<SheetGroup> {
     ]
 }
 
-/// Every destination outside the bottom bar, with the current word kept visible.
+/// The destinations beyond the bar, with the section last opened kept visible.
 #[component]
 pub fn MoreScreen(
     path: String,

@@ -38,9 +38,6 @@ fn under_more(route: &Route) -> bool {
     matches!(
         route,
         Route::More
-            | Route::Feed
-            | Route::Local
-            | Route::Federated
             | Route::Directory
             | Route::Saved(_)
             | Route::Scheduled

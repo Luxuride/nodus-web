@@ -114,6 +114,9 @@ pub fn PostList(
     /// Asks for the page after the given cursor.
     #[prop(optional)]
     on_more: Option<Callback<String>>,
+    /// A platform trigger for the next page, rendered below the button.
+    #[prop(optional_no_strip)]
+    auto_more: Option<ChildrenFn>,
 ) -> impl IntoView {
     let row = StoredValue::new(row);
     let refresh_disabled = on_refresh.is_none();
@@ -196,6 +199,7 @@ pub fn PostList(
                     }
                 })
         }}
+        {auto_more.map(|more| more())}
     }
 }
 

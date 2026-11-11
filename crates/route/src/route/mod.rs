@@ -375,6 +375,11 @@ pub trait Runtime: Send + Sync + 'static {
     fn drop_account(&self, _kind: &PageKind, _account: &str) {}
 
     fn navigate(&self, _path: String) {}
+
+    /// A platform trigger that asks for the next page when it scrolls into view.
+    fn infinite_more(&self, _active: Signal<bool>, _on_load: Callback<()>) -> Option<ChildrenFn> {
+        None
+    }
 }
 
 /// The callback a stateless paint supplies for one verb: present, but inert.
@@ -586,10 +591,29 @@ fn TimelineScreen(
         let start = start.clone();
         move |()| start(data.get_untracked().cursor)
     });
+    let auto_more = runtime.infinite_more(
+        Signal::derive(move || more.get() && !loading.get()),
+        on_more,
+    );
     let (title, description, empty_note) = copy(&kind);
+    let rows: ChildrenFn = std::sync::Arc::new(move || {
+        let card = std::sync::Arc::clone(&card);
+        view! {
+            <crate::pages::timeline::StatusList
+                items=items
+                card=card
+                loading=loading
+                more=more
+                on_more=Some(on_more)
+                auto_more=auto_more.clone()
+                show_empty=false
+            />
+        }
+        .into_any()
+    });
 
     view! {
-        <crate::pages::timeline::TimelinePage
+        <crate::pages::feed::FeedPage
             title=title
             description=description
             empty_note=empty_note
@@ -597,11 +621,10 @@ fn TimelineScreen(
             banner=banner
             error=Signal::derive(move || error.get())
             loading=loading
-            items=items
-            card=card
-            more=more
-            on_more=Some(on_more)
-        />
+            has_items=Signal::derive(move || !items.get().is_empty())
+        >
+            {rows()}
+        </crate::pages::feed::FeedPage>
     }
 }
 

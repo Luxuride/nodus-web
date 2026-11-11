@@ -199,6 +199,9 @@ pub fn PeopleList(
     /// Asks for the page after the given cursor.
     #[prop(optional)]
     on_more: Option<Callback<String>>,
+    /// A platform trigger for the next page, rendered below the button.
+    #[prop(optional_no_strip)]
+    auto_more: Option<ChildrenFn>,
     /// Opens the settings screen from the empty card.
     #[prop(optional_no_strip)]
     on_settings: Option<Callback<()>>,
@@ -300,6 +303,7 @@ pub fn PeopleList(
                     }
                 })
         }}
+        {auto_more.map(|more| more())}
     }
 }
 

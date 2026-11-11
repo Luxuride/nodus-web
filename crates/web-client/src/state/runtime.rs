@@ -439,6 +439,12 @@ impl Runtime for ClientRuntime {
     fn navigate(&self, path: String) {
         crate::router::navigate(crate::router::Route::from_path(&path));
     }
+
+    fn infinite_more(&self, active: Signal<bool>, on_load: Callback<()>) -> Option<ChildrenFn> {
+        Some(std::sync::Arc::new(move || {
+            view! { <crate::ui::infinite::Infinite active=active on_load=on_load/> }.into_any()
+        }))
+    }
 }
 
 fn which(kind: &TimelineKind) -> Timeline {

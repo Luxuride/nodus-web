@@ -8,78 +8,8 @@ use leptos::prelude::*;
 use nodus_instance::model::Status;
 
 use crate::components::card_renderer::CardRenderer;
-use crate::{PageHeader, Screen};
 
 pub mod banner;
-
-/// A whole timeline: its header, the optional composer block, the empty and error states,
-/// the posts and the paging foot.
-///
-/// The page owns the column and every state a timeline can be in. The client hands it the
-/// store's signals and the post renderer; the server hands it one page of statuses and no
-/// callbacks, and both paints put the same boxes in the same order.
-#[component]
-pub fn TimelinePage(
-    #[prop(into)] title: String,
-    #[prop(into)] description: String,
-    #[prop(into)] empty_note: String,
-    /// The composer and the timeline switch, above the title's list.
-    #[prop(optional_no_strip)]
-    header: Option<ChildrenFn>,
-    /// An announcement banner, above the posts.
-    #[prop(optional_no_strip)]
-    banner: Option<ChildrenFn>,
-    #[prop(into)] error: Signal<Option<String>>,
-    #[prop(into)] loading: Signal<bool>,
-    items: Signal<Vec<Status>>,
-    card: CardRenderer,
-    #[prop(into)] more: Signal<bool>,
-    #[prop(optional_no_strip)] on_more: Option<Callback<()>>,
-) -> impl IntoView {
-    let header = header.map(|header| header());
-    let banner = banner.map(|banner| banner());
-    let note = StoredValue::new(empty_note);
-
-    view! {
-        <Screen>
-            <div class="flex flex-col gap-2">{header}</div>
-            <PageHeader title=title description=description/>
-            {banner}
-
-            <Show when=move || error.get().is_some()>
-                <div class="alert alert-error py-2 text-sm" role="alert">
-                    <span>{move || error.get().unwrap_or_default()}</span>
-                </div>
-            </Show>
-
-            <Show when=move || loading.get() && items.get().is_empty()>
-                <div class="flex justify-center py-6">
-                    <span class="loading loading-spinner loading-md"></span>
-                </div>
-            </Show>
-
-            <Show when=move || {
-                !loading.get() && items.get().is_empty() && error.get().is_none()
-            }>
-                <div class="card border border-base-300 bg-base-100">
-                    <div class="card-body items-center p-6 text-center">
-                        <h2 class="card-title text-base">"Nothing here yet"</h2>
-                        <p class="text-sm opacity-70">{move || note.try_with_value(Clone::clone).unwrap_or_default()}</p>
-                    </div>
-                </div>
-            </Show>
-
-            <StatusList
-                items=items
-                card=card
-                loading=loading
-                more=more
-                on_more=on_more
-                show_empty=false
-            />
-        </Screen>
-    }
-}
 
 /// A list of statuses, in the order the caller gave them.
 ///
@@ -100,6 +30,9 @@ pub fn StatusList(
     #[prop(into)]
     more: Signal<bool>,
     #[prop(optional_no_strip)] on_more: Option<Callback<()>>,
+    /// A platform trigger for the next page, rendered below the button.
+    #[prop(optional_no_strip)]
+    auto_more: Option<ChildrenFn>,
     /// Said instead of the list when there is nothing to show and nothing coming.
     #[prop(optional, into)]
     empty: Option<String>,
@@ -155,6 +88,7 @@ pub fn StatusList(
                 </button>
             </div>
         </Show>
+        {auto_more.map(|more| more())}
     }
 }
 

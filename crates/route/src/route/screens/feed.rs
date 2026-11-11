@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 
+use crate::chrome::ButtonTabList;
 use crate::components::CardRenderer;
 use crate::pages::feed::accounts::PeopleList;
 use crate::pages::feed::posts::PostList;
@@ -15,6 +16,10 @@ use crate::pages::feed::{FeedPage, FeedTab};
 use crate::route::{FeedKind, Runtime};
 
 #[component]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the two lists and their triggers are one screen"
+)]
 pub fn FeedScreen(
     runtime: Arc<dyn Runtime>,
     card: CardRenderer,
@@ -42,6 +47,23 @@ pub fn FeedScreen(
             runtime.load_feed(kind, cursor, done);
         }
     });
+    let people_auto = runtime.infinite_more(
+        Signal::derive(move || people.get().cursor.is_some() && !people.get().refreshing),
+        Callback::new(move |()| {
+            if let Some(cursor) = people.get_untracked().cursor {
+                load.run((FeedKind::People, Some(cursor)));
+            }
+        }),
+    );
+    let posts_auto = runtime.infinite_more(
+        Signal::derive(move || posts.get().cursor.is_some() && !posts.get().refreshing),
+        Callback::new(move |()| {
+            if let Some(cursor) = posts.get_untracked().cursor {
+                load.run((FeedKind::Posts, Some(cursor)));
+            }
+        }),
+    );
+
     Effect::new({
         let runtime = Arc::clone(&runtime);
         move |_| {
@@ -87,6 +109,7 @@ pub fn FeedScreen(
                     let load = load;
                     move |cursor: String| load.run((FeedKind::People, Some(cursor)))
                 })
+                auto_more=people_auto.clone()
                 on_settings=runtime.feed_settings()
             />
         }
@@ -108,18 +131,50 @@ pub fn FeedScreen(
                     let load = load;
                     move |cursor: String| load.run((FeedKind::Posts, Some(cursor)))
                 })
+                auto_more=posts_auto.clone()
             />
+        }
+        .into_any()
+    });
+
+    let tabs: ChildrenFn = Arc::new(move || {
+        view! {
+            <ButtonTabList
+                labels=vec!["People".to_owned(), "Posts".to_owned()]
+                active=Signal::derive(move || {
+                    match tab.get() {
+                        FeedTab::People => "People".to_owned(),
+                        FeedTab::Posts => "Posts".to_owned(),
+                    }
+                })
+                on_select=Callback::new(move |label: String| {
+                    tab.set(if label == "People" { FeedTab::People } else { FeedTab::Posts });
+                })
+            />
+        }
+        .into_any()
+    });
+
+    let rows: ChildrenFn = Arc::new(move || {
+        view! {
+            <div class:hidden=move || tab.get() != FeedTab::People>{people_slot()}</div>
+            <div class:hidden=move || tab.get() != FeedTab::Posts>{posts_slot()}</div>
         }
         .into_any()
     });
 
     view! {
         <FeedPage
-            tab=Signal::derive(move || tab.get())
-            on_tab=Callback::new(move |next: FeedTab| tab.set(next))
+            title="Feed"
+            description="People this instance suggests, and what they are posting."
+            empty_note="Suggested posts arrive after the recommender has fetched some timelines."
             header=header
-            people=people_slot
-            posts=posts_slot
-        />
+            tabs=Some(tabs)
+            error=Signal::derive(|| None::<String>)
+            loading=Signal::derive(|| false)
+            has_items=Signal::derive(|| true)
+        >
+            {rows()}
+        </FeedPage>
     }
 }

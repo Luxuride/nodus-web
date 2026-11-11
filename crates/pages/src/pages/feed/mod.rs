@@ -10,7 +10,6 @@
 
 use leptos::prelude::*;
 
-use crate::chrome::ButtonTabList;
 use crate::{PageHeader, Screen};
 
 pub mod accounts;
@@ -27,69 +26,77 @@ pub enum FeedTab {
     Posts,
 }
 
-/// The feed: a composer slot, a title, two tabs, and the two lists.
+/// One feed, whatever feeds it: its composer slot, title, tabs, states and list.
 ///
-/// With no `on_tab` the tabs keep their shape and are disabled, which is what the server
-/// paints: there is no state to switch there. `people` and `posts` are the lists themselves,
-/// built by the client so the same page can hold a store-backed list and a painted one.
+/// Home, Local, Federated and the recommendation feed all paint this same frame. The
+/// caller supplies the rows and the tab strip; the page owns the spacing, the spinner,
+/// the error alert and the empty card, so a feed cannot drift from its siblings.
 #[component]
 #[expect(
     clippy::needless_pass_by_value,
     reason = "a Leptos component receives its props by value"
 )]
 pub fn FeedPage(
-    /// Which list is showing.
-    #[prop(into)]
-    tab: Signal<FeedTab>,
-    /// Switches list. Absent where there is nothing to switch.
-    #[prop(optional)]
-    on_tab: Option<Callback<FeedTab>>,
-    /// What the client puts above the title, usually the composer.
+    #[prop(into)] title: String,
+    #[prop(into)] description: String,
+    #[prop(into)] empty_note: String,
+    /// The composer and the feed switch, above the title.
     #[prop(optional_no_strip)]
     header: Option<ChildrenFn>,
-    /// The accounts list.
-    people: ChildrenFn,
-    /// The posts list.
-    posts: ChildrenFn,
+    /// An announcement or follow-request banner, above the rows.
+    #[prop(optional_no_strip)]
+    banner: Option<ChildrenFn>,
+    /// Secondary switches beside the title, when the feed has any.
+    #[prop(optional_no_strip)]
+    tabs: Option<ChildrenFn>,
+    #[prop(into)] error: Signal<Option<String>>,
+    #[prop(into)] loading: Signal<bool>,
+    /// Whether the selected list has rows.
+    #[prop(into)]
+    has_items: Signal<bool>,
+    children: ChildrenFn,
 ) -> impl IntoView {
     let header = header.map(|header| header());
-    let people = people();
-    let posts = posts();
+    let banner = banner.map(|banner| banner());
+    let tabs = tabs.map(|tabs| tabs());
+    let note = StoredValue::new(empty_note);
+    let rows = children();
 
     view! {
         <Screen>
             <div class="flex flex-col gap-2">{header}</div>
 
             <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
-                <PageHeader
-                    title="Feed"
-                    description="People this instance suggests, and what they are posting."
-                />
-                <ButtonTabList
-                    labels=vec!["People".to_owned(), "Posts".to_owned()]
-                    active=Signal::derive(move || {
-                        match tab.get() {
-                            FeedTab::People => "People".to_owned(),
-                            FeedTab::Posts => "Posts".to_owned(),
-                        }
-                    })
-                    on_select=on_tab.map_or_else(
-                        || Callback::new(|_: String| ()),
-                        |on_tab| {
-                            Callback::new(move |label: String| {
-                                on_tab.run(if label == "People" {
-                                    FeedTab::People
-                                } else {
-                                    FeedTab::Posts
-                                });
-                            })
-                        },
-                    )
-                />
+                <PageHeader title=title description=description/>
+                {tabs}
             </div>
 
-            <div class:hidden=move || tab.get() != FeedTab::People>{people}</div>
-            <div class:hidden=move || tab.get() != FeedTab::Posts>{posts}</div>
+            {banner}
+
+            <Show when=move || error.get().is_some()>
+                <div class="alert alert-error py-2 text-sm" role="alert">
+                    <span>{move || error.get().unwrap_or_default()}</span>
+                </div>
+            </Show>
+
+            <Show when=move || loading.get() && !has_items.get()>
+                <div class="flex justify-center py-6">
+                    <span class="loading loading-spinner loading-md"></span>
+                </div>
+            </Show>
+
+            <Show when=move || {
+                !loading.get() && !has_items.get() && error.get().is_none()
+            }>
+                <div class="card border border-base-300 bg-base-100">
+                    <div class="card-body items-center p-6 text-center">
+                        <h2 class="card-title text-base">"Nothing here yet"</h2>
+                        <p class="text-sm opacity-70">{move || note.try_with_value(Clone::clone).unwrap_or_default()}</p>
+                    </div>
+                </div>
+            </Show>
+
+            {rows}
         </Screen>
     }
 }

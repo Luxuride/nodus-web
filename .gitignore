@@ -21,3 +21,6 @@ node_modules/
 # never committed, so a bundle cannot drift from the source that claims to produce it.
 /crates/web-client/public/vendor/
 /crates/web-client/style/tailwind.css
+
+# Debian-target build output; never committed.
+/target-bookworm

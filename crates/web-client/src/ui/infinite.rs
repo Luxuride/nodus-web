@@ -1,5 +1,8 @@
 //! One invisible row that asks for the next page when it reaches the viewport.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use leptos::html::Div;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -11,10 +14,12 @@ pub fn Infinite(
     on_load: Callback<()>,
 ) -> impl IntoView {
     let node = NodeRef::<Div>::new();
+    let live = Arc::new(AtomicBool::new(true));
 
     #[cfg(target_arch = "wasm32")]
     {
         Effect::new(move |_| {
+            let alive = Arc::clone(&live);
             let Some(element) = node.get() else {
                 return;
             };
@@ -22,7 +27,7 @@ pub fn Infinite(
                 dyn FnMut(js_sys::Array, web_sys::IntersectionObserver),
             >::new(
                 move |entries: js_sys::Array, _observer: web_sys::IntersectionObserver| {
-                    if !active.get_untracked() {
+                    if !alive.load(Ordering::Relaxed) || !active.get_untracked() {
                         return;
                     }
                     let visible = entries.iter().any(|entry| {
@@ -42,7 +47,11 @@ pub fn Infinite(
             };
             observer.observe(&element);
             callback.forget();
-            on_cleanup(move || observer.disconnect());
+            let cleanup_live = Arc::clone(&live);
+            on_cleanup(move || {
+                cleanup_live.store(false, Ordering::Relaxed);
+                observer.disconnect();
+            });
         });
     }
 

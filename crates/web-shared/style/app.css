@@ -24,6 +24,10 @@
 
 @import "./theme.css";
 
+html {
+  scrollbar-gutter: stable;
+}
+
 /* Tailwind scans these for class names. Pointed at the views rather than the whole
  * crate so a class name mentioned in a doc comment does not drag in its CSS. */
 @source "../src/**/*.rs";

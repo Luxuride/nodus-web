@@ -10,6 +10,7 @@
 
 use leptos::prelude::*;
 
+use crate::chrome::ButtonTabList;
 use crate::{PageHeader, Screen};
 
 pub mod accounts;
@@ -57,40 +58,34 @@ pub fn FeedPage(
 
     view! {
         <Screen>
-            {header}
+            <div class="flex flex-col gap-2">{header}</div>
 
-            <div class="mb-5 flex items-baseline justify-between gap-4">
+            <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
                 <PageHeader
                     title="Feed"
                     description="People this instance suggests, and what they are posting."
                 />
-            </div>
-
-            <div class="tabs tabs-box bg-base-100 p-1">
-                <button
-                    class="tab tab-sm"
-                    class:tab-active=move || tab.get() == FeedTab::People
-                    disabled=on_tab.is_none()
-                    on:click=move |_| {
-                        if let Some(on_tab) = on_tab {
-                            on_tab.run(FeedTab::People);
+                <ButtonTabList
+                    labels=vec!["People".to_owned(), "Posts".to_owned()]
+                    active=Signal::derive(move || {
+                        match tab.get() {
+                            FeedTab::People => "People".to_owned(),
+                            FeedTab::Posts => "Posts".to_owned(),
                         }
-                    }
-                >
-                    "People"
-                </button>
-                <button
-                    class="tab tab-sm"
-                    class:tab-active=move || tab.get() == FeedTab::Posts
-                    disabled=on_tab.is_none()
-                    on:click=move |_| {
-                        if let Some(on_tab) = on_tab {
-                            on_tab.run(FeedTab::Posts);
-                        }
-                    }
-                >
-                    "Posts"
-                </button>
+                    })
+                    on_select=on_tab.map_or_else(
+                        || Callback::new(|_: String| ()),
+                        |on_tab| {
+                            Callback::new(move |label: String| {
+                                on_tab.run(if label == "People" {
+                                    FeedTab::People
+                                } else {
+                                    FeedTab::Posts
+                                });
+                            })
+                        },
+                    )
+                />
             </div>
 
             <div class:hidden=move || tab.get() != FeedTab::People>{people}</div>

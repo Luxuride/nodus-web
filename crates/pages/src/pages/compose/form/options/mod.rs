@@ -67,7 +67,7 @@ pub fn ComposerOptions(
                 }
             >
                 <For each=|| CHOICES key=|choice| choice.as_str() let:choice>
-                    <option value=choice.as_str() selected=move || visibility.get() == choice>
+                    <option value=choice.as_str() selected=move || visibility.try_get().is_some_and(|value| value == choice)>
                         {label(choice)}
                     </option>
                 </For>
@@ -84,10 +84,10 @@ pub fn ComposerOptions(
                     }
                 }
             >
-                {move || if warning_open.get() { "Remove warning" } else { "Add warning" }}
+                {move || if warning_open.try_get().unwrap_or(false) { "Remove warning" } else { "Add warning" }}
             </button>
 
-            <Show when=move || warning_open.get()>
+            <Show when=move || warning_open.try_get().unwrap_or(false)>
                 <label class="label cursor-pointer gap-2">
                     <input
                         class="checkbox checkbox-sm"
@@ -105,7 +105,7 @@ pub fn ComposerOptions(
             </Show>
         </div>
 
-        <Show when=move || warning_open.get()>
+        <Show when=move || warning_open.try_get().unwrap_or(false)>
             <input
                 class="input input-bordered input-sm w-full"
                 placeholder="Content warning"

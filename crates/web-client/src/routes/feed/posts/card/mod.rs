@@ -17,7 +17,9 @@ pub fn PostCard(item: PostItem) -> impl IntoView {
     let body = plain_text(&item.text);
     let age = relative_time(&item.published_at);
     let seen = Callback::new(begin_impression);
-    let left = Callback::new(finish_impression);
+    // Unlike a `Callback`, a direct call survives the card's owner disposal.
+    let item_id = item.item_id;
+    on_cleanup(move || finish_impression(item_id));
 
     view! {
         <nodus_pages::pages::feed::posts::PostCard
@@ -25,7 +27,6 @@ pub fn PostCard(item: PostItem) -> impl IntoView {
             body=body
             age=age
             on_seen=seen
-            on_left=left
         />
     }
 }

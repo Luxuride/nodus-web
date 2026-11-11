@@ -15,11 +15,20 @@ pub fn Infinite(
 ) -> impl IntoView {
     let node = NodeRef::<Div>::new();
     let live = Arc::new(AtomicBool::new(true));
+    let enabled = Arc::new(AtomicBool::new(false));
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (&live, &enabled);
 
     #[cfg(target_arch = "wasm32")]
     {
+        let known = Arc::clone(&enabled);
+        Effect::new(move |_| {
+            known.store(active.get(), Ordering::Relaxed);
+        });
+
         Effect::new(move |_| {
             let alive = Arc::clone(&live);
+            let enabled = Arc::clone(&enabled);
             let Some(element) = node.get() else {
                 return;
             };
@@ -27,7 +36,7 @@ pub fn Infinite(
                 dyn FnMut(js_sys::Array, web_sys::IntersectionObserver),
             >::new(
                 move |entries: js_sys::Array, _observer: web_sys::IntersectionObserver| {
-                    if !alive.load(Ordering::Relaxed) || !active.get_untracked() {
+                    if !alive.load(Ordering::Relaxed) || !enabled.load(Ordering::Relaxed) {
                         return;
                     }
                     let visible = entries.iter().any(|entry| {

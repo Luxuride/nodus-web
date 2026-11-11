@@ -35,10 +35,21 @@ pub fn FeedScreen(
             runtime.load_feed(FeedKind::Posts, cursor, done);
         }
     });
+    // The observer may fire just after this screen is disposed. Keep the cursor in
+    // a plain cell so its callback never touches a reactive value during teardown.
+    let next = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
+    Effect::new({
+        let next = std::sync::Arc::clone(&next);
+        move |_| {
+            next.lock()
+                .expect("cursor cell")
+                .clone_from(&posts.get().cursor);
+        }
+    });
     let auto = runtime.infinite_more(
         Signal::derive(move || posts.get().cursor.is_some() && !posts.get().refreshing),
         Callback::new(move |()| {
-            if let Some(cursor) = posts.get_untracked().cursor {
+            if let Some(cursor) = next.lock().expect("cursor cell").clone() {
                 load.run(Some(cursor));
             }
         }),

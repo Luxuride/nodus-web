@@ -30,7 +30,6 @@ thread_local! {
     static PUBLIC_ACCOUNT: std::cell::RefCell<
         std::collections::HashMap<(String, String), PublicAccount>,
     > = std::cell::RefCell::new(std::collections::HashMap::new());
-    static PUBLIC_REV: RwSignal<u64> = RwSignal::new(0);
 }
 
 /// Remembers the screen under a More page, so its section stays marked while the page is open.
@@ -49,8 +48,7 @@ struct ClientRuntime;
 
 impl Runtime for ClientRuntime {
     fn revision(&self) -> Signal<u64> {
-        let base = revision();
-        Signal::derive(move || base.get() + PUBLIC_REV.with(|rev| rev.get()))
+        Signal::from(revision())
     }
 
     fn timeline(&self, kind: &TimelineKind) -> TimelineReply {
@@ -238,7 +236,7 @@ impl Runtime for ClientRuntime {
                         .or_insert_with(|| (account.clone(), Vec::new()))
                         .0 = account.clone();
                 });
-                PUBLIC_REV.with(|rev| rev.update(|n| *n += 1));
+                revision().update(|n| *n += 1);
             }
             done.run(result);
         });
@@ -272,7 +270,7 @@ impl Runtime for ClientRuntime {
                         *held = statuses.clone();
                     }
                 });
-                PUBLIC_REV.with(|rev| rev.update(|n| *n += 1));
+                revision().update(|n| *n += 1);
             }
             done.run(result);
         });

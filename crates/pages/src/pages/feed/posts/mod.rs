@@ -38,13 +38,10 @@ pub fn PostCard(
     }
 
     let status = status_of(&item, body);
-    let author_path = if item.account_remote_id.trim().is_empty() {
+    let author_path = if item.account_url.trim().is_empty() {
         format!("https://{}/@{}", item.instance_host, item.account_acct)
     } else {
-        format!(
-            "/accounts/{}/{}",
-            item.instance_host, item.account_remote_id
-        )
+        item.account_url.clone()
     };
     let thread_path = format!(
         "/status/{}/{}",

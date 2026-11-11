@@ -184,7 +184,6 @@ fn MediaTile(
                     poster=move || preview.get()
                     src=move || url.get()
                     aria-label=move || description.get()
-                    crossorigin="anonymous"
                 ></video>
                 <p class="mt-1 flex flex-wrap gap-x-3 text-xs opacity-60">
                     <span>{move || description.get()}</span>

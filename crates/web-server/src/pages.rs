@@ -428,7 +428,7 @@ pub fn render_public_thread(
             banner: None,
         })
     });
-    document::page_of_public(assets, &path, "Post", &inner)
+    document::page_of_public(assets, &path, "Post", &inner, false)
 }
 
 fn public_card(host: &str) -> nodus_ui::components::card_renderer::CardRenderer {
@@ -454,14 +454,15 @@ pub fn render_public_account(
     let path = format!("/accounts/{host}/{id}");
     let inner = painted(|| {
         nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
-            runtime: StaticRuntime::profile(account, None, statuses, None),
+            runtime: StaticRuntime::profile(account.clone(), None, statuses, None),
             route: Route::Account(format!("{host}/{id}")),
             card: public_card(host),
             header: None,
             banner: None,
         })
     });
-    document::page_of_public(assets, &path, "Account", &inner)
+    let noindex = account.noindex == Some(true);
+    document::page_of_public(assets, &path, "Account", &inner, noindex)
 }
 
 /// The last route seam: any path the data readers did not claim is drawn by the same

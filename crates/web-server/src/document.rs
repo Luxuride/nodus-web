@@ -275,6 +275,7 @@ pub fn feed(
         &format!("{title} · {acct}"),
         &chrome(true, path, &body),
         Some(&island),
+        false,
     )
 }
 
@@ -317,18 +318,25 @@ pub fn page_of(
         &format!("{title} · {acct}"),
         &chrome(true, path, inner),
         island.as_deref(),
+        false,
     )
 }
 
 /// A public page: the reader has no account, so the rail shows no signed-in doors.
-pub fn page_of_public(assets: &Assets, path: &str, title: &str, inner: &str) -> String {
-    page(assets, title, &chrome(false, path, inner), None)
+pub fn page_of_public(
+    assets: &Assets,
+    path: &str,
+    title: &str,
+    inner: &str,
+    noindex: bool,
+) -> String {
+    page(assets, title, &chrome(false, path, inner), None, noindex)
 }
 
 /// The signed-out page, and the shell a signed-in reader gets before their data arrives.
 pub fn landing(assets: &Assets) -> String {
     let inner = Owner::new().with(|| nodus_pages::pages::landing::LandingPage().to_html());
-    page(assets, "Nodus", &chrome(false, "/", &inner), None)
+    page(assets, "Nodus", &chrome(false, "/", &inner), None, false)
 }
 
 /// The shell for every route the client owns.
@@ -367,6 +375,7 @@ pub fn shell(assets: &Assets, acct: Option<&str>, path: &str) -> String {
             "Sign in · Nodus",
             &chrome(false, path, &inner),
             None,
+            false,
         );
     }
 
@@ -385,11 +394,12 @@ pub fn error(assets: &Assets, message: &str) -> String {
         "Timeline unavailable",
         &chrome(true, "/home", &inner),
         None,
+        false,
     )
 }
 
 /// The shell both pages share: the app's stylesheet, its bundle, and the island.
-fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> String {
+fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>, noindex: bool) -> String {
     let stylesheet = match (&assets.stylesheet_css, &assets.stylesheet) {
         (Some(css), _) => format!("<style>{}</style>", css.replace("</style", "<\\/style")),
         (None, Some(href)) => format!("<link rel=\"stylesheet\" href=\"{}\">", escape(href)),
@@ -411,6 +421,7 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> Strin
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
              <link rel=\"icon\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Ctext x='16' y='23' font-family='system-ui' font-size='20' font-weight='700' text-anchor='middle' fill='%23fff'%3En%3C/text%3E%3C/svg%3E\">\
              <title>{title}</title>\
+             {robots}\
              <script>(function(){{var d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=d?'dark':'light';}})()</script>\
              {stylesheet}\
              <script type=\"module\">\
@@ -425,6 +436,11 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>) -> Strin
            </body>\
          </html>",
         title = escape(title),
+        robots = if noindex {
+            "<meta name=\"robots\" content=\"noindex, nofollow\">"
+        } else {
+            ""
+        },
         script = escape(&assets.script),
         wasm = escape(&assets.wasm),
     )

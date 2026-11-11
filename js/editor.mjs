@@ -183,7 +183,7 @@ function mount(element, options = {}) {
     state,
     attributes: {
       class:
-        "min-h-24 w-full whitespace-pre-line text-sm leading-relaxed outline-none",
+        "min-h-24 w-full whitespace-pre-line break-words text-sm leading-relaxed outline-none [overflow-wrap:anywhere]",
       "aria-label": "Post body",
       role: "textbox",
       "aria-multiline": "true",

@@ -32,6 +32,12 @@
 @source "../../route/src/**/*.rs";
 @source "../../web-client/src/**/*.rs";
 
+/* A post body may be one long word or URL. The editor is the one field where the writer
+ * cannot add a space to help the browser, so it breaks anywhere rather than scrolling. */
+.ProseMirror {
+  overflow-wrap: anywhere;
+}
+
 /* A status card inside a notification is context, not a second card: keep the header,
  * body and actions, drop the frame and the inner padding. */
 .nodus-notification-body > ul > .card {

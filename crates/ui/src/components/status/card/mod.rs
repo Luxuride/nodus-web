@@ -97,7 +97,7 @@ pub fn StatusCard(
                     status: inner.clone(),
                     age,
                     author_path,
-                    thread_path,
+                    thread_path: thread_path.clone(),
                     on_navigate,
                 })}
 
@@ -131,6 +131,7 @@ pub fn StatusCard(
                 {StatusFooter(StatusFooterProps {
                     status: inner,
                     edited,
+                    thread_path: Some(thread_path),
                     on_reply,
                     on_boost,
                     on_favourite,

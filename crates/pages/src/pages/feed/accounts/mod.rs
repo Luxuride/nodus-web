@@ -205,12 +205,17 @@ pub fn PeopleList(
     /// Opens the settings screen from the empty card.
     #[prop(optional_no_strip)]
     on_settings: Option<Callback<()>>,
+    /// Whether the list paints its own heading, refusal and empty card. A page that owns
+    /// those states passes `false` and keeps the same list rhythm.
+    #[prop(default = true)]
+    show_states: bool,
 ) -> impl IntoView {
     let row = StoredValue::new(row);
     let refresh_disabled = on_refresh.is_none();
     let more_disabled = on_more.is_none();
 
     view! {
+        <Show when=move || show_states>
         <div class="mb-4 flex items-baseline justify-between gap-4">
             <h2 class="text-sm font-medium opacity-70">"People to follow"</h2>
             <button
@@ -268,6 +273,7 @@ pub fn PeopleList(
             items.get().is_empty() && !refreshing.get() && error.get().is_none()
         }>
             <EmptyPeople on_settings=on_settings/>
+        </Show>
         </Show>
 
         <ul class="space-y-3 transition-opacity" class:opacity-50=move || refreshing.get()>

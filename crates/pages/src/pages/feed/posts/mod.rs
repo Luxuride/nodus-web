@@ -5,7 +5,10 @@
 //! state this crate may read (the same reason `PageHeader` takes its counters).
 
 use leptos::prelude::*;
+use nodus_instance::model::{Account, Status, Visibility};
 use nodus_shared::PostItem;
+
+use crate::status_card::StatusCard;
 
 /// A post card: who wrote it, what it says, and where to read the original.
 ///
@@ -31,59 +34,69 @@ pub fn PostCard(
         on_cleanup(move || left.run(item.item_id));
     }
 
-    let display_name =
-        crate::components::format::display_name(&item.account_display_name, &item.account_acct);
-    let avatar_url = item.account_avatar_url.clone();
-    let has_avatar = !avatar_url.trim().is_empty();
-    let handle = item.account_acct.clone();
-    let counters = format!(
-        "{} boosts · {} favourites · {} replies",
-        item.reblogs_count, item.favourites_count, item.replies_count,
-    );
-    let link = format!(
+    let status = status_of(&item, body);
+    let author_path = format!("https://{}/@{}", item.instance_host, item.account_acct);
+    let thread_path = format!(
         "https://{}/@{}/{}",
         item.instance_host, item.account_acct, item.status_id
     );
 
     view! {
-        <li class="card border border-base-300 bg-base-100 shadow-sm">
-            <div class="card-body gap-3 p-4">
-                <div class="flex items-center gap-3">
-                    <Show when=move || has_avatar>
-                        <div class="avatar">
-                            <div class="w-10 rounded-full bg-base-300">
-                                <img
-                                    src=avatar_url.clone()
-                                    alt=""
-                                    loading="lazy"
-                                    referrerpolicy="no-referrer"
-                                />
-                            </div>
-                        </div>
-                    </Show>
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate font-semibold leading-tight">{display_name}</p>
-                        <p class="truncate text-sm opacity-60">{handle.clone()}</p>
-                    </div>
-                    <span class="text-xs whitespace-nowrap opacity-50">{age}</span>
-                </div>
+        <StatusCard
+            status=status
+            age=age
+            author_path=author_path
+            thread_path=thread_path
+        />
+    }
+}
 
-                <p class="whitespace-pre-line text-sm leading-relaxed">{body}</p>
-
-                <div class="flex items-center justify-between gap-2">
-                    <span class="text-xs opacity-60">{counters}</span>
-                    <a
-                        class="btn btn-ghost btn-sm"
-                        href=link
-                        rel="nofollow noopener noreferrer"
-                        target="_blank"
-                        referrerpolicy="no-referrer"
-                    >
-                        "Open"
-                    </a>
-                </div>
-            </div>
-        </li>
+/// Draws a recommendation in the same shape as a timeline status.
+///
+/// The recommendation carries its author, body, time and counts but not the status's media,
+/// poll or emoji, so those fields stay empty; the card is the timeline's card, not a second
+/// layout that would drift from it.
+fn status_of(item: &PostItem, body: String) -> Status {
+    Status {
+        id: item.status_id.clone(),
+        created_at: item.published_at.clone(),
+        content: body,
+        visibility: Visibility::Public,
+        account: Account {
+            id: item.account_acct.clone(),
+            acct: item.account_acct.clone(),
+            display_name: item.account_display_name.clone(),
+            note: String::new(),
+            avatar: item.account_avatar_url.clone(),
+            header: String::new(),
+            bot: false,
+            locked: false,
+            followers_count: 0,
+            following_count: 0,
+            statuses_count: 0,
+            last_status_at: None,
+        },
+        favourites_count: u64::try_from(item.favourites_count).unwrap_or(0),
+        reblogs_count: u64::try_from(item.reblogs_count).unwrap_or(0),
+        replies_count: u64::try_from(item.replies_count).unwrap_or(0),
+        favourited: false,
+        reblogged: false,
+        bookmarked: false,
+        reblog: None,
+        in_reply_to_id: None,
+        emojis: Vec::new(),
+        url: Some(format!(
+            "https://{}/@{}/{}",
+            item.instance_host, item.account_acct, item.status_id
+        )),
+        sensitive: false,
+        spoiler_text: String::new(),
+        media_attachments: Vec::new(),
+        mentions: Vec::new(),
+        tags: Vec::new(),
+        poll: None,
+        edited_at: None,
+        pinned: None,
     }
 }
 
@@ -117,12 +130,17 @@ pub fn PostList(
     /// A platform trigger for the next page, rendered below the button.
     #[prop(optional_no_strip)]
     auto_more: Option<ChildrenFn>,
+    /// Whether the list paints its own heading, refusal and empty card. A page that owns
+    /// those states passes `false` and keeps the same list rhythm.
+    #[prop(default = true)]
+    show_states: bool,
 ) -> impl IntoView {
     let row = StoredValue::new(row);
     let refresh_disabled = on_refresh.is_none();
     let more_disabled = on_more.is_none();
 
     view! {
+        <Show when=move || show_states>
         <div class="mb-4 flex items-baseline justify-between gap-4">
             <h2 class="text-sm font-medium opacity-70">"Posts to read"</h2>
             <button
@@ -168,6 +186,7 @@ pub fn PostList(
             items.get().is_empty() && !refreshing.get() && error.get().is_none()
         }>
             <EmptyPosts/>
+        </Show>
         </Show>
 
         <ul class="space-y-3 transition-opacity" class:opacity-50=move || refreshing.get()>

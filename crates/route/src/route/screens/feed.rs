@@ -38,6 +38,27 @@ pub fn FeedScreen(
         let runtime = Arc::clone(&runtime);
         move || runtime.feed_posts()
     });
+    let active_error = Signal::derive(move || {
+        if tab.get() == FeedTab::People {
+            people.get().error
+        } else {
+            posts.get().error
+        }
+    });
+    let active_loading = Signal::derive(move || {
+        if tab.get() == FeedTab::People {
+            people.get().refreshing
+        } else {
+            posts.get().refreshing
+        }
+    });
+    let active_count = Signal::derive(move || {
+        if tab.get() == FeedTab::People {
+            people.get().items.len()
+        } else {
+            posts.get().items.len()
+        }
+    });
 
     let load = Callback::new({
         let runtime = Arc::clone(&runtime);
@@ -111,6 +132,7 @@ pub fn FeedScreen(
                 })
                 auto_more=people_auto.clone()
                 on_settings=runtime.feed_settings()
+                show_states=false
             />
         }
         .into_any()
@@ -132,6 +154,7 @@ pub fn FeedScreen(
                     move |cursor: String| load.run((FeedKind::Posts, Some(cursor)))
                 })
                 auto_more=posts_auto.clone()
+                show_states=false
             />
         }
         .into_any()
@@ -139,18 +162,38 @@ pub fn FeedScreen(
 
     let tabs: ChildrenFn = Arc::new(move || {
         view! {
-            <ButtonTabList
-                labels=vec!["People".to_owned(), "Posts".to_owned()]
-                active=Signal::derive(move || {
-                    match tab.get() {
-                        FeedTab::People => "People".to_owned(),
-                        FeedTab::Posts => "Posts".to_owned(),
+            <div class="flex items-center gap-2">
+                <ButtonTabList
+                    labels=vec!["People".to_owned(), "Posts".to_owned()]
+                    active=Signal::derive(move || {
+                        match tab.get() {
+                            FeedTab::People => "People".to_owned(),
+                            FeedTab::Posts => "Posts".to_owned(),
+                        }
+                    })
+                    on_select=Callback::new(move |label: String| {
+                        tab.set(if label == "People" { FeedTab::People } else { FeedTab::Posts });
+                    })
+                />
+                <button
+                    class="btn btn-ghost btn-sm"
+                    title="Refresh this feed"
+                    aria-label="Refresh this feed"
+                    disabled=move || active_loading.get()
+                    on:click=move |_| {
+                        let kind = match tab.get_untracked() {
+                            FeedTab::People => FeedKind::People,
+                            FeedTab::Posts => FeedKind::Posts,
+                        };
+                        load.run((kind, None));
                     }
-                })
-                on_select=Callback::new(move |label: String| {
-                    tab.set(if label == "People" { FeedTab::People } else { FeedTab::Posts });
-                })
-            />
+                >
+                    <Show when=move || active_loading.get()>
+                        <span class="loading loading-spinner loading-xs"></span>
+                    </Show>
+                    "Refresh"
+                </button>
+            </div>
         }
         .into_any()
     });
@@ -170,9 +213,9 @@ pub fn FeedScreen(
             empty_note="Suggested posts arrive after the recommender has fetched some timelines."
             header=header
             tabs=Some(tabs)
-            error=Signal::derive(|| None::<String>)
-            loading=Signal::derive(|| false)
-            has_items=Signal::derive(|| true)
+            error=active_error
+            loading=active_loading
+            has_items=Signal::derive(move || active_count.get() > 0)
         >
             {rows()}
         </FeedPage>

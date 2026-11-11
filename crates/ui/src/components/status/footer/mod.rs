@@ -26,6 +26,9 @@ pub fn StatusFooter(
     status: Status,
     /// Whether the status was edited after it was posted.
     edited: bool,
+    /// Where the post's own page lives, when it is not the local `/status/{id}`.
+    #[prop(optional, into)]
+    thread_path: Option<String>,
     /// Opens the thread.
     #[prop(optional)]
     on_reply: Option<Callback<String>>,
@@ -49,6 +52,7 @@ pub fn StatusFooter(
     // value would make the first handler `FnOnce`, and a stored value is `Copy`. The slots
     // are stored for the same reason `NotificationCard` stores its own.
     let target = StoredValue::new(status.id.clone());
+    let thread = thread_path.unwrap_or_else(|| format!("/status/{}", status.id));
     let before = StoredValue::new(before_verbs);
     let after = StoredValue::new(after_verbs);
 
@@ -58,7 +62,7 @@ pub fn StatusFooter(
             <div class="flex w-full min-w-0 flex-wrap items-center justify-between gap-0.5 sm:w-auto sm:justify-end sm:gap-1">
                 <a
                     class="btn btn-ghost btn-sm h-9 min-h-9 px-1 sm:h-8 sm:min-h-8 sm:px-3"
-                    href=format!("/status/{}", status.id)
+                    href=thread
                     title="Reply to this post"
                     aria-label="Reply to this post"
                     on:click=move |event| follow_reply(&event, target, on_reply)

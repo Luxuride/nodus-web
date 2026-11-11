@@ -178,7 +178,15 @@ impl Runtime for ClientRuntime {
 
     fn feed_posts_row(&self) -> Option<Callback<PostItem, AnyView>> {
         Some(Callback::new(|item| {
-            view! { <crate::routes::feed::PostCard item/> }.into_any()
+            view! {
+                <crate::routes::feed::PostCard
+                    item
+                    on_open_media=Some(Callback::new(|(pictures, index)| {
+                        crate::media::expand(pictures, index);
+                    }))
+                />
+            }
+            .into_any()
         }))
     }
 

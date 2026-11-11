@@ -54,6 +54,8 @@ pub fn StatusBody(
     // from the text inside each of them.
     let warned_content = status.content.clone();
     let plain_content = status.content.clone();
+    let warned_emojis = status.emojis.clone();
+    let plain_emojis = status.emojis.clone();
     // One copy for both grids: the signal is what lets the grid rebuild when the card's
     // copy of the status is replaced, while this component stays mounted.
     let attachments = status.media_attachments.clone();
@@ -76,14 +78,14 @@ pub fn StatusBody(
                         "Show content"
                     </summary>
                     <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">
-                        <span>{status_text(&warned_content)}</span>
+                        <span>{status_text(&warned_content, &warned_emojis)}</span>
                     </p>
                 </details>
             </div>
         </Show>
         <Show when=move || !warned>
             <p class="whitespace-pre-line text-sm leading-relaxed">
-                <span>{status_text(&plain_content)}</span>
+                <span>{status_text(&plain_content, &plain_emojis)}</span>
             </p>
         </Show>
 
@@ -142,14 +144,43 @@ fn grid(
 }
 
 /// The author's HTML, with the classes that give it links and paragraph rhythm.
-fn status_text(content: &str) -> AnyView {
+fn status_text(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> AnyView {
     view! {
         <div
             class="break-words [overflow-wrap:anywhere] [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
-            inner_html=content.to_owned()
+            inner_html=with_emojis(content, emojis)
         ></div>
     }
     .into_any()
+}
+
+/// Replace `:shortcode:` tokens with the instance's emoji images.
+///
+/// The server already does this while preparing its HTML; the browser receives the raw
+/// shortcodes from Mastodon, so the shared body has to paint them there too.
+fn with_emojis(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> String {
+    if emojis.is_empty() {
+        return content.to_owned();
+    }
+    let mut painted = content.to_owned();
+    for emoji in emojis {
+        let source = if emoji.url.is_empty() {
+            emoji.static_url.as_deref().unwrap_or_default()
+        } else {
+            emoji.url.as_str()
+        };
+        if source.is_empty() {
+            continue;
+        }
+        let token = format!(":{}:", emoji.shortcode);
+        let replacement = format!(
+            "<img class=\"emoji inline-block h-[1.2em] w-auto align-[-0.2em]\" alt=\"{token}\" title=\"{token}\" loading=\"lazy\" decoding=\"async\" src=\"{source}\">",
+            token = token.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;"),
+            source = source.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;"),
+        );
+        painted = painted.replace(&token, &replacement);
+    }
+    painted
 }
 
 /// Hashtags, mentions and the permalink, in that order.

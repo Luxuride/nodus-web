@@ -6,6 +6,7 @@
 
 use leptos::prelude::*;
 use nodus_shared::PostItem;
+use nodus_ui::media_grid::Picture;
 
 use super::text::plain_text;
 use crate::routes::format::relative_time;
@@ -13,8 +14,14 @@ use crate::state::bridge::{begin_impression, finish_impression};
 
 /// A post card: who wrote it, what it says, and where to read the original.
 #[component]
-pub fn PostCard(item: PostItem) -> impl IntoView {
-    let body = plain_text(&item.text);
+pub fn PostCard(
+    item: PostItem,
+    #[prop(optional_no_strip)] on_open_media: Option<Callback<(Vec<Picture>, usize)>>,
+) -> impl IntoView {
+    let body = plain_text(&item.text)
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;");
     let age = relative_time(&item.published_at);
     let seen = Callback::new(begin_impression);
     // Unlike a `Callback`, a direct call survives the card's owner disposal.
@@ -27,6 +34,7 @@ pub fn PostCard(item: PostItem) -> impl IntoView {
             body=body
             age=age
             on_seen=seen
+            on_open_media=on_open_media
         />
     }
 }

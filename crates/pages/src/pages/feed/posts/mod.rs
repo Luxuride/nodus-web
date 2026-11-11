@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use nodus_instance::model::{Account, CustomEmoji, MediaAttachment, MediaKind, Status, Visibility};
 use nodus_shared::{PostEmoji, PostItem, PostMedia};
 
+use crate::media_grid::Picture;
 use crate::status_card::StatusCard;
 
 /// A post card: who wrote it, what it says, and where to read the original.
@@ -26,6 +27,8 @@ pub fn PostCard(
     age: String,
     #[prop(optional)] on_seen: Option<Callback<i64>>,
     #[prop(optional)] on_left: Option<Callback<i64>>,
+    /// Opens the viewer on one picture; absent where nothing can be pressed.
+    #[prop(optional_no_strip)] on_open_media: Option<Callback<(Vec<Picture>, usize)>>,
 ) -> impl IntoView {
     if let Some(seen) = on_seen {
         seen.run(item.item_id);
@@ -35,16 +38,19 @@ pub fn PostCard(
     }
 
     let status = status_of(&item, body);
-    let author_path = if item.account_url.trim().is_empty() {
+    let author_path = if item.account_remote_id.trim().is_empty() {
         format!("https://{}/@{}", item.instance_host, item.account_acct)
     } else {
-        item.account_url.clone()
+        format!(
+            "/accounts/{}/{}",
+            item.instance_host, item.account_remote_id
+        )
     };
-    let thread_path = if item.url.trim().is_empty() {
-        format!("/status/{}", item.status_id)
-    } else {
-        item.url.clone()
-    };
+    let thread_path = format!(
+        "/status/{}/{}",
+        item.instance_host, item.status_remote_id
+    );
+    let open_media = on_open_media.unwrap_or_else(|| Callback::new(|_| ()));
 
     view! {
         <StatusCard
@@ -52,6 +58,7 @@ pub fn PostCard(
             age=age
             author_path=author_path
             thread_path=thread_path
+            on_open_media=open_media
         />
     }
 }

@@ -208,7 +208,7 @@ pub fn InlineComposer(
                 on_add=Some(Callback::new(super::inline::poll::focus_option))
             />
 
-            <Attachments media=draft.media set_error=draft.error.write_only()/>
+            <Attachments media=draft.media set_error=draft.error.write_only() show_button=false/>
         }
         .into_any()
     }) as ChildrenFn;

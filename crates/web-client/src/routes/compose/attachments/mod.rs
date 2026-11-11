@@ -123,6 +123,9 @@ fn pick(
 pub fn Attachments(
     media: RwSignal<Vec<MediaAttachment>>,
     set_error: WriteSignal<Option<String>>,
+    /// Whether this row draws its own media button; a caller with one in its bar passes false.
+    #[prop(default = true)]
+    show_button: bool,
 ) -> impl IntoView {
     let (uploading, set_uploading) = signal(false);
     let (percent, set_percent) = signal(None::<u8>);
@@ -131,17 +134,19 @@ pub fn Attachments(
     // filter and the click that opens the dialog all belong to this crate.
     let input = Arc::new(move || {
         view! {
-            <button
-                type="button"
-                class="btn btn-outline btn-sm gap-1 border-dashed max-sm:btn-square"
-                title="Add media"
-                aria-label="Add media"
-                disabled=move || uploading.get()
-                on:click=move |_| request_pick()
-            >
-                <Icon icon=Icon::Image/>
-                <span class="max-sm:hidden">"Media"</span>
-            </button>
+            {show_button.then(|| view! {
+                <button
+                    type="button"
+                    class="btn btn-outline btn-sm gap-1 border-dashed max-sm:btn-square"
+                    title="Add media"
+                    aria-label="Add media"
+                    disabled=move || uploading.get()
+                    on:click=move |_| request_pick()
+                >
+                    <Icon icon=Icon::Image/>
+                    <span class="max-sm:hidden">"Media"</span>
+                </button>
+            })}
             <input
                 id=ATTACH_INPUT
                 class="hidden"

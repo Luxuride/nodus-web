@@ -188,8 +188,8 @@ function mount(element, options = {}) {
       role: "textbox",
       "aria-multiline": "true",
     },
-    // Enter posts and Shift-Enter breaks the line: the same pair the textarea had, so a
-    // habit formed there keeps working.
+    // Enter breaks the line like any multiline field. Posting is Mod-Enter, so a long
+    // thought is never sent by the keystroke that was meant to start its next line.
     handleKeyDown: (view, event) => {
       if (event.key === "Escape" && hint) {
         hint = null;
@@ -225,7 +225,7 @@ function mount(element, options = {}) {
         }
         return true;
       }
-      if (event.shiftKey) {
+      if (!event.metaKey && !event.ctrlKey) {
         return false;
       }
       event.preventDefault();

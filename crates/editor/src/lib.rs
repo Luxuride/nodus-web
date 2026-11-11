@@ -109,7 +109,7 @@ pub fn RichEditor(
     /// What to show while the body is empty.
     #[prop(default = "Type your post…".to_owned(), into)]
     placeholder: String,
-    /// Enter with the modifier held posts; the editor calls this on Enter alone.
+    /// Enter with the modifier held posts; Enter alone starts a new line.
     on_submit: Callback<()>,
     /// The `:token` being completed right now, and the codes that match it.
     ///

@@ -14,7 +14,7 @@ pub struct TimelineLink {
 pub fn timelines() -> Vec<TimelineLink> {
     ["Home", "Feed", "Local", "Federated"]
         .into_iter()
-        .zip(["/", "/feed", "/local", "/federated"])
+        .zip(["/home", "/home/feed", "/home/local", "/home/federated"])
         .map(|(label, href)| TimelineLink {
             label: label.to_owned(),
             href: href.to_owned(),

@@ -26,7 +26,7 @@ pub fn Frame(
         <div class="min-h-screen bg-base-200 text-base-content">
             <Show when=move || signed_in.get()>
                 <header class="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-base-300 bg-base-100 px-3 py-2 xl:hidden">
-                    <a class="font-semibold tracking-tight" href="/" on:click=move |event| {
+                    <a class="font-semibold tracking-tight" href="/home" on:click=move |event| {
                         if let Some(on_home) = on_home {
                             #[cfg(target_arch = "wasm32")]
                             event.prevent_default();

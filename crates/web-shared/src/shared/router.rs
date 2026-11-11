@@ -93,10 +93,10 @@ impl Route {
     /// The route below the mount point.
     fn suffix(&self) -> String {
         match self {
-            Self::Feed => "/feed".to_owned(),
-            Self::Home => "/".to_owned(),
-            Self::Local => "/local".to_owned(),
-            Self::Federated => "/federated".to_owned(),
+            Self::Feed => "/home/feed".to_owned(),
+            Self::Home => "/home".to_owned(),
+            Self::Local => "/home/local".to_owned(),
+            Self::Federated => "/home/federated".to_owned(),
             Self::Thread { host, id } => {
                 if host.is_empty() {
                     format!("/status/{id}")
@@ -197,9 +197,10 @@ impl Route {
             }
         }
         match trimmed {
-            "/feed" => Self::Feed,
-            "/local" => Self::Local,
-            "/federated" => Self::Federated,
+            "/home" => Self::Home,
+            "/home/feed" => Self::Feed,
+            "/home/local" => Self::Local,
+            "/home/federated" => Self::Federated,
             "/messages" => Self::Messages,
             "/notifications" => Self::Notifications,
             "/search" => Self::Search,

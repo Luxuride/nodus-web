@@ -65,13 +65,19 @@ pub(crate) fn App() -> impl IntoView {
                         let signed_in = signed_in.get();
                         match route.get() {
                             Route::OauthCallback => view! { <Callback/> }.into_any(),
-                            Route::Feed if signed_in => view! {
-                                <nodus_route::route::RouteView
-                                    runtime=crate::state::runtime::runtime()
-                                    route=Route::Feed
-                                    card=card.clone()
-                                />
-                            }.into_any(),
+                            Route::Feed if signed_in => {
+                                let header: ChildrenFn = std::sync::Arc::new(|| {
+                                    view! { <crate::routes::home::TimelineHeader/> }.into_any()
+                                });
+                                view! {
+                                    <nodus_route::route::RouteView
+                                        runtime=crate::state::runtime::runtime()
+                                        route=Route::Feed
+                                        card=card.clone()
+                                        header=Some(header)
+                                    />
+                                }.into_any()
+                            },
                             Route::Home if signed_in => view! { <HomeTimeline/> }.into_any(),
                             Route::Local if signed_in => view! { <LocalTimeline/> }.into_any(),
                             Route::Federated if signed_in => view! { <FederatedTimeline/> }.into_any(),

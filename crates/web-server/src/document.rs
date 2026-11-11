@@ -202,7 +202,7 @@ fn chrome(signed_in: bool, path: &str, inner: &str) -> String {
 ///
 /// The controls are the real ones, with verbs that do nothing until the wasm mount
 /// brings the editor and the account's own SDK. The tab strip takes the route's path,
-/// not the request's: Home lives at `/`, even when the reader asked for `/home`.
+/// not the request's: Home lives at `/home`, and its siblings below it.
 fn timeline_header(active: &str) -> String {
     use leptos::prelude::*;
 
@@ -255,8 +255,7 @@ pub fn feed(
                     .into_any()
             });
         let header: leptos::prelude::ChildrenFn = {
-            let active = if which == "home" { "/" } else { path };
-            let heading = timeline_header(active);
+            let heading = timeline_header(path);
             std::sync::Arc::new(move || leptos::html::div().inner_html(heading.clone()).into_any())
         };
         nodus_route::route::RouteView(nodus_route::route::RouteViewProps {

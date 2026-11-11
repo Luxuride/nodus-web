@@ -44,7 +44,7 @@ pub fn FeedPage(
     #[prop(optional)]
     on_tab: Option<Callback<FeedTab>>,
     /// What the client puts above the title, usually the composer.
-    #[prop(optional)]
+    #[prop(optional_no_strip)]
     header: Option<ChildrenFn>,
     /// The accounts list.
     people: ChildrenFn,

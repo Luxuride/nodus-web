@@ -69,14 +69,15 @@ fn title_of(which: &str) -> String {
 
 /// The tab strip's active address for a timeline, or `None` when the screen has no tab.
 ///
-/// The strip draws its own four links, so this only answers which one to mark: Home lives at
-/// `/` — the name `home` says so, and so does the strip — while Local and Federated keep
-/// theirs. A tag or a list is reached from elsewhere, and Feed carries a switch of its own.
+/// The strip draws its own four links, so this only answers which one to mark. Home and its
+/// three siblings share one section, so the section stays lit on every one of them. A tag or
+/// a list is reached from elsewhere.
 fn tab_for(which: &str) -> Option<&'static str> {
     match which {
-        "home" => Some("/"),
-        "local" => Some("/local"),
-        "federated" => Some("/federated"),
+        "home" => Some("/home"),
+        "feed" => Some("/home/feed"),
+        "local" => Some("/home/local"),
+        "federated" => Some("/home/federated"),
         _ => None,
     }
 }

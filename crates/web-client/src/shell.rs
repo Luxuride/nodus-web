@@ -24,11 +24,10 @@ fn bar() -> Vec<BarTab> {
 /// The bar above the bottom bar's content.
 #[component]
 pub fn MobileTop() -> impl IntoView {
-    let current = router::route();
     view! {
         <nodus_ui::components::shell::MobileTop
             home_path=Route::Home.path()
-            on_home=Callback::new(move |()| router::navigate(current.get_untracked().clone()))
+            on_home=Callback::new(|()| router::navigate(Route::Home))
         />
     }
 }

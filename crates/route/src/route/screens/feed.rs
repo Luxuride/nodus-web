@@ -15,7 +15,11 @@ use crate::pages::feed::{FeedPage, FeedTab};
 use crate::route::{FeedKind, Runtime};
 
 #[component]
-pub fn FeedScreen(runtime: Arc<dyn Runtime>, card: CardRenderer) -> impl IntoView {
+pub fn FeedScreen(
+    runtime: Arc<dyn Runtime>,
+    card: CardRenderer,
+    #[prop(optional_no_strip)] header: Option<ChildrenFn>,
+) -> impl IntoView {
     let _ = &card;
     let tab = RwSignal::new(FeedTab::Posts);
     let loaded_people = RwSignal::new(false);
@@ -113,6 +117,7 @@ pub fn FeedScreen(runtime: Arc<dyn Runtime>, card: CardRenderer) -> impl IntoVie
         <FeedPage
             tab=Signal::derive(move || tab.get())
             on_tab=Callback::new(move |next: FeedTab| tab.set(next))
+            header=header
             people=people_slot
             posts=posts_slot
         />

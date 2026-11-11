@@ -466,10 +466,23 @@ pub fn RouteView(
             <PeopleList runtime id=String::new() kind=crate::pages::people::Kind::Blocks/>
         }
         .into_any(),
-        Route::Feed => view! {
-            <FeedScreen runtime card/>
+        Route::Feed => {
+            let header = header.or_else(|| {
+                let header: ChildrenFn = Arc::new(|| {
+                    view! {
+                        <crate::pages::compose::inline::preview::ComposerPreview
+                            active=Signal::derive(|| "/home/feed".to_owned())
+                        />
+                    }
+                    .into_any()
+                });
+                Some(header)
+            });
+            view! {
+                <FeedScreen runtime card header/>
+            }
+            .into_any()
         }
-        .into_any(),
         Route::Compose | Route::ComposeEdit(_) => {
             let edit = match route {
                 Route::ComposeEdit(id) => Some(id),

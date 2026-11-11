@@ -28,7 +28,7 @@ use std::sync::Arc;
 
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, Uri, header};
-use axum::response::{Html, IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Deserialize;
@@ -77,9 +77,9 @@ async fn public_feed(State(app): State<Arc<App>>, headers: HeaderMap, local: boo
         Err(message) => return Html(document::error(&app.bundle(), &message)).into_response(),
     };
     let (which, title, path) = if local {
-        ("local", "Local", "/local")
+        ("local", "Local", "/home/local")
     } else {
-        ("federated", "Federated", "/federated")
+        ("federated", "Federated", "/home/federated")
     };
     match client.feed(local, PAGE).await {
         Ok((statuses, cursor)) => Html(document::feed(
@@ -126,11 +126,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(index))
         .route("/home", get(home))
         .route(
-            "/local",
+            "/home/local",
             get(|state, headers| public_feed(state, headers, true)),
         )
         .route(
-            "/federated",
+            "/home/federated",
             get(|state, headers| public_feed(state, headers, false)),
         )
         .fallback(shell)
@@ -244,7 +244,7 @@ async fn whoami(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
 /// the landing page, which is the same document minus the island.
 async fn index(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
     if session_of(&app, &headers).is_some() {
-        home(State(app), headers).await
+        Redirect::to("/home").into_response()
     } else {
         Html(document::landing(&app.bundle())).into_response()
     }

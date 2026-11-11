@@ -105,11 +105,10 @@ impl Screen {
 
 /// Every screen, in the order the rail lists them.
 pub const SCREENS: &[Screen] = &[
-    Screen { path: "/", title: "Home", kind: ScreenKind::Home },
-    Screen { path: "/feed", title: "Feed", kind: ScreenKind::Feed },
     Screen { path: "/home", title: "Home", kind: ScreenKind::Home },
-    Screen { path: "/local", title: "Local", kind: ScreenKind::Public { local: true } },
-    Screen { path: "/federated", title: "Federated", kind: ScreenKind::Public { local: false } },
+    Screen { path: "/home/feed", title: "Feed", kind: ScreenKind::Feed },
+    Screen { path: "/home/local", title: "Local", kind: ScreenKind::Public { local: true } },
+    Screen { path: "/home/federated", title: "Federated", kind: ScreenKind::Public { local: false } },
     Screen { path: "/notifications", title: "Notifications", kind: ScreenKind::Notifications },
     Screen { path: "/messages", title: "Messages", kind: ScreenKind::Messages },
     Screen { path: "/saved", title: "Saved", kind: ScreenKind::Saved { bookmarks: false } },
@@ -146,7 +145,7 @@ mod tests {
         assert_eq!(Screen::of_path("/accounts/7").map(|s| s.kind), Some(ScreenKind::Account));
         assert_eq!(Screen::of_path("/saved/bookmarks").map(|s| s.kind), Some(ScreenKind::Saved { bookmarks: true }));
         assert_eq!(Screen::of_path("/search?q=blobcat").map(|s| s.kind), Some(ScreenKind::Search));
-        assert_eq!(Screen::of_path("/local/").map(|s| s.kind), Some(ScreenKind::Public { local: true }));
+        assert_eq!(Screen::of_path("/home/local/").map(|s| s.kind), Some(ScreenKind::Public { local: true }));
     }
 
     #[test]

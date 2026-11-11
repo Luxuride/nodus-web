@@ -37,17 +37,44 @@ pub(crate) fn ProfileCard() -> impl IntoView {
     let (busy, set_busy) = signal(false);
     let (message, set_message) = signal(None::<String>);
     let (seeded, set_seeded) = signal(false);
+    let (fetching, set_fetching) = signal(false);
 
     Effect::new(move |_| {
         if seeded.get() {
             return;
         }
-        let Some(current) = account() else {
+        if let Some(current) = account() {
+            set_display_name.set(current.display_name);
+            set_note.set(current.note);
+            set_seeded.set(true);
+            return;
+        }
+        if fetching.get_untracked() {
+            return;
+        }
+        let Some(id) = with_sdk(|sdk| {
+            sdk.state()
+                .session
+                .get()
+                .map(|session| session.account_id)
+        }) else {
             return;
         };
-        set_display_name.set(current.display_name);
-        set_note.set(current.note);
-        set_seeded.set(true);
+        set_fetching.set(true);
+        spawn_local(async move {
+            let answer = actions::account(&id).await;
+            alive.if_alive(|| {
+                set_fetching.set(false);
+                match answer {
+                    Ok(current) => {
+                        set_display_name.set(current.display_name);
+                        set_note.set(current.note);
+                        set_seeded.set(true);
+                    }
+                    Err(message) => set_message.set(Some(message)),
+                }
+            });
+        });
     });
 
     let save = move || {
@@ -76,7 +103,7 @@ pub(crate) fn ProfileCard() -> impl IntoView {
                 display_name=Signal::derive(move || display_name.get())
                 note=Signal::derive(move || note.get())
                 max_note=NOTE_MAX_CHARS
-                busy=Signal::derive(move || busy.get())
+                busy=Signal::derive(move || busy.get() || fetching.get())
                 message=Signal::derive(move || message.get())
                 on_display_name=Some(Callback::new(move |value: String| set_display_name.set(value)))
                 on_note=Some(Callback::new(move |value: String| set_note.set(value)))

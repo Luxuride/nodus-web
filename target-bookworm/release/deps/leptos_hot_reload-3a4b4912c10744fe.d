@@ -1,0 +1,11 @@
+/build-target/release/deps/leptos_hot_reload-3a4b4912c10744fe.d: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/diff.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/node.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/parsing.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/patch.js
+
+/build-target/release/deps/libleptos_hot_reload-3a4b4912c10744fe.rlib: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/diff.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/node.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/parsing.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/patch.js
+
+/build-target/release/deps/libleptos_hot_reload-3a4b4912c10744fe.rmeta: /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/lib.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/diff.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/node.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/parsing.rs /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/patch.js
+
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/lib.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/diff.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/node.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/parsing.rs:
+/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_hot_reload-0.8.7/src/patch.js:

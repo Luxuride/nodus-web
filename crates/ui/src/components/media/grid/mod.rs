@@ -1,9 +1,8 @@
 //! The attachment grid, shared by the server paint and the client mount.
 //!
-//! The grid decides *where* everything below a post sits, so it cannot be derived twice:
-//! a tile with a published size reserves that height, a tile without one reserves 16:9,
-//! and a blurred tile keeps the same box as the sharp one it replaces. `crate::media` owns
-//! those rules; this module is the view over them.
+//! A tile keeps the picture's own proportion: it grows to the column width and is capped at
+//! a generous height so a hostile file cannot own the viewport. The server and the client
+//! use the same classes, so the mount does not move the page.
 //!
 //! `interactive` is the whole difference between the two paints. On the server a picture is
 //! a picture (no button, no player, no gallery position), because there is no way to press
@@ -108,10 +107,6 @@ fn MediaTile(
     let (playing, set_playing) = signal(false);
     let (listening, set_listening) = signal(false);
 
-    // A tile with no published size still reserves its box: the fallback is the shared 16:9
-    // rule, never "as tall as the file turns out to be".
-    let box_ = move || crate::media::style_for(width.get(), height.get());
-
     // The click belongs to the picture: the card's own click-to-open handler must not see
     // the same press, or the reader gets the thread instead of the enlargement.
     let open_viewer = move |event: leptos::ev::MouseEvent| {
@@ -140,12 +135,9 @@ fn MediaTile(
         <li class="self-start overflow-hidden rounded-box">
             <Show when=move || is_image && interactive>
                 <button type="button" class="block w-full cursor-zoom-in" on:click=open_viewer>
-                    // The aspect box is what keeps a blurred picture and a sharp one the
-                    // same height: the veil scales the image to hide its soft edges, and
-                    // scaling an image that is itself the layout box moves everything below.
-                    <div class="relative w-full overflow-hidden rounded-box bg-base-300" style=box_>
+                    <div class="relative w-full overflow-hidden rounded-box bg-base-300">
                         <img
-                            class="absolute inset-0 h-full w-full object-cover"
+                            class="mx-auto block h-auto max-h-[50rem] w-auto max-w-full object-contain"
                             style=veil
                             src=move || preview.get()
                             alt=move || description.get()
@@ -161,8 +153,7 @@ fn MediaTile(
             </Show>
             <Show when=move || is_image && !interactive>
                 <img
-                    class="h-auto w-full rounded-box bg-base-300 object-cover"
-                    class:aspect-video=move || width.get().is_none()
+                    class="mx-auto block h-auto max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
                     style=veil
                     src=move || preview.get()
                     alt=move || description.get()
@@ -175,7 +166,7 @@ fn MediaTile(
             </Show>
             <Show when=move || plays && interactive && playing.get()>
                 <video
-                    class="max-h-[32rem] w-full rounded-box bg-base-300"
+                    class="mx-auto block max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
                     style=veil
                     controls
                     autoplay
@@ -205,7 +196,7 @@ fn MediaTile(
                     on:click=move |_| set_playing.set(true)
                 >
                     <img
-                        class="max-h-[32rem] w-full rounded-box bg-base-300 object-cover"
+                        class="mx-auto block h-auto max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
                         style=veil
                         src=move || preview.get()
                         alt=move || description.get()
@@ -222,7 +213,7 @@ fn MediaTile(
             </Show>
             <Show when=move || plays && !interactive>
                 <video
-                    class="max-h-[32rem] w-full rounded-box bg-base-300"
+                    class="mx-auto block max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
                     style=veil
                     controls
                     playsinline

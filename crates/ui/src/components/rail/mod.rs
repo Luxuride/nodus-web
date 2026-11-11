@@ -88,7 +88,7 @@ pub fn rail() -> Vec<Group> {
             destinations: &[
                 Destination {
                     label: "Home",
-                    href: "/",
+                    href: "/home",
                     hint: "Your timeline, the feed, and the instance's",
                 },
                 Destination {

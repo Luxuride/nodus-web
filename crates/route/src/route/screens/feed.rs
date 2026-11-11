@@ -1,105 +1,55 @@
 //! The feed, drawn by whichever runtime is painting it.
 //!
-//! The two lists are reads, not route state: when the runtime has them they arrive as
-//! cards, and when it does not the same lists draw their own empty branch. The client's
-//! impressions and copy verbs ride on the row callback, never on the page.
+//! The list is a read, not route state: when the runtime has it the cards arrive, and
+//! when it does not the same list draws its own empty branch. The client's impressions
+//! and copy verbs ride on the row callback, never on the page.
 
 use std::sync::Arc;
 
 use leptos::prelude::*;
 
-use crate::chrome::ButtonTabList;
 use crate::components::CardRenderer;
-use crate::pages::feed::accounts::PeopleList;
+use crate::pages::feed::FeedPage;
 use crate::pages::feed::posts::PostList;
-use crate::pages::feed::{FeedPage, FeedTab};
 use crate::route::{FeedKind, Runtime};
 
 #[component]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the two lists and their triggers are one screen"
-)]
 pub fn FeedScreen(
     runtime: Arc<dyn Runtime>,
     card: CardRenderer,
     #[prop(optional_no_strip)] header: Option<ChildrenFn>,
 ) -> impl IntoView {
     let _ = &card;
-    let tab = RwSignal::new(FeedTab::Posts);
-    let loaded_people = RwSignal::new(false);
     let loaded_posts = RwSignal::new(false);
 
-    let people = Signal::derive({
-        let runtime = Arc::clone(&runtime);
-        move || runtime.feed_people()
-    });
     let posts = Signal::derive({
         let runtime = Arc::clone(&runtime);
         move || runtime.feed_posts()
     });
-    let active_error = Signal::derive(move || {
-        if tab.get() == FeedTab::People {
-            people.get().error
-        } else {
-            posts.get().error
-        }
-    });
-    let active_loading = Signal::derive(move || {
-        if tab.get() == FeedTab::People {
-            people.get().refreshing
-        } else {
-            posts.get().refreshing
-        }
-    });
-    let active_count = Signal::derive(move || {
-        if tab.get() == FeedTab::People {
-            people.get().items.len()
-        } else {
-            posts.get().items.len()
-        }
-    });
 
     let load = Callback::new({
         let runtime = Arc::clone(&runtime);
-        move |(kind, cursor): (FeedKind, Option<String>)| {
+        move |cursor: Option<String>| {
             let runtime = Arc::clone(&runtime);
             let done = Callback::new(move |_result: Result<(), String>| ());
-            runtime.load_feed(kind, cursor, done);
+            runtime.load_feed(FeedKind::Posts, cursor, done);
         }
     });
-    let people_auto = runtime.infinite_more(
-        Signal::derive(move || people.get().cursor.is_some() && !people.get().refreshing),
-        Callback::new(move |()| {
-            if let Some(cursor) = people.get_untracked().cursor {
-                load.run((FeedKind::People, Some(cursor)));
-            }
-        }),
-    );
-    let posts_auto = runtime.infinite_more(
+    let auto = runtime.infinite_more(
         Signal::derive(move || posts.get().cursor.is_some() && !posts.get().refreshing),
         Callback::new(move |()| {
             if let Some(cursor) = posts.get_untracked().cursor {
-                load.run((FeedKind::Posts, Some(cursor)));
+                load.run(Some(cursor));
             }
         }),
     );
 
-    Effect::new({
-        let runtime = Arc::clone(&runtime);
-        move |_| {
-            if !loaded_people.get_untracked() && runtime.feed_people().items.is_empty() {
-                loaded_people.set(true);
-                load.run((FeedKind::People, None));
-            }
-        }
-    });
     Effect::new({
         let runtime = Arc::clone(&runtime);
         move |_| {
             if !loaded_posts.get_untracked() && runtime.feed_posts().items.is_empty() {
                 loaded_posts.set(true);
-                load.run((FeedKind::Posts, None));
+                load.run(None);
             }
         }
     });
@@ -107,101 +57,21 @@ pub fn FeedScreen(
     let fallback = Callback::new(|_| {
         view! { <crate::Note>"This row needs the app."</crate::Note> }.into_any()
     });
-    let people_row = runtime.feed_people_row().unwrap_or(fallback);
-    let post_fallback = Callback::new(|_| {
-        view! { <crate::Note>"This row needs the app."</crate::Note> }.into_any()
-    });
-    let posts_row = runtime.feed_posts_row().unwrap_or(post_fallback);
+    let row = runtime.feed_posts_row().unwrap_or(fallback);
 
-    let people_slot: ChildrenFn = Arc::new(move || {
-        view! {
-            <PeopleList
-                items=Signal::derive(move || people.get().items.clone())
-                error=Signal::derive(move || people.get().error.clone())
-                refreshing=Signal::derive(move || people.get().refreshing)
-                degraded=Signal::derive(move || people.get().degraded.clone())
-                cursor=Signal::derive(move || people.get().cursor.clone())
-                row=people_row
-                on_refresh=Callback::new({
-                    let load = load;
-                    move |()| load.run((FeedKind::People, None))
-                })
-                on_more=Callback::new({
-                    let load = load;
-                    move |cursor: String| load.run((FeedKind::People, Some(cursor)))
-                })
-                auto_more=people_auto.clone()
-                on_settings=runtime.feed_settings()
-                show_states=false
-            />
-        }
-        .into_any()
-    });
-    let posts_slot: ChildrenFn = Arc::new(move || {
+    let rows: ChildrenFn = Arc::new(move || {
         view! {
             <PostList
                 items=Signal::derive(move || posts.get().items.clone())
                 error=Signal::derive(move || posts.get().error.clone())
                 refreshing=Signal::derive(move || posts.get().refreshing)
                 cursor=Signal::derive(move || posts.get().cursor.clone())
-                row=posts_row
-                on_refresh=Callback::new({
-                    let load = load;
-                    move |()| load.run((FeedKind::Posts, None))
-                })
-                on_more=Callback::new({
-                    let load = load;
-                    move |cursor: String| load.run((FeedKind::Posts, Some(cursor)))
-                })
-                auto_more=posts_auto.clone()
+                row=row
+                on_refresh=Callback::new(move |()| load.run(None))
+                on_more=Callback::new(move |cursor: String| load.run(Some(cursor)))
+                auto_more=auto.clone()
                 show_states=false
             />
-        }
-        .into_any()
-    });
-
-    let tabs: ChildrenFn = Arc::new(move || {
-        view! {
-            <div class="flex items-center gap-2">
-                <ButtonTabList
-                    labels=vec!["People".to_owned(), "Posts".to_owned()]
-                    active=Signal::derive(move || {
-                        match tab.get() {
-                            FeedTab::People => "People".to_owned(),
-                            FeedTab::Posts => "Posts".to_owned(),
-                        }
-                    })
-                    on_select=Callback::new(move |label: String| {
-                        tab.set(if label == "People" { FeedTab::People } else { FeedTab::Posts });
-                    })
-                />
-                <button
-                    class="btn btn-ghost btn-sm"
-                    title="Refresh this feed"
-                    aria-label="Refresh this feed"
-                    disabled=move || active_loading.get()
-                    on:click=move |_| {
-                        let kind = match tab.get_untracked() {
-                            FeedTab::People => FeedKind::People,
-                            FeedTab::Posts => FeedKind::Posts,
-                        };
-                        load.run((kind, None));
-                    }
-                >
-                    <Show when=move || active_loading.get()>
-                        <span class="loading loading-spinner loading-xs"></span>
-                    </Show>
-                    "Refresh"
-                </button>
-            </div>
-        }
-        .into_any()
-    });
-
-    let rows: ChildrenFn = Arc::new(move || {
-        view! {
-            <div class:hidden=move || tab.get() != FeedTab::People>{people_slot()}</div>
-            <div class:hidden=move || tab.get() != FeedTab::Posts>{posts_slot()}</div>
         }
         .into_any()
     });
@@ -212,10 +82,9 @@ pub fn FeedScreen(
             description="People this instance suggests, and what they are posting."
             empty_note="Suggested posts arrive after the recommender has fetched some timelines."
             header=header
-            tabs=Some(tabs)
-            error=active_error
-            loading=active_loading
-            has_items=Signal::derive(move || active_count.get() > 0)
+            error=Signal::derive(move || posts.get().error.clone())
+            loading=Signal::derive(move || posts.get().refreshing)
+            has_items=Signal::derive(move || !posts.get().items.is_empty())
         >
             {rows()}
         </FeedPage>

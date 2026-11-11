@@ -93,26 +93,33 @@ pub fn ThreadScreen(
             }
         })
     };
-    Effect::new(move |_| load_status.run(()));
+    let prefetched = runtime.status(&id).is_some() && runtime.context(&id).is_some();
+    if prefetched {
+        ready.set(true);
+    } else {
+        Effect::new(move |_| load_status.run(()));
+    }
 
     let age_of = Callback::new({
         let runtime = Arc::clone(&runtime);
         move |created: String| relative_age(&created, runtime.now_millis())
     });
-    let reply_slot: ChildrenFn = runtime.reply_composer(id.clone(), replies).unwrap_or_else(|| {
-        Arc::new({
-            let runtime = Arc::clone(&runtime);
-            let parent = id.clone();
-            move || {
-                view! {
-                    <ReplyComposer runtime=Arc::clone(&runtime) parent=parent.clone() replies=replies />
+    let reply_slot = runtime.session().is_some().then(|| {
+        runtime.reply_composer(id.clone(), replies).unwrap_or_else(|| {
+            Arc::new({
+                let runtime = Arc::clone(&runtime);
+                let parent = id.clone();
+                move || {
+                    view! {
+                        <ReplyComposer runtime=Arc::clone(&runtime) parent=parent.clone() replies=replies />
+                    }
+                    .into_any()
                 }
-                .into_any()
-            }
+            })
         })
     });
     let card = StoredValue::new(card);
-    let reply_slot = StoredValue::new(reply_slot);
+    let reply_slot: StoredValue<Option<ChildrenFn>> = StoredValue::new(reply_slot);
     let age_of = StoredValue::new(age_of);
 
     view! {

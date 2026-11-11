@@ -10,7 +10,7 @@
 //! would give every authenticated call a second behaviour to think about.
 
 use gloo_net::http::Request;
-use nodus_instance::model::{Context, Status};
+use nodus_instance::model::{Account, Context, Status};
 
 /// Why a public read did not produce a post.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,4 +81,14 @@ pub async fn status(host: &str, id: &str) -> Result<Status, PublicError> {
 /// The replies above and below it.
 pub async fn context(host: &str, id: &str) -> Result<Context, PublicError> {
     get(host, &format!("/api/v1/statuses/{id}/context")).await
+}
+
+/// The account behind a shared link.
+pub async fn account(host: &str, id: &str) -> Result<Account, PublicError> {
+    get(host, &format!("/api/v1/accounts/{id}")).await
+}
+
+/// The account's public posts, newest first.
+pub async fn account_statuses(host: &str, id: &str) -> Result<Vec<Status>, PublicError> {
+    get(host, &format!("/api/v1/accounts/{id}/statuses?limit=20")).await
 }

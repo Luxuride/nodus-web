@@ -80,7 +80,7 @@ pub fn ThreadPage(
     #[prop(optional)]
     age_of: Option<Callback<String, String>>,
     /// The reply composer, which owns the transport this crate may not have.
-    #[prop(optional)]
+    #[prop(optional_no_strip)]
     reply_slot: Option<ChildrenFn>,
 ) -> impl IntoView {
     // Everything above the answers is fixed for the life of the page, so it is painted once,

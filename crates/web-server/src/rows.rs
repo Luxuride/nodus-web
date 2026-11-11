@@ -14,6 +14,25 @@ use nodus_instance::model::Status;
 /// than in the component: the emoji shortcodes are a read of the instance's emoji list, and
 /// `inner_html` already carries the HTML both paints show.
 pub fn status_card(status: &Status) -> String {
+    let inner = status.reblog.as_deref().unwrap_or(status);
+    painted(
+        status,
+        &format!("/accounts/{}", inner.account.id),
+        &format!("/status/{}", inner.id),
+    )
+}
+
+/// The same card for a visitor: its links stay on the instance that hosts the post.
+pub fn status_card_public(status: &Status, host: &str) -> String {
+    let inner = status.reblog.as_deref().unwrap_or(status);
+    painted(
+        status,
+        &format!("/accounts/{host}/{}", inner.account.id),
+        &format!("/status/{host}/{}", inner.id),
+    )
+}
+
+fn painted(status: &Status, author_path: &str, thread_path: &str) -> String {
     let mut painted = status.clone();
     // A boost renders the boosted post under the booster's name, exactly as the client
     // does: the line above the card comes from the wrapper and everything below it from
@@ -24,15 +43,13 @@ pub fn status_card(status: &Status) -> String {
     }
     let inner = painted.reblog.as_deref().map_or(&painted, |inner| inner);
     let age = nodus_ui::relative_age(&inner.created_at, now_millis());
-    let author_path = format!("/accounts/{}", inner.account.id);
-    let thread_path = format!("/status/{}", inner.id);
 
     Owner::new().with(|| {
         nodus_ui::status_card::StatusCard(nodus_ui::status_card::StatusCardProps {
             status: painted,
             age,
-            author_path,
-            thread_path,
+            author_path: author_path.to_owned(),
+            thread_path: thread_path.to_owned(),
             on_navigate: Some(nodus_route::route::noop()),
             on_open: Some(nodus_route::route::noop()),
             on_boost: Some(nodus_route::route::noop()),

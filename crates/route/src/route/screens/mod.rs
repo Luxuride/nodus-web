@@ -15,6 +15,7 @@ pub mod messages;
 pub mod more;
 pub mod notifications;
 pub mod people;
+pub mod public_account;
 pub mod saved;
 pub mod scheduled;
 pub mod search;

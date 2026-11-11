@@ -320,6 +320,11 @@ pub fn page_of(
     )
 }
 
+/// A public page: the reader has no account, so the rail shows no signed-in doors.
+pub fn page_of_public(assets: &Assets, path: &str, title: &str, inner: &str) -> String {
+    page(assets, title, &chrome(false, path, inner), None)
+}
+
 /// The signed-out page, and the shell a signed-in reader gets before their data arrives.
 pub fn landing(assets: &Assets) -> String {
     let inner = Owner::new().with(|| nodus_pages::pages::landing::LandingPage().to_html());

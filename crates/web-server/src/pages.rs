@@ -5,6 +5,7 @@
 //! decides what the answer looks like.
 
 use leptos::prelude::Owner;
+use std::sync::Arc;
 
 use nodus_state::page::{PageEntry, PageItems, PageKind};
 use nodus_web::shared::router::Route;
@@ -404,6 +405,63 @@ pub(crate) fn percent_decode(value: &str) -> String {
         }
     }
     String::from_utf8_lossy(&decoded).into_owned()
+}
+
+/// An anonymous shared link: the post and its thread, read without a session.
+pub fn render_public_thread(
+    assets: &document::Assets,
+    host: &str,
+    id: &str,
+    status: nodus_instance::model::Status,
+    context: nodus_instance::model::Context,
+) -> String {
+    let path = format!("/status/{host}/{id}");
+    let inner = painted(|| {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
+            runtime: StaticRuntime::thread(status, context),
+            route: Route::Thread {
+                host: host.to_owned(),
+                id: id.to_owned(),
+            },
+            card: public_card(host),
+            header: None,
+            banner: None,
+        })
+    });
+    document::page_of_public(assets, &path, "Post", &inner)
+}
+
+fn public_card(host: &str) -> nodus_ui::components::card_renderer::CardRenderer {
+    let host = host.to_owned();
+    Arc::new(move |status| {
+        use leptos::prelude::IntoAny;
+        use leptos::tachys::html::element::InnerHtmlAttribute as _;
+
+        leptos::html::div()
+            .inner_html(crate::rows::status_card_public(&status, &host))
+            .into_any()
+    })
+}
+
+/// An account reached from a public post, with its public posts.
+pub fn render_public_account(
+    assets: &document::Assets,
+    host: &str,
+    id: &str,
+    account: nodus_instance::model::Account,
+    statuses: Vec<nodus_instance::model::Status>,
+) -> String {
+    let path = format!("/accounts/{host}/{id}");
+    let inner = painted(|| {
+        nodus_route::route::RouteView(nodus_route::route::RouteViewProps {
+            runtime: StaticRuntime::profile(account, None, statuses, None),
+            route: Route::Account(format!("{host}/{id}")),
+            card: public_card(host),
+            header: None,
+            banner: None,
+        })
+    });
+    document::page_of_public(assets, &path, "Account", &inner)
 }
 
 /// The last route seam: any path the data readers did not claim is drawn by the same

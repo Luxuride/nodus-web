@@ -137,7 +137,7 @@ fn MediaTile(
                 <button type="button" class="block w-full cursor-zoom-in" on:click=open_viewer>
                     <div class="relative w-full overflow-hidden rounded-box bg-base-300">
                         <img
-                            class="mx-auto block h-auto max-h-[50rem] w-auto max-w-full object-contain"
+                            class="mx-auto block h-auto max-h-[50rem] w-full object-contain"
                             style=veil
                             src=move || preview.get()
                             alt=move || description.get()
@@ -153,7 +153,7 @@ fn MediaTile(
             </Show>
             <Show when=move || is_image && !interactive>
                 <img
-                    class="mx-auto block h-auto max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
+                    class="mx-auto block h-auto max-h-[50rem] w-full rounded-box bg-base-300 object-contain"
                     style=veil
                     src=move || preview.get()
                     alt=move || description.get()
@@ -166,7 +166,7 @@ fn MediaTile(
             </Show>
             <Show when=move || plays && interactive && playing.get()>
                 <video
-                    class="mx-auto block max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
+                    class="mx-auto block h-auto max-h-[50rem] w-full rounded-box bg-base-300 object-contain"
                     style=veil
                     controls
                     autoplay
@@ -196,7 +196,7 @@ fn MediaTile(
                     on:click=move |_| set_playing.set(true)
                 >
                     <img
-                        class="mx-auto block h-auto max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
+                        class="mx-auto block h-auto max-h-[50rem] w-full rounded-box bg-base-300 object-contain"
                         style=veil
                         src=move || preview.get()
                         alt=move || description.get()
@@ -213,7 +213,7 @@ fn MediaTile(
             </Show>
             <Show when=move || plays && !interactive>
                 <video
-                    class="mx-auto block max-h-[50rem] w-auto max-w-full rounded-box bg-base-300 object-contain"
+                    class="mx-auto block h-auto max-h-[50rem] w-full rounded-box bg-base-300 object-contain"
                     style=veil
                     controls
                     playsinline

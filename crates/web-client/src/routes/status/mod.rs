@@ -34,6 +34,22 @@ pub(super) fn thread_route(id: &str) -> Route {
     }
 }
 
+/// The instance this public page was read from: the address bar already names it.
+fn public_host(_status: &Status) -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let path = web_sys::window()?.location().pathname().ok()?;
+        let mut parts = path.trim_matches('/').split('/');
+        if matches!(parts.next()?, "status" | "accounts") {
+            return parts
+                .next()
+                .filter(|host| host.contains('.'))
+                .map(str::to_owned);
+        }
+    }
+    None
+}
+
 /// A status card: who wrote it, what it says, and what can be done with it.
 ///
 /// The box, the header, the body and the action row come from `nodus-view`, the component
@@ -58,10 +74,25 @@ pub fn StatusCard(status: Status) -> impl IntoView {
 
     // One copy for the link targets: a signal read inside `href` would rebuild the
     // anchor on every action, and the browser would lose focus on the link.
-    let thread_id = move |status: &Status| thread_route(&status.id);
+    let signed_in = crate::state::bridge::with_sdk(|sdk| sdk.state().session.get()).is_some();
     let age = super::format::relative_time(&header.created_at);
-    let author_path = Route::Account(header.account.id.clone()).path();
-    let thread_path = thread_route(&header.id).path();
+    let (author_path, thread_path) = if signed_in {
+        (
+            Route::Account(header.account.id.clone()).path(),
+            thread_route(&header.id).path(),
+        )
+    } else if let Some(host) = public_host(&header) {
+        (
+            format!("/accounts/{host}/{}", header.account.id),
+            format!("/status/{host}/{}", header.id),
+        )
+    } else {
+        (
+            Route::Account(header.account.id.clone()).path(),
+            thread_route(&header.id).path(),
+        )
+    };
+    let thread_path = StoredValue::new(thread_path);
     let navigate = Callback::new(move |path: String| router::navigate(Route::from_path(&path)));
     let CardActions {
         on_reply,
@@ -77,6 +108,7 @@ pub fn StatusCard(status: Status) -> impl IntoView {
     // body keep their own destination — the delegated listener already knows a prevented
     // click when it sees one.
     let body: ChildrenFn = Arc::new(move || {
+        let path = thread_path.get_value();
         view! {
             <div
                 class="cursor-pointer"
@@ -84,7 +116,7 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                     if event.default_prevented() || inside_control(&event) {
                         return;
                     }
-                    router::link(event, thread_id(&shown.get_untracked()));
+                    router::link(event, Route::from_path(&path));
                 }
             >
                 <StatusBody shown=shown set_shown=set_shown/>
@@ -126,7 +158,7 @@ pub fn StatusCard(status: Status) -> impl IntoView {
                 status=painted()
                 age=age.clone()
                 author_path=author_path.clone()
-                thread_path=thread_path.clone()
+                thread_path=thread_path.get_value()
                 on_navigate=navigate
                 on_reply=on_reply
                 on_boost=on_boost

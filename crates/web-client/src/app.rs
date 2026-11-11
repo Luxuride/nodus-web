@@ -294,6 +294,14 @@ pub(crate) fn App() -> impl IntoView {
                                     />
                                 }.into_any()
                             }
+                            Route::Account(id) if id.contains('/') => view! {
+                                <nodus_route::route::RouteView
+                                    runtime=crate::state::runtime::runtime()
+                                    route=Route::Account(id)
+                                    card=card.clone()
+                                />
+                            }
+                            .into_any(),
                             Route::Account(_) => {
                                 view! { <SignIn note="Sign in to read this."/> }.into_any()
                             }

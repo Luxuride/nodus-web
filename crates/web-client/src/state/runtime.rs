@@ -23,8 +23,14 @@ use crate::state::bridge::{
     revision, timeline, with_sdk,
 };
 
+type PublicAccount = (Account, Vec<Status>);
+
 thread_local! {
     static LAST_PATH: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+    static PUBLIC_ACCOUNT: std::cell::RefCell<
+        std::collections::HashMap<(String, String), PublicAccount>,
+    > = std::cell::RefCell::new(std::collections::HashMap::new());
+    static PUBLIC_REV: RwSignal<u64> = RwSignal::new(0);
 }
 
 /// Remembers the screen under a More page, so its section stays marked while the page is open.
@@ -43,7 +49,8 @@ struct ClientRuntime;
 
 impl Runtime for ClientRuntime {
     fn revision(&self) -> Signal<u64> {
-        revision().into()
+        let base = revision();
+        Signal::derive(move || base.get() + PUBLIC_REV.with(|rev| rev.get()))
     }
 
     fn timeline(&self, kind: &TimelineKind) -> TimelineReply {
@@ -204,6 +211,70 @@ impl Runtime for ClientRuntime {
                 .await
                 .map_err(|failure| failure.message());
             context.run(result);
+        });
+    }
+
+    fn public_account(&self, host: &str, id: &str) -> Option<Account> {
+        let key = (host.to_owned(), id.to_owned());
+        PUBLIC_ACCOUNT.with(|cache| cache.borrow().get(&key).map(|(account, _)| account.clone()))
+    }
+
+    fn load_public_account(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Account, String>>,
+    ) {
+        let key = (host.clone(), id.clone());
+        spawn_local(async move {
+            let result = crate::public::account(&host, &id)
+                .await
+                .map_err(|failure| failure.message());
+            if let Ok(account) = &result {
+                PUBLIC_ACCOUNT.with(|cache| {
+                    cache
+                        .borrow_mut()
+                        .entry(key)
+                        .or_insert_with(|| (account.clone(), Vec::new()))
+                        .0 = account.clone();
+                });
+                PUBLIC_REV.with(|rev| rev.update(|n| *n += 1));
+            }
+            done.run(result);
+        });
+    }
+
+    fn public_account_statuses(&self, host: &str, id: &str) -> Vec<Status> {
+        let key = (host.to_owned(), id.to_owned());
+        PUBLIC_ACCOUNT.with(|cache| {
+            cache
+                .borrow()
+                .get(&key)
+                .map(|(_, statuses)| statuses.clone())
+                .unwrap_or_default()
+        })
+    }
+
+    fn load_public_account_statuses(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Vec<Status>, String>>,
+    ) {
+        let key = (host.clone(), id.clone());
+        spawn_local(async move {
+            let result = crate::public::account_statuses(&host, &id)
+                .await
+                .map_err(|failure| failure.message());
+            if let Ok(statuses) = &result {
+                PUBLIC_ACCOUNT.with(|cache| {
+                    if let Some((_, held)) = cache.borrow_mut().get_mut(&key) {
+                        *held = statuses.clone();
+                    }
+                });
+                PUBLIC_REV.with(|rev| rev.update(|n| *n += 1));
+            }
+            done.run(result);
         });
     }
 

@@ -31,6 +31,7 @@ use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::routing::get;
 use axum::{Json, Router};
+use nodus_web::shared::router::Route;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -256,6 +257,65 @@ async fn index(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
 /// fetch anyway; every other path keeps the skeleton, which is also the fallback when a
 /// read fails. `Caddy` answers assets from disk, so anything with a file extension reaching
 /// here is genuinely missing.
+/// A shared link without a cookie: read the post and its thread from its own host.
+async fn public_thread(app: &App, path: &str) -> Option<String> {
+    let Route::Thread { host, id } = Route::from_path(path) else {
+        return None;
+    };
+    if host.is_empty() {
+        return None;
+    }
+    let client = match Client::new(&host, "") {
+        Ok(client) => client,
+        Err(message) => {
+            tracing::warn!(%message, %host, "public post host could not be used");
+            return None;
+        }
+    };
+    let status = match client.status(&id).await {
+        Ok(status) => status,
+        Err(message) => {
+            tracing::warn!(%message, %host, %id, "public post could not be read");
+            return None;
+        }
+    };
+    let context = client
+        .context(&id)
+        .await
+        .unwrap_or(nodus_instance::model::Context {
+            ancestors: Vec::new(),
+            descendants: Vec::new(),
+        });
+    Some(pages::render_public_thread(
+        &app.bundle(),
+        &host,
+        &id,
+        status,
+        context,
+    ))
+}
+
+/// An account linked from a public post: read from its own host, without a token.
+async fn public_account(app: &App, path: &str) -> Option<String> {
+    let Route::Account(rest) = Route::from_path(path) else {
+        return None;
+    };
+    let (host, id) = rest.split_once('/')?;
+    if host.is_empty() || id.is_empty() {
+        return None;
+    }
+    let client = Client::new(host, "").ok()?;
+    let account = client.account(id).await.ok()?;
+    let (statuses, _) = client.account_statuses(id, PAGE).await.ok()?;
+    Some(pages::render_public_account(
+        &app.bundle(),
+        host,
+        id,
+        account,
+        statuses,
+    ))
+}
+
 async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Response {
     let path = uri.path();
     if std::path::Path::new(path)
@@ -265,6 +325,12 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
         return StatusCode::NOT_FOUND.into_response();
     }
     let Some(session) = session_of(&app, &headers) else {
+        if let Some(html) = public_thread(&app, path).await {
+            return Html(html).into_response();
+        }
+        if let Some(html) = public_account(&app, path).await {
+            return Html(html).into_response();
+        }
         return Html(document::shell(&app.bundle(), None, path)).into_response();
     };
     // The rail draws the moderation doors for a moderator, and it is drawn before any

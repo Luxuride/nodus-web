@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use nodus_instance::model::{Account, Context, List, Relationship, Status};
-use nodus_state::page::{PageEntry, PageKind};
 use nodus_route::route::{Runtime, SessionView, TimelineKind, TimelineReply};
+use nodus_state::page::{PageEntry, PageKind};
 
 /// One prefetched timeline page.
 pub struct StaticRuntime {
@@ -259,6 +259,17 @@ impl Runtime for StaticRuntime {
                 context_done.run(Err(message));
             }
         }
+    }
+
+    fn public_account(&self, _host: &str, id: &str) -> Option<Account> {
+        self.accounts.get(id).cloned()
+    }
+
+    fn public_account_statuses(&self, _host: &str, _id: &str) -> Vec<Status> {
+        self.profile_statuses
+            .as_ref()
+            .map(|(statuses, _)| statuses.clone())
+            .unwrap_or_default()
     }
 
     fn load_profile(

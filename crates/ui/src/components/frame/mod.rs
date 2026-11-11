@@ -24,19 +24,26 @@ pub fn Frame(
     let inner = StoredValue::new(inner);
     view! {
         <div class="min-h-screen bg-base-200 text-base-content">
-            <Show when=move || signed_in.get()>
-                <header class="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-base-300 bg-base-100 px-3 py-2 xl:hidden">
-                    <a class="font-semibold tracking-tight" href="/home" on:click=move |event| {
-                        if let Some(on_home) = on_home {
-                            #[cfg(target_arch = "wasm32")]
-                            event.prevent_default();
-                            #[cfg(not(target_arch = "wasm32"))]
-                            let _ = &event;
+            <header class="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-base-300 bg-base-100 px-3 py-2 xl:hidden">
+                <a class="font-semibold tracking-tight" href=move || if signed_in.get() { "/home" } else { "/" }
+                    on:click=move |event| {
+                        if signed_in.get_untracked()
+                            && let Some(on_home) = on_home
+                        {
+                                #[cfg(target_arch = "wasm32")]
+                                event.prevent_default();
+                                #[cfg(not(target_arch = "wasm32"))]
+                                let _ = &event;
                             on_home.run(());
                         }
                     }>"Nodus"</a>
-                </header>
-            </Show>
+                <Show when=move || !signed_in.get()>
+                    <nav class="flex items-center gap-3 text-sm">
+                        <a class="opacity-70 hover:opacity-100" href="/">"Home"</a>
+                        <a class="btn btn-sm" href="/sign-in">"Sign in"</a>
+                    </nav>
+                </Show>
+            </header>
             <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-2 py-4 xl:flex-row">
                 <Show when=move || signed_in.get()>
                     <Rail active=path extra=extra.clone()/>

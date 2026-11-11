@@ -307,6 +307,36 @@ pub trait Runtime: Send + Sync + 'static {
     ) {
     }
 
+    /// Reads an account from a host that has no session.
+    fn public_account(&self, _host: &str, _id: &str) -> Option<Account> {
+        None
+    }
+
+    /// Loads an account from a host that has no session.
+    fn load_public_account(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Account, String>>,
+    ) {
+        let _ = (host, id, done);
+    }
+
+    /// The public posts already read for an account with no session.
+    fn public_account_statuses(&self, _host: &str, _id: &str) -> Vec<Status> {
+        Vec::new()
+    }
+
+    /// Loads the public posts of an account with no session.
+    fn load_public_account_statuses(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Vec<Status>, String>>,
+    ) {
+        let _ = (host, id, done);
+    }
+
     /// The signed-in account, if any.
     fn session(&self) -> Option<SessionView> {
         None
@@ -447,10 +477,15 @@ pub fn RouteView(
             <ThreadScreen runtime host id card/>
         }
         .into_any(),
-        Route::Account(id) => view! {
-            <AccountScreen runtime id card/>
-        }
-        .into_any(),
+        Route::Account(id) => match id.split_once('/') {
+            Some((host, id)) if !host.is_empty() && !id.is_empty() => view! {
+                <crate::route::screens::public_account::PublicAccountScreen
+                    runtime host=host.to_owned() id=id.to_owned() card
+                />
+            }
+            .into_any(),
+            _ => view! { <AccountScreen runtime id card/> }.into_any(),
+        },
         Route::Lists => view! {
             <ListsScreen runtime card/>
         }

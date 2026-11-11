@@ -64,6 +64,9 @@ pub fn ProfilePage(
     /// Opens the picture full size. Absent on the server, where the box is inert.
     #[prop(optional)]
     on_avatar: Option<Callback<String>>,
+    /// Whether the reader can act on the relationship at all.
+    #[prop(default = true)]
+    show_verbs: bool,
 ) -> impl IntoView {
     let name = display_name(&account.display_name, &account.acct);
     let handle = format!("@{}", account.acct);
@@ -147,11 +150,13 @@ pub fn ProfilePage(
                                 ></p>
                             }
                         })}
-                    <div class="flex flex-wrap items-center gap-2">
-                        {verb(follow, "btn btn-primary btn-sm", follow_on, target, on_follow, ready)}
-                        {verb(mute, "btn btn-ghost btn-sm", mute_on, target, on_mute, ready)}
-                        {verb(block, "btn btn-ghost btn-sm", block_on, target, on_block, ready)}
-                    </div>
+                    <Show when=move || show_verbs>
+                        <div class="flex flex-wrap items-center gap-2">
+                            {verb(follow, "btn btn-primary btn-sm", follow_on, target, on_follow, ready)}
+                            {verb(mute, "btn btn-ghost btn-sm", mute_on, target, on_mute, ready)}
+                            {verb(block, "btn btn-ghost btn-sm", block_on, target, on_block, ready)}
+                        </div>
+                    </Show>
                 </div>
             </header>
 

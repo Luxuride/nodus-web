@@ -17,7 +17,7 @@ use leptos::prelude::*;
 use nodus_instance::model::Visibility;
 use nodus_pages::pages::compose::inline::bar::{ComposerBar as Bar, ComposerBarProps as BarProps};
 
-use super::{LIMIT, SchedulePanel};
+use super::SchedulePanel;
 
 /// What the green notice says after a post was queued instead of sent.
 pub(super) struct Notice;
@@ -39,6 +39,10 @@ pub(super) fn ComposerBar(
     at: ReadSignal<String>,
     set_at: WriteSignal<String>,
     busy: ReadSignal<bool>,
+    /// The instance's character limit.
+    limit: Signal<usize>,
+    /// Opens the visual thread editor.
+    on_thread: Option<Callback<()>>,
     /// Opens the media picker.
     on_add_media: Callback<()>,
     /// Whether the emoji picker is showing.
@@ -80,7 +84,7 @@ pub(super) fn ComposerBar(
         busy: busy.into(),
         scheduling,
         when,
-        limit: LIMIT,
+        limit,
         schedule_open: open.into(),
         on_visibility: Some(Callback::new(move |chosen: Visibility| {
             set_visibility.set(chosen)
@@ -90,6 +94,7 @@ pub(super) fn ComposerBar(
         on_toggle_schedule: Some(Callback::new(move |()| {
             open.update(|shown| *shown = !*shown)
         })),
+        on_thread,
         on_submit: Some(on_submit),
         language: Some(picker),
         emoji_picker: Some(emoji_picker),

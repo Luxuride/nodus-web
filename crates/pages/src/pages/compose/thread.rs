@@ -47,7 +47,17 @@ pub fn split(text: &str, limit: usize) -> Vec<String> {
             continue;
         }
         if count(&current) + len > limit {
-            flush(&mut current, &mut parts);
+            if let Some(end) = sentence_break(&current) {
+                let tail = current[end..].trim_start().to_owned();
+                current.truncate(end);
+                flush(&mut current, &mut parts);
+                current = tail;
+                if count(&current) + len > limit {
+                    flush(&mut current, &mut parts);
+                }
+            } else {
+                flush(&mut current, &mut parts);
+            }
             current.push_str(token.trim_start());
         } else {
             current.push_str(token);
@@ -58,6 +68,21 @@ pub fn split(text: &str, limit: usize) -> Vec<String> {
         parts.push(String::new());
     }
     parts
+}
+
+/// The last sentence end in `current`, when it leaves a useful head behind.
+fn sentence_break(current: &str) -> Option<usize> {
+    for (index, character) in current.char_indices().rev() {
+        if !matches!(character, '.' | '!' | '?' | '\n') {
+            continue;
+        }
+        let end = index + character.len_utf8();
+        let after = current[end..].chars().next();
+        if after.is_none_or(char::is_whitespace) && count(&current[..end]) >= 12 {
+            return Some(end);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -77,6 +102,15 @@ mod tests {
         assert!(parts.iter().all(|part| count(part) <= 13));
         assert_eq!(parts.join(" "), body);
         assert!(parts.len() > 1);
+    }
+
+    #[test]
+    fn a_break_prefers_the_end_of_a_sentence() {
+        let body = "First sentence is here. Second sentence follows it. Third is last.";
+        let parts = split(body, 40);
+        assert!(parts.iter().all(|part| count(part) <= 40));
+        assert!(parts[0].ends_with('.'));
+        assert_eq!(parts.join(" "), body);
     }
 
     #[test]

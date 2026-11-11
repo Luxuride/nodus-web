@@ -18,11 +18,14 @@ use super::attachments::Attachments;
 use crate::router::{self, Route};
 use crate::state::alive::Alive;
 use crate::state::bridge::actions::{self, NewStatus};
+use crate::state::bridge::limits;
+use nodus_pages::pages::compose::thread::count;
 
 // Named `buttons`, not `actions`: the bridge module is already `actions` in this file.
 mod buttons;
 mod initial;
 mod options;
+mod thread;
 
 /// Applies the account's posting defaults, without disturbing typing.
 ///
@@ -53,8 +56,23 @@ fn start_from_preferences(
     reason = "a Leptos component receives its props by value"
 )]
 pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
+    let handed = super::handoff::take();
+    let from_handoff = handed.is_some();
     let start = Initial::of(initial.as_ref());
-    let (text, set_text) = signal(start.text);
+    let (handed_text, reply_to, handed_media) = handed.map_or_else(
+        || (start.text, None, Vec::new()),
+        |handed| (handed.text, handed.reply_to, handed.media),
+    );
+    let (text, set_text) = signal(handed_text);
+    let thread_mode = RwSignal::new(from_handoff);
+    let limit = RwSignal::new(500usize);
+    {
+        let alive = Alive::new();
+        spawn_local(async move {
+            let value = limits::max_characters().await;
+            alive.if_alive(|| limit.set(value));
+        });
+    }
     let emoji_query = RwSignal::new(None); // no hint list here; the token rule still applies
     let (visibility, set_visibility) = signal(start.visibility);
     let (spoiler, set_spoiler) = signal(start.spoiler);
@@ -64,7 +82,8 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     // Stored rather than captured: the submit handler and the button label both read it,
     // and a captured `String` would make one of them `FnOnce`.
     let editing = StoredValue::new(start.editing);
-    let media = RwSignal::new(Vec::<MediaAttachment>::new());
+    let media = RwSignal::new(handed_media);
+    let pages = RwSignal::new(Vec::<thread::Page>::new());
     let (busy, set_busy) = signal(false);
     let (error, set_error) = signal(None::<String>);
 
@@ -75,8 +94,24 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
 
     let submit = Callback::new(move |()| {
         let body = text.get_untracked();
-        if body.trim().is_empty() {
+        let thread = thread_mode.get_untracked();
+        let layouts = if thread {
+            thread::texts(&pages.get_untracked())
+        } else {
+            vec![body.clone()]
+        };
+        if layouts.iter().all(|text| text.trim().is_empty()) {
             set_error.set(Some("A status needs a body.".to_owned()));
+            return;
+        }
+        let limit = limit.get_untracked();
+        if layouts
+            .iter()
+            .any(|text| !text.trim().is_empty() && count(text) > limit)
+        {
+            set_error.set(Some(format!(
+                "This server allows {limit} characters per post. Split the page that is too long first."
+            )));
             return;
         }
         let status = wire_status(
@@ -90,12 +125,13 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
             },
             sensitive.get_untracked(),
             language.get_untracked(),
+            reply_to.clone(),
         );
         let editing = editing.get_value();
-        let parts = if editing.is_some() {
+        let parts = if editing.is_some() || !thread {
             vec![status]
         } else {
-            super::thread::statuses(status, super::inline::LIMIT)
+            super::thread::statuses_from(layouts, status, limit)
         };
         let alive = Alive::new();
         set_busy.set(true);
@@ -152,7 +188,22 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
     // view's; the editor and the three rows under it are this crate's, and the frame takes
     // them as the two slots it leaves open.
     let body = Arc::new(move || {
-        view! { <Body text=text set_text=set_text submit=submit query=emoji_query/> }.into_any()
+        view! {
+            <Show when=move || !thread_mode.get()>
+                <Body text=text set_text=set_text submit=submit query=emoji_query/>
+            </Show>
+            {move || {
+                (!editing.get_value().is_some() && thread_mode.get()).then(|| view! {
+                    <thread::ThreadPages
+                        text=text
+                        pages=pages
+                        set_error=set_error
+                        limit=limit.into()
+                    />
+                })
+            }}
+        }
+        .into_any()
     }) as ChildrenFn;
 
     let controls = Arc::new(move || {
@@ -176,6 +227,17 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
                 text=text
                 busy=busy
                 editing=editing
+                limit=limit.into()
+                extra=Signal::derive(move || pages.with(Vec::len).saturating_sub(1))
+                thread_mode=thread_mode.into()
+                invalid=Signal::derive(move || {
+                    let max = limit.get();
+                    (!thread_mode.get() && count(&text.get()) > max)
+                        || pages.with(|pages| {
+                            pages.iter().any(|page| count(&page.text.get()) > max)
+                        })
+                })
+                on_thread=Callback::new(move |()| thread_mode.set(true))
                 on_submit=submit
             />
         }
@@ -203,8 +265,10 @@ fn wire_status(
     spoiler_text: String,
     sensitive: bool,
     language: String,
+    reply_to: Option<String>,
 ) -> NewStatus {
     let mut status = NewStatus::text(text, visibility);
+    status.reply_to = reply_to;
     status.media_ids = media.into_iter().map(|attachment| attachment.id).collect();
     status.spoiler_text = spoiler_text;
     status.sensitive = sensitive;

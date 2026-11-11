@@ -43,6 +43,7 @@ pub mod admin;
 mod admin_token;
 mod feed;
 mod impressions;
+pub mod limits;
 pub mod notices;
 pub mod pages;
 mod posts;

@@ -30,7 +30,8 @@ pub fn ComposerBar(
     #[prop(into)]
     when: Signal<String>,
     /// The length above which the instance refuses the post.
-    limit: usize,
+    #[prop(into)]
+    limit: Signal<usize>,
     /// Whether the schedule panel is showing.
     #[prop(into)]
     schedule_open: Signal<bool>,
@@ -46,6 +47,9 @@ pub fn ComposerBar(
     /// Toggles the schedule panel.
     #[prop(optional)]
     on_toggle_schedule: Option<Callback<()>>,
+    /// Opens the visual thread editor, where a long draft can be split.
+    #[prop(optional_no_strip)]
+    on_thread: Option<Callback<()>>,
     /// Sends, or queues, the post.
     #[prop(optional)]
     on_submit: Option<Callback<()>>,
@@ -60,10 +64,11 @@ pub fn ComposerBar(
     schedule_panel: Option<ChildrenFn>,
 ) -> impl IntoView {
     let count = move || text.get().chars().count();
-    let posts = move || crate::pages::compose::thread::posts(&text.get(), limit);
+    let over = move || count() > limit.get();
     // "Grey like send": a post button that cannot post must look like a button that
     // cannot post, not like a primary action waiting to be pressed.
-    let postable = move || !busy.get() && !text.get().trim().is_empty() && on_submit.is_some();
+    let postable =
+        move || !busy.get() && !text.get().trim().is_empty() && on_submit.is_some() && !over();
     let describe_when = move |value: &str| {
         if value.trim().is_empty() {
             "now".to_owned()
@@ -119,17 +124,13 @@ pub fn ComposerBar(
                 <span
                     class="text-xs tabular-nums"
                     class=("hidden", move || count() == 0)
-                    class=("opacity-50", move || count() <= limit)
-                    class=("text-warning", move || count() > limit)
+                    class=("opacity-50", move || !over())
+                    class=("text-warning", move || over())
                     title=move || {
-                        if posts() > 1 {
-                            format!("This will go out as {} posts", posts())
-                        } else {
-                            "The instance refuses a post longer than this".to_owned()
-                        }
+                        format!("This server allows {} characters", limit.get())
                     }
                 >
-                    {move || format!("{}/{limit}", count())}
+                    {move || format!("{}/{}", count(), limit.get())}
                 </span>
 
                 // Post and its caret are one control: the caret opens the schedule
@@ -148,10 +149,10 @@ pub fn ComposerBar(
                             }
                         }
                     >
-                        {move || match (busy.get(), scheduling.get(), posts() > 1) {
+                        {move || match (busy.get(), scheduling.get(), over()) {
                             (true, _, _) => "Posting…",
-                            (false, true, _) => "Schedule",
-                            (false, false, true) => "Thread",
+                            (false, _, true) => "Too long",
+                            (false, true, false) => "Schedule",
                             (false, false, false) => "Post",
                         }}
                     </button>
@@ -187,10 +188,26 @@ pub fn ComposerBar(
                     }}
                 </div>
             </div>
-            <Show when=move || { posts() > 1 && !scheduling.get() }>
-                <p class="w-full text-xs opacity-60">
-                    {move || format!("Will be posted as a thread of {} posts.", posts())}
-                </p>
+            <Show when=move || over()>
+                <div class="flex w-full flex-wrap items-center gap-2 text-xs text-warning" role="alert">
+                    <span>
+                        "This server allows "
+                        {move || limit.get()}
+                        " characters per post. Split this draft in the thread editor."
+                    </span>
+                    <button
+                        type="button"
+                        class="btn btn-sm"
+                        disabled=move || on_thread.is_none()
+                        on:click=move |_| {
+                            if let Some(on_thread) = on_thread {
+                                on_thread.run(());
+                            }
+                        }
+                    >
+                        "Open thread editor"
+                    </button>
+                </div>
             </Show>
         </div>
     }

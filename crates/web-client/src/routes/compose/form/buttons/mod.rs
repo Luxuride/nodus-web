@@ -15,6 +15,11 @@ pub fn ComposerActions(
     text: ReadSignal<String>,
     busy: ReadSignal<bool>,
     editing: StoredValue<Option<String>>,
+    limit: Signal<usize>,
+    extra: Signal<usize>,
+    thread_mode: Signal<bool>,
+    invalid: Signal<bool>,
+    on_thread: Callback<()>,
     on_submit: Callback<()>,
 ) -> impl IntoView {
     // The label asks whether this is an edit. That is fixed for the life of the form, and a
@@ -27,7 +32,11 @@ pub fn ComposerActions(
             text=text
             busy=busy
             editing=editing
-            limit=super::super::inline::LIMIT
+            limit=limit
+            extra=Some(extra)
+            thread_mode=thread_mode
+            invalid=Some(invalid)
+            on_thread=Some(on_thread)
             on_submit=on_submit
             on_cancel=Callback::new(move |()| router::navigate(Route::Home))
         />

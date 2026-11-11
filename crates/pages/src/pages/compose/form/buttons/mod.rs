@@ -19,9 +19,21 @@ pub fn ComposerActions(
     /// Whether this composer edits a post that already exists, which renames the button.
     #[prop(optional)]
     editing: bool,
-    /// The character limit, when a longer body becomes a thread.
-    #[prop(optional)]
-    limit: Option<usize>,
+    /// The instance's character limit.
+    #[prop(into)]
+    limit: Signal<usize>,
+    /// Extra pages the writer laid out by hand, beyond the one in the main editor.
+    #[prop(optional_no_strip)]
+    extra: Option<Signal<usize>>,
+    /// Whether the visual thread editor is open.
+    #[prop(into)]
+    thread_mode: Signal<bool>,
+    /// Whether a page is over the limit and has to be split first.
+    #[prop(optional_no_strip)]
+    invalid: Option<Signal<bool>>,
+    /// Opens the visual thread editor.
+    #[prop(optional_no_strip)]
+    on_thread: Option<Callback<()>>,
     /// Sends the post.
     #[prop(optional)]
     on_submit: Option<Callback<()>>,
@@ -29,21 +41,69 @@ pub fn ComposerActions(
     #[prop(optional)]
     on_cancel: Option<Callback<()>>,
 ) -> impl IntoView {
+    let count = move || crate::pages::compose::thread::count(&text.get());
+    let over = move || !thread_mode.get() && count() > limit.get();
+    let invalid = move || invalid.is_some_and(|invalid| invalid.get());
+    let manual = move || extra.map_or(0, |extra| extra.get());
+    let threading = move || thread_mode.get() && manual() > 0;
+    let postable = move || {
+        !busy.get() && !text.get().trim().is_empty() && on_submit.is_some() && !over() && !invalid()
+    };
+
     view! {
-        <div class="flex items-center gap-2">
-            <Show when=move || !editing && limit.is_some_and(|limit| crate::pages::compose::thread::posts(&text.get(), limit) > 1)>
-                <p class="text-xs opacity-60">
-                    {move || {
-                        let posts = limit.map_or(1, |limit| {
-                            crate::pages::compose::thread::posts(&text.get(), limit)
-                        });
-                        format!("This will go out as a thread of {posts} posts.")
-                    }}
+        <div class="flex flex-col gap-2">
+            <Show when=move || { over() && !thread_mode.get() }>
+                <div class="alert alert-warning flex-wrap items-center gap-2 py-2 text-sm" role="alert">
+                    <span>
+                        "This server allows "
+                        {move || limit.get()}
+                        " characters. This draft is "
+                        {move || count()}
+                        "."
+                    </span>
+                    <button
+                        class="btn btn-sm"
+                        disabled=move || on_thread.is_none()
+                        on:click=move |_| {
+                            if let Some(on_thread) = on_thread {
+                                on_thread.run(());
+                            }
+                        }
+                    >
+                        "Open thread editor"
+                    </button>
+                </div>
+            </Show>
+            <Show when=move || { thread_mode.get() && invalid() }>
+                <p class="text-sm text-warning" role="alert">
+                    "One page is still over the server limit. Split it before posting."
                 </p>
             </Show>
+            <Show when=move || { !thread_mode.get() && !over() && on_thread.is_some() }>
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-sm w-fit"
+                    on:click=move |_| {
+                        if let Some(on_thread) = on_thread {
+                            on_thread.run(());
+                        }
+                    }
+                >
+                    "Add a thread"
+                </button>
+            </Show>
+            <Show when=move || { threading() && !over() }>
+                <p class="text-xs opacity-60">
+                    {move || format!(
+                        "This will go out as a thread of {} posts.",
+                        manual() + 1,
+                    )}
+                </p>
+            </Show>
+            <div class="flex items-center gap-2">
             <button
                 class="btn btn-primary btn-sm"
-                disabled=move || busy.get() || text.get().trim().is_empty() || on_submit.is_none()
+                disabled=move || !postable()
                 on:click=move |_| {
                     if let Some(on_submit) = on_submit {
                         on_submit.run(());
@@ -54,7 +114,9 @@ pub fn ComposerActions(
                     "Sending…".to_owned()
                 } else if editing {
                     "Save changes".to_owned()
-                } else if limit.is_some_and(|limit| crate::pages::compose::thread::posts(&text.get(), limit) > 1) {
+                } else if over() {
+                    "Too long".to_owned()
+                } else if threading() {
                     "Post thread".to_owned()
                 } else {
                     "Post".to_owned()
@@ -71,6 +133,7 @@ pub fn ComposerActions(
             >
                 "Cancel"
             </button>
+            </div>
         </div>
     }
 }

@@ -16,6 +16,7 @@ use nodus_instance::model::MediaAttachment;
 use nodus_pages::pages::compose::attachments::{
     Attachments as AttachmentList, AttachmentsProps as AttachmentListProps,
 };
+use nodus_ui::icons::Icon;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
@@ -130,6 +131,17 @@ pub fn Attachments(
     // filter and the click that opens the dialog all belong to this crate.
     let input = Arc::new(move || {
         view! {
+            <button
+                type="button"
+                class="btn btn-outline btn-sm gap-1 border-dashed max-sm:btn-square"
+                title="Add media"
+                aria-label="Add media"
+                disabled=move || uploading.get()
+                on:click=move |_| request_pick()
+            >
+                <Icon icon=Icon::Image/>
+                <span class="max-sm:hidden">"Media"</span>
+            </button>
             <input
                 id=ATTACH_INPUT
                 class="hidden"

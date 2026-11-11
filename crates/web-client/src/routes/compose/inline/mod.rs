@@ -17,10 +17,11 @@ use nodus_pages::pages::compose::inline::{
 };
 use wasm_bindgen::JsCast as _;
 
+use crate::router::{self, Route};
 use crate::routes::compose::attachments::{self, Attachments};
 use crate::routes::compose::inline::bar::ComposerBar;
 use crate::state::alive::Alive;
-use crate::state::bridge::{actions, timeline};
+use crate::state::bridge::{actions, limits, timeline};
 
 mod bar;
 mod drafts_panel;
@@ -86,6 +87,14 @@ pub fn InlineComposer(
     heading: String,
 ) -> impl IntoView {
     let draft = Draft::new(which, set_reload, reply_to, on_posted);
+    {
+        let alive = draft.alive;
+        let limit = draft.limit;
+        spawn_local(async move {
+            let value = limits::max_characters().await;
+            alive.if_alive(|| limit.set(value));
+        });
+    }
     // One catalogue for both controls — the suggestions popup and the picker ask the
     // instance once, not once per keystroke and once per open.
     let emoji_catalogue = emoji::catalogue();
@@ -166,6 +175,15 @@ pub fn InlineComposer(
                 visibility=draft.visibility.read_only()
                 set_visibility=draft.visibility.write_only()
                 busy=draft.busy.read_only()
+                limit=draft.limit.read_only().into()
+                on_thread=Some(Callback::new(move |()| {
+                    crate::routes::compose::handoff::put(
+                        draft.text.get_untracked(),
+                        draft.reply_to.map(|id| id.get_value()),
+                        draft.media.get_untracked(),
+                    );
+                    router::navigate(Route::Compose);
+                }))
                 on_add_media=Callback::new(move |()| attachments::request_pick())
                 // A toggle, not a latch: with a latch the control is a no-op the moment the
                 // editor is open, which is what made it read as broken.
@@ -361,6 +379,8 @@ struct Draft {
     hide_totals: RwSignal<bool>,
     /// Empty means "let the instance guess".
     language: RwSignal<String>,
+    /// The instance's character limit, loaded after mount.
+    limit: RwSignal<usize>,
     /// The `:token` the editor is completing, mirrored here so the hint list is daisyUI's.
     emoji_query: RwSignal<Option<nodus_editor::EmojiQuery>>,
     /// What the last successful post went out as: visibility and language, shown in the
@@ -397,6 +417,7 @@ impl Draft {
             multiple: RwSignal::new(false),
             hide_totals: RwSignal::new(false),
             language: RwSignal::new(String::new()),
+            limit: RwSignal::new(LIMIT),
             emoji_query: RwSignal::new(None),
             done: RwSignal::new(None),
             alive: Alive::new(),
@@ -423,6 +444,7 @@ impl Draft {
             multiple: self.multiple,
             hide_totals: self.hide_totals,
             language: self.language,
+            limit: self.limit,
             done: self.done,
             alive: self.alive,
             which: self.which,
@@ -449,6 +471,7 @@ struct Signals {
     multiple: RwSignal<bool>,
     hide_totals: RwSignal<bool>,
     language: RwSignal<String>,
+    limit: RwSignal<usize>,
     done: RwSignal<Option<(Visibility, String)>>,
     alive: Alive,
     which: Option<StoredValue<nodus_sdk::Timeline>>,
@@ -464,6 +487,13 @@ impl Signals {
         }
         let body = self.text.get_untracked();
         if body.trim().is_empty() {
+            return;
+        }
+        if body.chars().count() > self.limit.get_untracked() {
+            self.error.set(Some(
+                "This server allows fewer characters than this. Open the thread editor to split it."
+                    .to_owned(),
+            ));
             return;
         }
         let mut status = actions::NewStatus::text(body, self.visibility.get_untracked());
@@ -490,7 +520,7 @@ impl Signals {
 
         let chosen = self.visibility.get_untracked();
         let language = status.language.clone();
-        let parts = crate::routes::compose::thread::statuses(status, LIMIT);
+        let parts = vec![status];
         let custom = self.custom.get_untracked();
         let at = custom_time(&custom);
         if !custom.is_empty() && at.is_none() {
@@ -499,13 +529,6 @@ impl Signals {
             ));
             return;
         }
-        if at.is_some() && parts.len() > 1 {
-            self.error.set(Some(
-                "A thread is posted now; clear the time to send it as a thread.".to_owned(),
-            ));
-            return;
-        }
-
         self.busy.set(true);
         self.error.set(None);
         self.notice.set(None);

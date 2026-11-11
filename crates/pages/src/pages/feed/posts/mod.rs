@@ -5,8 +5,8 @@
 //! state this crate may read (the same reason `PageHeader` takes its counters).
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, Status, Visibility};
-use nodus_shared::PostItem;
+use nodus_instance::model::{Account, CustomEmoji, MediaAttachment, MediaKind, Status, Visibility};
+use nodus_shared::{PostEmoji, PostItem, PostMedia};
 
 use crate::status_card::StatusCard;
 
@@ -35,11 +35,16 @@ pub fn PostCard(
     }
 
     let status = status_of(&item, body);
-    let author_path = format!("https://{}/@{}", item.instance_host, item.account_acct);
-    let thread_path = format!(
-        "https://{}/@{}/{}",
-        item.instance_host, item.account_acct, item.status_id
-    );
+    let author_path = if item.account_url.trim().is_empty() {
+        format!("https://{}/@{}", item.instance_host, item.account_acct)
+    } else {
+        item.account_url.clone()
+    };
+    let thread_path = if item.url.trim().is_empty() {
+        format!("/status/{}", item.status_id)
+    } else {
+        item.url.clone()
+    };
 
     view! {
         <StatusCard
@@ -84,19 +89,43 @@ fn status_of(item: &PostItem, body: String) -> Status {
         bookmarked: false,
         reblog: None,
         in_reply_to_id: None,
-        emojis: Vec::new(),
-        url: Some(format!(
-            "https://{}/@{}/{}",
-            item.instance_host, item.account_acct, item.status_id
-        )),
-        sensitive: false,
-        spoiler_text: String::new(),
-        media_attachments: Vec::new(),
+        emojis: item.emojis.iter().map(emoji_of).collect(),
+        url: (!item.url.trim().is_empty()).then(|| item.url.clone()),
+        sensitive: item.sensitive,
+        spoiler_text: item.spoiler_text.clone(),
+        media_attachments: item.media.iter().map(media_of).collect(),
         mentions: Vec::new(),
         tags: Vec::new(),
         poll: None,
         edited_at: None,
         pinned: None,
+    }
+}
+
+fn media_of(media: &PostMedia) -> MediaAttachment {
+    MediaAttachment {
+        id: media.id.clone(),
+        kind: match media.kind.as_str() {
+            "image" => MediaKind::Image,
+            "video" => MediaKind::Video,
+            "gifv" => MediaKind::Gifv,
+            "audio" => MediaKind::Audio,
+            _ => MediaKind::Unknown,
+        },
+        url: media.url.clone(),
+        preview_url: media.preview_url.clone(),
+        description: media.description.clone(),
+        blurhash: media.blurhash.clone(),
+        meta_width: media.meta_width,
+        meta_height: media.meta_height,
+    }
+}
+
+fn emoji_of(emoji: &PostEmoji) -> CustomEmoji {
+    CustomEmoji {
+        shortcode: emoji.shortcode.clone(),
+        url: emoji.url.clone(),
+        static_url: emoji.static_url.clone(),
     }
 }
 

@@ -39,6 +39,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 # Post bodies arrive as HTML; this keeps the parts a post is made of and nothing else.
 lol_html = "2"
+# Public reads of a shared link are made here, not by the reader's browser.
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "webpki-roots"] }
 # Session ids are opaque and unguessable.
 uuid = { version = "1", features = ["v4"] }
 

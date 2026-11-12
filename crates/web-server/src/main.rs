@@ -18,6 +18,7 @@ mod document;
 mod html;
 mod mastodon;
 mod pages;
+mod public_api;
 mod rows;
 mod runtime;
 mod session;
@@ -124,6 +125,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .route("/healthz", get(healthz))
         .route("/api/session", get(whoami).post(sign_in).delete(sign_out))
+        .route(
+            "/api/public/status/{host}/{id}",
+            get(public_api::status),
+        )
+        .route(
+            "/api/public/status/{host}/{id}/context",
+            get(public_api::context),
+        )
+        .route(
+            "/api/public/account/{host}/{id}",
+            get(public_api::account),
+        )
+        .route(
+            "/api/public/account/{host}/{id}/statuses",
+            get(public_api::account_statuses),
+        )
+        .route(
+            "/api/public/account/{host}/{id}/followers",
+            get(public_api::followers),
+        )
+        .route(
+            "/api/public/account/{host}/{id}/following",
+            get(public_api::following),
+        )
         .route("/", get(index))
         .route("/home", get(home))
         .route(

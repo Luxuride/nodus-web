@@ -1,13 +1,9 @@
 //! Reading a post without a session.
 //!
 //! A shared link has to work for someone who has never signed in — that is the point of
-//! sharing it. So this module talks to the *instance that hosts the post*, from the
-//! reader's own address, with no token: public statuses are readable that way, and the
-//! request costs the instance one page view instead of costing us a crawl.
-//!
-//! It deliberately does not go through the SDK: the SDK's ports are authenticated by
-//! design (`InstanceApi` sends a bearer token), and adding an anonymous mode to them
-//! would give every authenticated call a second behaviour to think about.
+//! sharing it. The browser asks our own host, which performs the one public read of the
+//! origin and hands back the bytes. That keeps third-party origins, CORS and per-instance
+//! API quirks out of the client; the client only ever talks to Nodus.
 
 use gloo_net::http::Request;
 use nodus_instance::model::{Account, Context, Status};
@@ -51,7 +47,7 @@ fn url(host: &str, path: &str) -> Result<String, PublicError> {
     if !valid {
         return Err(PublicError::BadHost);
     }
-    Ok(format!("https://{host}{path}"))
+    Ok(format!("/api/public{path}"))
 }
 
 async fn get<T: serde::de::DeserializeOwned>(host: &str, path: &str) -> Result<T, PublicError> {
@@ -75,22 +71,22 @@ async fn get<T: serde::de::DeserializeOwned>(host: &str, path: &str) -> Result<T
 
 /// The post itself.
 pub async fn status(host: &str, id: &str) -> Result<Status, PublicError> {
-    get(host, &format!("/api/v1/statuses/{id}")).await
+    get(host, &format!("/status/{host}/{id}")).await
 }
 
 /// The replies above and below it.
 pub async fn context(host: &str, id: &str) -> Result<Context, PublicError> {
-    get(host, &format!("/api/v1/statuses/{id}/context")).await
+    get(host, &format!("/status/{host}/{id}/context")).await
 }
 
 /// The account behind a shared link.
 pub async fn account(host: &str, id: &str) -> Result<Account, PublicError> {
-    get(host, &format!("/api/v1/accounts/{id}")).await
+    get(host, &format!("/account/{host}/{id}")).await
 }
 
 /// The account's public posts, newest first.
 pub async fn account_statuses(host: &str, id: &str) -> Result<Vec<Status>, PublicError> {
-    get(host, &format!("/api/v1/accounts/{id}/statuses?limit=20")).await
+    get(host, &format!("/account/{host}/{id}/statuses")).await
 }
 
 /// The account's public posts older than a status id.
@@ -101,17 +97,17 @@ pub async fn account_statuses_before(
 ) -> Result<Vec<Status>, PublicError> {
     get(
         host,
-        &format!("/api/v1/accounts/{id}/statuses?limit=20&max_id={max_id}"),
+        &format!("/account/{host}/{id}/statuses?max_id={max_id}"),
     )
     .await
 }
 
 /// The account's public followers.
 pub async fn account_followers(host: &str, id: &str) -> Result<Vec<Account>, PublicError> {
-    get(host, &format!("/api/v1/accounts/{id}/followers?limit=40")).await
+    get(host, &format!("/account/{host}/{id}/followers")).await
 }
 
 /// The accounts this account follows publicly.
 pub async fn account_following(host: &str, id: &str) -> Result<Vec<Account>, PublicError> {
-    get(host, &format!("/api/v1/accounts/{id}/following?limit=40")).await
+    get(host, &format!("/account/{host}/{id}/following")).await
 }

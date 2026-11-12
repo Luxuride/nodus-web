@@ -200,7 +200,7 @@ fn cleared_cookie() -> String {
     format!("{COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0")
 }
 
-fn session_of(app: &App, headers: &HeaderMap) -> Option<Session> {
+pub(crate) fn session_of(app: &App, headers: &HeaderMap) -> Option<Session> {
     app.sessions.get(&cookie_of(headers)?)
 }
 

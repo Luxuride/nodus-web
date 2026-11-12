@@ -113,6 +113,9 @@ thread_local! {
     /// The host and token arrive before the session does — `sign_in` is what learns the
     /// account id — so the SDK waits here until [`register`] can name it.
     static PENDING: RefCell<Option<Live>> = const { RefCell::new(None) };
+    /// The token behind the installed transport. The SDK state names the host and
+    /// account but deliberately does not expose credentials.
+    static TOKEN: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 /// The Feed tab's request state, which belongs to the view and not to the SDK.
@@ -252,6 +255,11 @@ pub(super) fn existing_feed_id() -> Option<String> {
 
 /// Drops the snapshot id kept for event batches.
 ///
+/// The bearer behind the installed SDK, for the few calls that need the home API directly.
+pub(crate) fn session_token() -> Option<String> {
+    TOKEN.with_borrow(Clone::clone)
+}
+
 /// Called when the session ends, so a late batch cannot carry the previous
 /// account's snapshot id into the next one.
 pub(super) fn forget_feed_id() {
@@ -262,6 +270,7 @@ pub(super) fn forget_feed_id() {
 use nodus_instance::actions::AdminActions;
 
 fn install(instance: &Instance, token: &str) -> Result<(), String> {
+    TOKEN.with_borrow_mut(|slot| *slot = Some(token.to_owned()));
     let base =
         api_base().ok_or_else(|| "Could not determine the API origin for this page.".to_owned())?;
     let transport = BrowserInstance::new(instance, token);

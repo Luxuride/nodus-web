@@ -398,8 +398,18 @@ impl Runtime for ClientRuntime {
         }))
     }
 
-    fn note_browse(&self, kind: &'static str, host: String, id: String, acct: Option<String>) {
+    fn note_browse(
+        &self,
+        kind: &'static str,
+        host: String,
+        id: String,
+        acct: Option<String>,
+        url: Option<String>,
+    ) {
         crate::state::bridge::backfill::request(kind, host, id, acct);
+        if let Some(url) = url {
+            crate::state::bridge::backfill::hydrate(url);
+        }
     }
 
     fn public_host(&self) -> Option<String> {

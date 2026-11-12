@@ -66,6 +66,11 @@ pub fn PublicAccountScreen(
                         browse_host.clone(),
                         browse_id.clone(),
                         Some(found.acct.clone()),
+                        Some(format!(
+                            "https://{}/@{}",
+                            browse_host,
+                            found.acct.split('@').next().unwrap_or(&found.acct)
+                        )),
                     );
                     account.set(Some(found));
                 }

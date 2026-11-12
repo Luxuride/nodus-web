@@ -79,7 +79,8 @@ pub fn ThreadScreen(
                                 browse_host.clone(),
                                 browse_id.clone(),
                                 Some(found.account.acct.clone()),
-                            );
+                            found.url.clone(),
+                        );
                         }
                         status.set(Some(found));
                     }

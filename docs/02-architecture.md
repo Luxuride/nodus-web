@@ -10,7 +10,7 @@ Two recommenders, one app:
 ```mermaid
 flowchart LR
     subgraph sdk["sdk/ (WASM)"]
-        STATEMACHINE["nodus-sdk<br/>Sdk&lt;I, D, P, C&gt;<br/>AppState · Command"]
+        STATEMACHINE["nodus-client-sdk<br/>Sdk&lt;I, D, P, C&gt;<br/>AppState · Command"]
         MASTO["InstanceApi impl<br/>(wasm transport)"]
         APIC["Discovery impl<br/>(our-API client)"]
         IDB[("IndexedDB<br/>(Persistence impl)")]
@@ -34,7 +34,7 @@ flowchart LR
 
 **The SDK owns client state; the web crate renders it.** Session, timelines,
 feed, streaming status, paging and cache policy all live in
-[`nodus-sdk`](../../sdk/README.md), which is generic over four ports
+[`nodus-client-sdk`](../../sdk/README.md), which is generic over four ports
 (`InstanceApi`, `Discovery`, `Persistence`, `Clock`). `web` contributes: routing,
 rendering, sanitisation, keyboard handling, and the ~40-line bridge that adapts an
 SDK handle to a Leptos signal.

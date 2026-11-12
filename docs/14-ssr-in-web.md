@@ -23,7 +23,7 @@ crates with duplicated glue.
 [features]
 default = ["hydrate"]
 hydrate = ["leptos/hydrate", "dep:wasm-bindgen", "dep:web-sys"]
-ssr     = ["leptos/ssr", "dep:tokio", "dep:hyper", "dep:nodus-instance/native"]
+ssr     = ["leptos/ssr", "dep:tokio", "dep:hyper", "dep:nodus-client-core/native"]
 admin   = []
 ```
 
@@ -68,7 +68,7 @@ Gating is mechanical and it is the whole of the work. Rules that keep it mechani
 became. One crate, three folders, two artifacts:
 
 - `crates/web/Cargo.toml`: features `default = ["hydrate"]`, `hydrate` (browser deps, `leptos/csr`,
-  `nodus-instance/wasm`), `ssr` (axum, tokio, lol_html, tracing, `nodus-instance/native`), and
+  `nodus-client-core/wasm`), `ssr` (axum, tokio, lol_html, tracing, `nodus-client-core/native`), and
   `admin`, which composes with either. Two bins: `nodus-web` (`src/main.rs`, `required-features =
   ["hydrate"]`) and `nodus-web-server` (`src/bin/nodus-web-server.rs`, `required-features =
   ["ssr"]`). `"crates/server"` left the workspace `members`.

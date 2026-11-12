@@ -22,7 +22,7 @@ Consequences for this repository, stated once:
   signals and dispatches commands (its `feed/` and `session/` files are the verbs);
 - views never call an HTTP endpoint directly — on either plane.
 
-## `nodus-instance` — the instance surface
+## `nodus-client-core` — the instance surface
 
 The SDK does not ship a concrete HTTP client in M0; it ships the surface one must
 satisfy:

@@ -110,8 +110,8 @@ right tool, because at that point there are two builds to keep in step.
 
 | Layer | Tool | What it covers |
 | --- | --- | --- |
-| `nodus-instance` (model) | `cargo test` | serde round-trips for statuses/notifications, `Page`/`PageParams` invariants |
-| `nodus-sdk` | `cargo test` (native) | the whole state machine: session/feed/timeline transitions, cache round-trip via `MemoryPersistence`, `FixedClock`, discovery-outage degradation |
+| `nodus-client-core` (model) | `cargo test` | serde round-trips for statuses/notifications, `Page`/`PageParams` invariants |
+| `nodus-client-sdk` | `cargo test` (native) | the whole state machine: session/feed/timeline transitions, cache round-trip via `MemoryPersistence`, `FixedClock`, discovery-outage degradation |
 | SDK ports (wasm impl) | `wasm-bindgen-test` + stub `fetch` | bearer header, stream URL construction, 401 path, IndexedDB adapter |
 | `crates/web` logic | `wasm-bindgen-test` | sanitizer payload battery, outbox replay order, bridge wiring |
 | API client | `wasm-bindgen-test` + stub | contract version header, `426` handling, error envelope mapping |

@@ -98,6 +98,8 @@ fn status_of(item: &PostItem, body: String) -> Status {
         url: (!item.url.trim().is_empty()).then(|| item.url.clone()),
         sensitive: item.sensitive,
         spoiler_text: item.spoiler_text.clone(),
+        content_format: None,
+        content_source: None,
         media_attachments: item.media.iter().map(media_of).collect(),
         mentions: Vec::new(),
         tags: Vec::new(),

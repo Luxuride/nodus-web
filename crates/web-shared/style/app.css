@@ -54,3 +54,33 @@ html {
   padding: 0;
   gap: 0.5rem;
 }
+
+/* MFM animation functions. The protocol carries the intent; the shared sheet owns the
+ * motion, so SSR and CSR paint the same thing. */
+@keyframes nodus-mfm-spin { to { transform: rotate(360deg); } }
+@keyframes nodus-mfm-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-0.12em); } 75% { transform: translateX(0.12em); } }
+@keyframes nodus-mfm-jelly { 0%, 100% { transform: scale(1, 1); } 30% { transform: scale(1.08, 0.92); } 60% { transform: scale(0.94, 1.06); } }
+@keyframes nodus-mfm-jump { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-0.25em); } 70% { transform: translateY(0); } }
+@keyframes nodus-mfm-bounce { 0%, 100% { transform: scale(1); } 40% { transform: scale(0.92); } 70% { transform: scale(1.08); } }
+@keyframes nodus-mfm-tada { 0%, 100% { transform: scale(1) rotate(0); } 20% { transform: scale(1.08) rotate(-3deg); } 60% { transform: scale(1.08) rotate(3deg); } }
+@keyframes nodus-mfm-rainbow { to { filter: hue-rotate(360deg); } }
+
+.mfm-x2 { display: inline-block; font-size: 2em; line-height: 1; }
+.mfm-x3 { display: inline-block; font-size: 3em; line-height: 1; }
+.mfm-x4 { display: inline-block; font-size: 4em; line-height: 1; }
+.mfm-spin { display: inline-block; animation: nodus-mfm-spin 3s linear infinite; }
+.mfm-shake { display: inline-block; animation: nodus-mfm-shake 0.6s ease-in-out infinite; }
+.mfm-jelly { display: inline-block; animation: nodus-mfm-jelly 1s ease-in-out infinite; }
+.mfm-jump { display: inline-block; animation: nodus-mfm-jump 0.9s ease-in-out infinite; }
+.mfm-bounce { display: inline-block; animation: nodus-mfm-bounce 1s ease-in-out infinite; }
+.mfm-tada { display: inline-block; animation: nodus-mfm-tada 1.4s ease-in-out infinite; }
+.mfm-rainbow { display: inline-block; animation: nodus-mfm-rainbow 3s linear infinite; }
+.mfm-sparkle { display: inline-block; filter: brightness(1.35) saturate(1.4); }
+.mfm-blur { display: inline-block; filter: blur(0.08em); }
+.mfm-font { display: inline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mfm-spin, .mfm-shake, .mfm-jelly, .mfm-jump, .mfm-bounce, .mfm-tada, .mfm-rainbow {
+    animation: none;
+  }
+}

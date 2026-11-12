@@ -4,6 +4,7 @@
 //! `nodus-pages`; routing and the runtime live in `nodus-route`.
 
 pub mod components;
+pub mod mfm;
 
 pub use components::anchor::{Anchor, Relative};
 pub use components::chrome;

@@ -14,6 +14,7 @@ use leptos::prelude::*;
 use nodus_client_core::model::{MediaAttachment, Mention, Poll, Status, Tag};
 
 use crate::icons::Icon;
+use crate::mfm;
 use crate::media::attachments_label;
 use crate::media_grid::Picture;
 
@@ -54,6 +55,10 @@ pub fn StatusBody(
     // from the text inside each of them.
     let warned_content = status.content.clone();
     let plain_content = status.content.clone();
+    let warned_source = status.content_source.clone();
+    let plain_source = status.content_source.clone();
+    let warned_format = status.content_format.clone();
+    let plain_format = status.content_format.clone();
     let warned_emojis = status.emojis.clone();
     let plain_emojis = status.emojis.clone();
     // One copy for both grids: the signal is what lets the grid rebuild when the card's
@@ -78,14 +83,14 @@ pub fn StatusBody(
                         "Show content"
                     </summary>
                     <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">
-                        <span>{status_text(&warned_content, &warned_emojis)}</span>
+                        <span>{status_text(&warned_content, warned_source.as_deref(), warned_format.as_deref(), &warned_emojis)}</span>
                     </p>
                 </details>
             </div>
         </Show>
         <Show when=move || !warned>
             <p class="whitespace-pre-line text-sm leading-relaxed">
-                <span>{status_text(&plain_content, &plain_emojis)}</span>
+                <span>{status_text(&plain_content, plain_source.as_deref(), plain_format.as_deref(), &plain_emojis)}</span>
             </p>
         </Show>
 
@@ -144,11 +149,21 @@ fn grid(
 }
 
 /// The author's HTML, with the classes that give it links and paragraph rhythm.
-fn status_text(content: &str, emojis: &[nodus_client_core::model::CustomEmoji]) -> AnyView {
+fn status_text(
+    content: &str,
+    source: Option<&str>,
+    format: Option<&str>,
+    emojis: &[nodus_client_core::model::CustomEmoji],
+) -> AnyView {
+    let prepared = if format == Some("mfm") {
+        mfm::render(source.unwrap_or(content), emojis)
+    } else {
+        with_emojis(content, emojis)
+    };
     view! {
         <div
             class="break-words [overflow-wrap:anywhere] [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
-            inner_html=with_emojis(content, emojis)
+            inner_html=prepared
         ></div>
     }
     .into_any()

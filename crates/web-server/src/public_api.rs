@@ -164,7 +164,9 @@ async fn account_target(
     host: &str,
     id: &str,
 ) -> (String, String, Option<String>) {
-    if local_host().as_deref() == Some(host)
+    let session = session_of(app, headers);
+    if session.is_none()
+        && local_host().as_deref() == Some(host)
         && let Some(local) = json(&format!("https://{host}/api/v1/accounts/{id}"), None).await
         && let Some(acct) = local.get("acct").and_then(Value::as_str)
         && acct.contains('@')
@@ -180,7 +182,7 @@ async fn account_target(
             return (origin.to_owned(), remote.to_owned(), None);
         }
     }
-    let Some(session) = session_of(app, headers) else {
+    let Some(session) = session else {
         return (host.to_owned(), id.to_owned(), None);
     };
     if session.host == host {

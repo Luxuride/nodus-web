@@ -15,7 +15,6 @@ pub use tabs::PrimaryTabs;
 
 pub use self::banner::Banner;
 
-
 fn timeline(route: crate::router::Route) -> impl IntoView {
     let header: ChildrenFn = std::sync::Arc::new(|| view! { <TimelineHeader/> }.into_any());
     let banner: ChildrenFn = std::sync::Arc::new(|| view! { <Banner/> }.into_any());

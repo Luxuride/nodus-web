@@ -122,7 +122,6 @@ pub fn LanguagePicker(
         }
     });
 
-
     on_cleanup(|| {
         LISTENER.with(|slot| {
             if let Some(listener) = slot.borrow_mut().take()

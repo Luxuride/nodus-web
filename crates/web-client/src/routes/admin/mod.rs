@@ -12,8 +12,8 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
-use nodus_ui::chrome::StaffStanding;
 use nodus_pages::pages::admin::{AdminPage, Section};
+use nodus_ui::chrome::StaffStanding;
 
 use crate::router::{self, Route};
 use crate::state::alive::Alive;

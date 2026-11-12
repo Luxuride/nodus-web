@@ -28,7 +28,8 @@ pub fn PostCard(
     #[prop(optional)] on_seen: Option<Callback<i64>>,
     #[prop(optional)] on_left: Option<Callback<i64>>,
     /// Opens the viewer on one picture; absent where nothing can be pressed.
-    #[prop(optional_no_strip)] on_open_media: Option<Callback<(Vec<Picture>, usize)>>,
+    #[prop(optional_no_strip)]
+    on_open_media: Option<Callback<(Vec<Picture>, usize)>>,
 ) -> impl IntoView {
     if let Some(seen) = on_seen {
         seen.run(item.item_id);
@@ -43,10 +44,7 @@ pub fn PostCard(
     } else {
         item.account_url.clone()
     };
-    let thread_path = format!(
-        "/status/{}/{}",
-        item.instance_host, item.status_remote_id
-    );
+    let thread_path = format!("/status/{}/{}", item.instance_host, item.status_remote_id);
     let open_media = on_open_media.unwrap_or_else(|| Callback::new(|_| ()));
 
     view! {

@@ -107,9 +107,11 @@ pub fn PublicAccountScreen(
                     Err(message) => error.set(Some(message)),
                 });
             });
-            runtime
-                .get_value()
-                .load_public_account_followers(graph_host.clone(), graph_id.clone(), done);
+            runtime.get_value().load_public_account_followers(
+                graph_host.clone(),
+                graph_id.clone(),
+                done,
+            );
         }
         Tab::Following => {
             if following.get_untracked().is_some() {
@@ -121,9 +123,11 @@ pub fn PublicAccountScreen(
                     Err(message) => error.set(Some(message)),
                 });
             });
-            runtime
-                .get_value()
-                .load_public_account_following(graph_host.clone(), graph_id.clone(), done);
+            runtime.get_value().load_public_account_following(
+                graph_host.clone(),
+                graph_id.clone(),
+                done,
+            );
         }
     });
 

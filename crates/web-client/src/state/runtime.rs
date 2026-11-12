@@ -415,7 +415,12 @@ impl Runtime for ClientRuntime {
     fn public_host(&self) -> Option<String> {
         web_sys::window()
             .and_then(|window| window.document())
-            .and_then(|document| document.query_selector("meta[name=nodus-instance-host]").ok().flatten())
+            .and_then(|document| {
+                document
+                    .query_selector("meta[name=nodus-instance-host]")
+                    .ok()
+                    .flatten()
+            })
             .and_then(|meta| meta.get_attribute("content"))
             .filter(|host| !host.trim().is_empty())
     }

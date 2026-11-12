@@ -125,18 +125,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let router = Router::new()
         .route("/healthz", get(healthz))
         .route("/api/session", get(whoami).post(sign_in).delete(sign_out))
-        .route(
-            "/public-api/status/{host}/{id}",
-            get(public_api::status),
-        )
+        .route("/public-api/status/{host}/{id}", get(public_api::status))
         .route(
             "/public-api/status/{host}/{id}/context",
             get(public_api::context),
         )
-        .route(
-            "/public-api/account/{host}/{id}",
-            get(public_api::account),
-        )
+        .route("/public-api/account/{host}/{id}", get(public_api::account))
         .route(
             "/public-api/account/{host}/{id}/statuses",
             get(public_api::account_statuses),

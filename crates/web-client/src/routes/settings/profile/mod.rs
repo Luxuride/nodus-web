@@ -52,12 +52,8 @@ pub(crate) fn ProfileCard() -> impl IntoView {
         if fetching.get_untracked() {
             return;
         }
-        let Some(id) = with_sdk(|sdk| {
-            sdk.state()
-                .session
-                .get()
-                .map(|session| session.account_id)
-        }) else {
+        let Some(id) = with_sdk(|sdk| sdk.state().session.get().map(|session| session.account_id))
+        else {
             return;
         };
         set_fetching.set(true);

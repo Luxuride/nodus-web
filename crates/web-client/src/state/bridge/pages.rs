@@ -95,4 +95,3 @@ pub async fn refresh(kind: PageKind) -> Result<bool, String> {
         .await
         .map_err(|error| error.to_string())
 }
-

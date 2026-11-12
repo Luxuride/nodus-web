@@ -180,8 +180,14 @@ fn with_emojis(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> 
         }
         let replacement = format!(
             "<img class=\"emoji inline-block h-[1.2em] w-auto align-[-0.2em]\" alt=\"{token}\" title=\"{token}\" loading=\"lazy\" decoding=\"async\" src=\"{source}\">",
-            token = token.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;"),
-            source = source.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;"),
+            token = token
+                .replace('&', "&amp;")
+                .replace('"', "&quot;")
+                .replace('<', "&lt;"),
+            source = source
+                .replace('&', "&amp;")
+                .replace('"', "&quot;")
+                .replace('<', "&lt;"),
         );
         painted = painted.replace(&token, &replacement);
     }

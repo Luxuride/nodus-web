@@ -6,7 +6,7 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_instance::model::AdminMeasure;
-use nodus_pages::pages::admin::overview::{OverviewPage, MEASURES};
+use nodus_pages::pages::admin::overview::{MEASURES, OverviewPage};
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{admin, revision};

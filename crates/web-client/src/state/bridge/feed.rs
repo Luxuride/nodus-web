@@ -53,7 +53,9 @@ pub fn reload_feed(cursor: Option<String>) {
     });
 }
 
-fn gone(error: &nodus_sdk::SdkError<nodus_sdk::instance_api::Error, nodus_discovery::Error>) -> bool {
+fn gone(
+    error: &nodus_sdk::SdkError<nodus_sdk::instance_api::Error, nodus_discovery::Error>,
+) -> bool {
     matches!(
         error,
         nodus_sdk::SdkError::Discovery(nodus_discovery::Error::Status { status: 410, .. })

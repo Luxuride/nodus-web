@@ -72,7 +72,10 @@ impl Screen {
     #[must_use]
     pub fn of_path(path: &str) -> Option<Self> {
         let path = path.split(['?', '#']).next().unwrap_or(path);
-        let path = path.strip_suffix('/').filter(|rest| !rest.is_empty()).unwrap_or(path);
+        let path = path
+            .strip_suffix('/')
+            .filter(|rest| !rest.is_empty())
+            .unwrap_or(path);
 
         if let Some(screen) = SCREENS.iter().find(|screen| screen.path == path) {
             return Some(*screen);
@@ -93,7 +96,11 @@ impl Screen {
         SCREENS
             .iter()
             .find(|screen| screen.path == path)
-            .map(|screen| Self { title: screen.title, kind, ..*screen })
+            .map(|screen| Self {
+                title: screen.title,
+                kind,
+                ..*screen
+            })
     }
 
     /// The title to put in `<title>`, with the instance name appended by the caller.
@@ -105,30 +112,106 @@ impl Screen {
 
 /// Every screen, in the order the rail lists them.
 pub const SCREENS: &[Screen] = &[
-    Screen { path: "/home", title: "Home", kind: ScreenKind::Home },
-    Screen { path: "/home/feed", title: "Feed", kind: ScreenKind::Feed },
-    Screen { path: "/home/local", title: "Local", kind: ScreenKind::Public { local: true } },
-    Screen { path: "/home/federated", title: "Federated", kind: ScreenKind::Public { local: false } },
-    Screen { path: "/notifications", title: "Notifications", kind: ScreenKind::Notifications },
-    Screen { path: "/messages", title: "Messages", kind: ScreenKind::Messages },
-    Screen { path: "/saved", title: "Saved", kind: ScreenKind::Saved { bookmarks: false } },
-    Screen { path: "/saved/favourites", title: "Saved", kind: ScreenKind::Saved { bookmarks: false } },
-    Screen { path: "/saved/bookmarks", title: "Saved", kind: ScreenKind::Saved { bookmarks: true } },
-    Screen { path: "/lists", title: "Lists", kind: ScreenKind::Lists },
-    Screen { path: "/more", title: "More", kind: ScreenKind::More },
-    Screen { path: "/scheduled", title: "Scheduled", kind: ScreenKind::Scheduled },
-    Screen { path: "/directory", title: "People", kind: ScreenKind::Directory },
-    Screen { path: "/search", title: "Search", kind: ScreenKind::Search },
-    Screen { path: "/status", title: "Post", kind: ScreenKind::Status },
-    Screen { path: "/accounts", title: "Account", kind: ScreenKind::Account },
-    Screen { path: "/moderation", title: "Moderation", kind: ScreenKind::Moderation },
-    Screen { path: "/admin", title: "Administration", kind: ScreenKind::Admin },
-    Screen { path: "/settings", title: "Settings", kind: ScreenKind::Settings },
+    Screen {
+        path: "/home",
+        title: "Home",
+        kind: ScreenKind::Home,
+    },
+    Screen {
+        path: "/home/feed",
+        title: "Feed",
+        kind: ScreenKind::Feed,
+    },
+    Screen {
+        path: "/home/local",
+        title: "Local",
+        kind: ScreenKind::Public { local: true },
+    },
+    Screen {
+        path: "/home/federated",
+        title: "Federated",
+        kind: ScreenKind::Public { local: false },
+    },
+    Screen {
+        path: "/notifications",
+        title: "Notifications",
+        kind: ScreenKind::Notifications,
+    },
+    Screen {
+        path: "/messages",
+        title: "Messages",
+        kind: ScreenKind::Messages,
+    },
+    Screen {
+        path: "/saved",
+        title: "Saved",
+        kind: ScreenKind::Saved { bookmarks: false },
+    },
+    Screen {
+        path: "/saved/favourites",
+        title: "Saved",
+        kind: ScreenKind::Saved { bookmarks: false },
+    },
+    Screen {
+        path: "/saved/bookmarks",
+        title: "Saved",
+        kind: ScreenKind::Saved { bookmarks: true },
+    },
+    Screen {
+        path: "/lists",
+        title: "Lists",
+        kind: ScreenKind::Lists,
+    },
+    Screen {
+        path: "/more",
+        title: "More",
+        kind: ScreenKind::More,
+    },
+    Screen {
+        path: "/scheduled",
+        title: "Scheduled",
+        kind: ScreenKind::Scheduled,
+    },
+    Screen {
+        path: "/directory",
+        title: "People",
+        kind: ScreenKind::Directory,
+    },
+    Screen {
+        path: "/search",
+        title: "Search",
+        kind: ScreenKind::Search,
+    },
+    Screen {
+        path: "/status",
+        title: "Post",
+        kind: ScreenKind::Status,
+    },
+    Screen {
+        path: "/accounts",
+        title: "Account",
+        kind: ScreenKind::Account,
+    },
+    Screen {
+        path: "/moderation",
+        title: "Moderation",
+        kind: ScreenKind::Moderation,
+    },
+    Screen {
+        path: "/admin",
+        title: "Administration",
+        kind: ScreenKind::Admin,
+    },
+    Screen {
+        path: "/settings",
+        title: "Settings",
+        kind: ScreenKind::Settings,
+    },
 ];
 
 #[cfg(test)]
 mod tests {
-    use super::{Screen, ScreenKind, SCREENS};
+    use super::{SCREENS, Screen, ScreenKind};
 
     #[test]
     fn every_screen_resolves_to_itself() {
@@ -141,11 +224,26 @@ mod tests {
 
     #[test]
     fn dynamic_segments_and_queries_resolve_to_their_screen() {
-        assert_eq!(Screen::of_path("/status/01H").map(|s| s.kind), Some(ScreenKind::Status));
-        assert_eq!(Screen::of_path("/accounts/7").map(|s| s.kind), Some(ScreenKind::Account));
-        assert_eq!(Screen::of_path("/saved/bookmarks").map(|s| s.kind), Some(ScreenKind::Saved { bookmarks: true }));
-        assert_eq!(Screen::of_path("/search?q=blobcat").map(|s| s.kind), Some(ScreenKind::Search));
-        assert_eq!(Screen::of_path("/home/local/").map(|s| s.kind), Some(ScreenKind::Public { local: true }));
+        assert_eq!(
+            Screen::of_path("/status/01H").map(|s| s.kind),
+            Some(ScreenKind::Status)
+        );
+        assert_eq!(
+            Screen::of_path("/accounts/7").map(|s| s.kind),
+            Some(ScreenKind::Account)
+        );
+        assert_eq!(
+            Screen::of_path("/saved/bookmarks").map(|s| s.kind),
+            Some(ScreenKind::Saved { bookmarks: true })
+        );
+        assert_eq!(
+            Screen::of_path("/search?q=blobcat").map(|s| s.kind),
+            Some(ScreenKind::Search)
+        );
+        assert_eq!(
+            Screen::of_path("/home/local/").map(|s| s.kind),
+            Some(ScreenKind::Public { local: true })
+        );
     }
 
     #[test]
@@ -157,6 +255,9 @@ mod tests {
     #[test]
     fn a_screen_names_its_tab() {
         let screen = Screen::of_path("/messages").expect("messages is a screen");
-        assert_eq!(screen.document_title("nodus.luxuride.eu"), "Messages · nodus.luxuride.eu");
+        assert_eq!(
+            screen.document_title("nodus.luxuride.eu"),
+            "Messages · nodus.luxuride.eu"
+        );
     }
 }

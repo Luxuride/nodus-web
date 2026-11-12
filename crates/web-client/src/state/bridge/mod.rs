@@ -32,7 +32,6 @@ use url::Url;
 
 pub mod accounts;
 pub mod actions;
-pub mod backfill;
 #[cfg_attr(
     not(feature = "admin"),
     allow(
@@ -42,6 +41,7 @@ pub mod backfill;
 )]
 pub mod admin;
 mod admin_token;
+pub mod backfill;
 mod feed;
 mod impressions;
 pub mod limits;

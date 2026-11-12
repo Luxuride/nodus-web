@@ -63,11 +63,26 @@ pub fn ThreadScreen(
     let load_host = host.clone();
     let load_status = {
         let runtime = Arc::clone(&runtime);
+        let browse_host = host.clone();
+        let browse_id = id.clone();
         Callback::new(move |()| {
             let runtime = Arc::clone(&runtime);
+            let browse_runtime = Arc::clone(&runtime);
+            let browse_host = browse_host.clone();
+            let browse_id = browse_id.clone();
             let status_done = Callback::new(move |result: Result<Status, String>| {
                 alive.if_alive(|| match result {
-                    Ok(found) => status.set(Some(found)),
+                    Ok(found) => {
+                        if !browse_host.trim().is_empty() {
+                            browse_runtime.note_browse(
+                                "status",
+                                browse_host.clone(),
+                                browse_id.clone(),
+                                Some(found.account.acct.clone()),
+                            );
+                        }
+                        status.set(Some(found));
+                    }
                     Err(message) => error.set(Some(message)),
                 });
             });

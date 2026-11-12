@@ -173,6 +173,11 @@ fn with_emojis(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> 
             continue;
         }
         let token = format!(":{}:", emoji.shortcode);
+        // The server already prepared this HTML: its emoji image carries the shortcode in
+        // `alt`/`title`, so replacing the token again would nest markup inside the attribute.
+        if painted.contains(&format!("alt=\"{token}\"")) {
+            continue;
+        }
         let replacement = format!(
             "<img class=\"emoji inline-block h-[1.2em] w-auto align-[-0.2em]\" alt=\"{token}\" title=\"{token}\" loading=\"lazy\" decoding=\"async\" src=\"{source}\">",
             token = token.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;"),

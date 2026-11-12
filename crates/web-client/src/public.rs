@@ -92,3 +92,26 @@ pub async fn account(host: &str, id: &str) -> Result<Account, PublicError> {
 pub async fn account_statuses(host: &str, id: &str) -> Result<Vec<Status>, PublicError> {
     get(host, &format!("/api/v1/accounts/{id}/statuses?limit=20")).await
 }
+
+/// The account's public posts older than a status id.
+pub async fn account_statuses_before(
+    host: &str,
+    id: &str,
+    max_id: &str,
+) -> Result<Vec<Status>, PublicError> {
+    get(
+        host,
+        &format!("/api/v1/accounts/{id}/statuses?limit=20&max_id={max_id}"),
+    )
+    .await
+}
+
+/// The account's public followers.
+pub async fn account_followers(host: &str, id: &str) -> Result<Vec<Account>, PublicError> {
+    get(host, &format!("/api/v1/accounts/{id}/followers?limit=40")).await
+}
+
+/// The accounts this account follows publicly.
+pub async fn account_following(host: &str, id: &str) -> Result<Vec<Account>, PublicError> {
+    get(host, &format!("/api/v1/accounts/{id}/following?limit=40")).await
+}

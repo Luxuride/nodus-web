@@ -337,6 +337,50 @@ pub trait Runtime: Send + Sync + 'static {
         let _ = (host, id, done);
     }
 
+    /// The public followers already read for an account with no session.
+    fn public_account_followers(&self, _host: &str, _id: &str) -> Option<Vec<Account>> {
+        None
+    }
+
+    /// Loads the public posts older than `max_id`.
+    fn load_public_account_statuses_before(
+        &self,
+        host: String,
+        id: String,
+        max_id: String,
+        done: Callback<Result<Vec<Status>, String>>,
+    ) {
+        let _ = (host, id, max_id, done);
+    }
+
+    /// Loads an account's public followers.
+    fn load_public_account_followers(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Vec<Account>, String>>,
+    ) {
+        let _ = (host, id, done);
+    }
+
+    /// The public follows already read for an account with no session.
+    fn public_account_following(&self, _host: &str, _id: &str) -> Option<Vec<Account>> {
+        None
+    }
+
+    /// Loads the accounts an account follows publicly.
+    fn load_public_account_following(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Vec<Account>, String>>,
+    ) {
+        let _ = (host, id, done);
+    }
+
+    /// Notes that a reader opened a public target, so the crawler can follow.
+    fn note_browse(&self, _kind: &'static str, _host: String, _id: String, _acct: Option<String>) {}
+
     /// The signed-in account, if any.
     fn session(&self) -> Option<SessionView> {
         None

@@ -30,6 +30,9 @@ thread_local! {
     static PUBLIC_ACCOUNT: std::cell::RefCell<
         std::collections::HashMap<(String, String), PublicAccount>,
     > = std::cell::RefCell::new(std::collections::HashMap::new());
+    static PUBLIC_EDGES: std::cell::RefCell<
+        std::collections::HashMap<(String, String, bool), Vec<Account>>,
+    > = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
 /// Remembers the screen under a More page, so its section stays marked while the page is open.
@@ -284,6 +287,90 @@ impl Runtime for ClientRuntime {
         });
     }
 
+    fn load_public_account_statuses_before(
+        &self,
+        host: String,
+        id: String,
+        max_id: String,
+        done: Callback<Result<Vec<Status>, String>>,
+    ) {
+        let key = (host.clone(), id.clone());
+        spawn_local(async move {
+            let result = crate::public::account_statuses_before(&host, &id, &max_id)
+                .await
+                .map_err(|failure| failure.message());
+            if let Ok(older) = &result {
+                PUBLIC_ACCOUNT.with(|cache| {
+                    if let Some((_, held)) = cache.borrow_mut().get_mut(&key) {
+                        held.extend(older.iter().cloned());
+                    }
+                });
+                revision().update(|n| *n += 1);
+            }
+            done.run(result);
+        });
+    }
+
+    fn public_account_followers(&self, host: &str, id: &str) -> Option<Vec<Account>> {
+        PUBLIC_EDGES.with(|cache| {
+            cache
+                .borrow()
+                .get(&(host.to_owned(), id.to_owned(), true))
+                .cloned()
+        })
+    }
+
+    fn load_public_account_followers(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Vec<Account>, String>>,
+    ) {
+        let key = (host.clone(), id.clone(), true);
+        spawn_local(async move {
+            let result = crate::public::account_followers(&host, &id)
+                .await
+                .map_err(|failure| failure.message());
+            if let Ok(accounts) = &result {
+                PUBLIC_EDGES.with(|cache| {
+                    cache.borrow_mut().insert(key, accounts.clone());
+                });
+                revision().update(|n| *n += 1);
+            }
+            done.run(result);
+        });
+    }
+
+    fn public_account_following(&self, host: &str, id: &str) -> Option<Vec<Account>> {
+        PUBLIC_EDGES.with(|cache| {
+            cache
+                .borrow()
+                .get(&(host.to_owned(), id.to_owned(), false))
+                .cloned()
+        })
+    }
+
+    fn load_public_account_following(
+        &self,
+        host: String,
+        id: String,
+        done: Callback<Result<Vec<Account>, String>>,
+    ) {
+        let key = (host.clone(), id.clone(), false);
+        spawn_local(async move {
+            let result = crate::public::account_following(&host, &id)
+                .await
+                .map_err(|failure| failure.message());
+            if let Ok(accounts) = &result {
+                PUBLIC_EDGES.with(|cache| {
+                    cache.borrow_mut().insert(key, accounts.clone());
+                });
+                revision().update(|n| *n += 1);
+            }
+            done.run(result);
+        });
+    }
+
     fn load_profile(
         &self,
         id: String,
@@ -309,6 +396,10 @@ impl Runtime for ClientRuntime {
             }
             .into_any()
         }))
+    }
+
+    fn note_browse(&self, kind: &'static str, host: String, id: String, acct: Option<String>) {
+        crate::state::bridge::backfill::request(kind, host, id, acct);
     }
 
     fn session(&self) -> Option<SessionView> {

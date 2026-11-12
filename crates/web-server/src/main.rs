@@ -364,19 +364,7 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
     document::set_staff(admin);
     let assets = app.bundle();
     let painted = match Client::new(&session.host, &session.token) {
-        Ok(client) => {
-            if let Some(id) = path.strip_prefix("/accounts/") {
-                if !id.contains('/') {
-                    if let Ok(account) = client.account(id).await {
-                        if let Some((_, host)) = account.acct.split_once('@') {
-                            return Redirect::to(&format!("/accounts/{host}/{id}"))
-                                .into_response();
-                        }
-                    }
-                }
-            }
-            read_page(&client, &assets, &session.acct, path, uri.query()).await
-        }
+        Ok(client) => read_page(&client, &assets, &session.acct, path, uri.query()).await,
         Err(message) => {
             tracing::warn!(%message, "session could not be used; painting the skeleton");
             None

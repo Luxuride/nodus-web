@@ -23,5 +23,6 @@
     "emoji-picker-element-data": "^1.8.0",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.3.5"
-  }
+  },
+  "license": "AGPL-3.0-or-later"
 }

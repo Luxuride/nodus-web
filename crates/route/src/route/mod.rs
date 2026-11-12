@@ -381,6 +381,11 @@ pub trait Runtime: Send + Sync + 'static {
     /// Notes that a reader opened a public target, so the crawler can follow.
     fn note_browse(&self, _kind: &'static str, _host: String, _id: String, _acct: Option<String>) {}
 
+    /// The instance this deployment belongs to, for unsigned local links.
+    fn public_host(&self) -> Option<String> {
+        None
+    }
+
     /// The signed-in account, if any.
     fn session(&self) -> Option<SessionView> {
         None

@@ -302,8 +302,20 @@ pub(crate) fn App() -> impl IntoView {
                                 />
                             }
                             .into_any(),
-                            Route::Account(_) => {
-                                view! { <SignIn note="Sign in to read this."/> }.into_any()
+                            Route::Account(id) => match crate::state::runtime::runtime()
+                                .public_host()
+                            {
+                                Some(host) => view! {
+                                    <nodus_route::route::RouteView
+                                        runtime=crate::state::runtime::runtime()
+                                        route=Route::Account(format!("{host}/{id}"))
+                                        card=card.clone()
+                                    />
+                                }
+                                .into_any(),
+                                None => {
+                                    view! { <SignIn note="Sign in to read this."/> }.into_any()
+                                }
                             }
                         }
             })/>

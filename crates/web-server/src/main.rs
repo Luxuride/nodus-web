@@ -325,6 +325,16 @@ async fn shell(State(app): State<Arc<App>>, headers: HeaderMap, uri: Uri) -> Res
         return StatusCode::NOT_FOUND.into_response();
     }
     let Some(session) = session_of(&app, &headers) else {
+        if let Some(id) = path.strip_prefix("/accounts/") {
+            if !id.contains('/') {
+                if let Ok(host) = std::env::var("NODUS_INSTANCE_HOST") {
+                    if !host.trim().is_empty() {
+                        return Redirect::to(&format!("/accounts/{}/{id}", host.trim()))
+                            .into_response();
+                    }
+                }
+            }
+        }
         if let Some(html) = public_thread(&app, path).await {
             return Html(html).into_response();
         }

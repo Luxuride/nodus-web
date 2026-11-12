@@ -402,6 +402,14 @@ impl Runtime for ClientRuntime {
         crate::state::bridge::backfill::request(kind, host, id, acct);
     }
 
+    fn public_host(&self) -> Option<String> {
+        web_sys::window()
+            .and_then(|window| window.document())
+            .and_then(|document| document.query_selector("meta[name=nodus-instance-host]").ok().flatten())
+            .and_then(|meta| meta.get_attribute("content"))
+            .filter(|host| !host.trim().is_empty())
+    }
+
     fn session(&self) -> Option<SessionView> {
         with_sdk(|sdk| {
             sdk.state().session.get().map(|session| SessionView {

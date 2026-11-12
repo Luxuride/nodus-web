@@ -98,6 +98,17 @@ impl Assets {
 ///
 /// Status bodies are not escaped here any more: they are rewritten by [`crate::html`],
 /// which keeps the parts of Mastodon's markup that a post is made of.
+fn instance_meta() -> String {
+    match std::env::var("NODUS_INSTANCE_HOST") {
+        Ok(host) if !host.trim().is_empty() => format!(
+            r#"<meta name="nodus-instance-host" content="{}">"#,
+            escape(host.trim())
+        ),
+        _ => String::new(),
+    }
+}
+
+/// Escapes text for HTML attributes and text nodes.
 #[must_use]
 pub fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
@@ -419,6 +430,7 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>, noindex:
            <head>\
              <meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
+             {instance}\
              <link rel=\"icon\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Ctext x='16' y='23' font-family='system-ui' font-size='20' font-weight='700' text-anchor='middle' fill='%23fff'%3En%3C/text%3E%3C/svg%3E\">\
              <title>{title}</title>\
              {robots}\
@@ -436,6 +448,7 @@ fn page(assets: &Assets, title: &str, body: &str, island: Option<&str>, noindex:
            </body>\
          </html>",
         title = escape(title),
+        instance = instance_meta(),
         robots = if noindex {
             "<meta name=\"robots\" content=\"noindex, nofollow\">"
         } else {

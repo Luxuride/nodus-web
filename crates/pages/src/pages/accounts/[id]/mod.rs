@@ -79,6 +79,8 @@ pub fn ProfilePage(
     // way to put it in. An empty note draws no paragraph rather than an empty one.
     let bio = account.note.clone();
     let has_bio = !bio.is_empty();
+    let header = account.header.clone();
+    let has_header = !header.is_empty();
     let avatar = account.avatar.clone();
     let has_avatar = !avatar.is_empty();
     let picture = StoredValue::new(avatar.clone());
@@ -131,7 +133,10 @@ pub fn ProfilePage(
 
     view! {
         <crate::Screen>
-            <header class="card border border-base-300 bg-base-100 shadow-sm">
+            <header class="card overflow-hidden border border-base-300 bg-base-100 shadow-sm">
+                {has_header.then(|| view! {
+                    <img class="h-32 w-full object-cover" src=header alt="" referrerpolicy="no-referrer" />
+                })}
                 <div class="card-body gap-3 p-4">
                     <div class="flex items-start gap-3">
                         {face(has_avatar, avatar, picture, on_avatar)}

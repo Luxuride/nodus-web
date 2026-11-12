@@ -11,7 +11,7 @@
 //! place, and a page that forgets to is a compile error rather than a missing button.
 
 use leptos::prelude::{AnyView, Callback, Signal};
-use nodus_instance::model::{
+use nodus_client_core::model::{
     Account, Conversation, List, Notification, ScheduledStatus, SearchResults, Status,
 };
 

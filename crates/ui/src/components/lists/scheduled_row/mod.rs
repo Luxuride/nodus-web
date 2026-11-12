@@ -14,7 +14,7 @@
 //! server's row and the client's do not differ by a control's width.
 
 use leptos::prelude::*;
-use nodus_instance::model::ScheduledStatus;
+use nodus_client_core::model::ScheduledStatus;
 
 /// The time line: when the post goes out, and how many files wait with it.
 ///

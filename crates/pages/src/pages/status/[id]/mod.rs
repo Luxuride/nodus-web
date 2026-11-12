@@ -13,7 +13,7 @@
 //! anyway.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::Screen;
 use crate::components::CardRenderer;

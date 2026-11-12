@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::Visibility;
+use nodus_client_core::model::Visibility;
 use nodus_pages::pages::compose::form::options::{
     ComposerOptions as OptionsRow, ComposerOptionsProps as OptionsRowProps,
 };

@@ -5,7 +5,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::AdminMeasure;
+use nodus_client_core::model::AdminMeasure;
 use nodus_pages::pages::admin::overview::{MEASURES, OverviewPage};
 
 use crate::state::alive::Alive;

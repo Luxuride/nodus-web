@@ -9,7 +9,7 @@
 //! the article and this file paints it. Nothing here reads a URL, a clock or a transport.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::display_name;
 use crate::status_body::{StatusBody, StatusBodyProps};

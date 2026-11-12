@@ -49,7 +49,7 @@ pub(crate) fn statuses_from(texts: Vec<String>, base: NewStatus, limit: usize) -
 
 #[cfg(test)]
 mod tests {
-    use nodus_instance::model::Visibility;
+    use nodus_client_core::model::Visibility;
 
     use super::{super::inline::LIMIT, statuses, statuses_from};
     use crate::state::bridge::actions::NewStatus;

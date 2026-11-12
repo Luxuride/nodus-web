@@ -2,7 +2,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{AdminAccount, ModerationAction};
+use nodus_client_core::model::{AdminAccount, ModerationAction};
 use nodus_pages::pages::moderation::accounts::AccountsPage;
 
 use crate::state::alive::Alive;

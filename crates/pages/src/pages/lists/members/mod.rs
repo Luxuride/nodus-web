@@ -7,7 +7,7 @@
 //! from the caller that owns its draft and its candidates.
 
 use leptos::prelude::*;
-use nodus_instance::model::Account;
+use nodus_client_core::model::Account;
 
 /// The accounts on the selected list.
 #[component]

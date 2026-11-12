@@ -4,7 +4,7 @@
 //! because it is not part of the post.
 
 use leptos::prelude::*;
-use nodus_instance::model::Language;
+use nodus_client_core::model::Language;
 
 /// The language control and its dropdown.
 #[component]

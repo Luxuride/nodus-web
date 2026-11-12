@@ -6,7 +6,7 @@
 //! here" — is the caller's to decide by what it puts in `media`.
 
 use leptos::prelude::*;
-use nodus_instance::model::{MediaAttachment, MediaKind};
+use nodus_client_core::model::{MediaAttachment, MediaKind};
 
 /// The uploaded files, and the picker that adds more.
 #[component]

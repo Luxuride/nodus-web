@@ -11,7 +11,7 @@
 //! text — the only thing the API accepts.
 
 use leptos::prelude::*;
-use nodus_instance::model::CustomEmoji;
+use nodus_client_core::model::CustomEmoji;
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::closure::Closure;
 

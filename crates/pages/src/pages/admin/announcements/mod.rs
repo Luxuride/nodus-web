@@ -10,7 +10,7 @@
 //! the panel that explains why there is no form.
 
 use leptos::prelude::*;
-use nodus_instance::model::Announcement;
+use nodus_client_core::model::Announcement;
 
 use crate::components::panel::Panel;
 

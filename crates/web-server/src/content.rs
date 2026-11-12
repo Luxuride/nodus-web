@@ -9,11 +9,11 @@
 use crate::document::escape;
 
 /// Sanitises a status body and paints the emoji the status itself declares.
-pub fn prepared(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> String {
+pub fn prepared(content: &str, emojis: &[nodus_client_core::model::CustomEmoji]) -> String {
     with_emojis(crate::html::body(content), emojis)
 }
 
-fn with_emojis(html: String, emojis: &[nodus_instance::model::CustomEmoji]) -> String {
+fn with_emojis(html: String, emojis: &[nodus_client_core::model::CustomEmoji]) -> String {
     if emojis.is_empty() {
         return html;
     }

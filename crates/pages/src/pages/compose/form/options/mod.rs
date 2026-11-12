@@ -5,7 +5,7 @@
 //! may not make that request.
 
 use leptos::prelude::*;
-use nodus_instance::model::Visibility;
+use nodus_client_core::model::Visibility;
 
 /// Visibility choices, in the order Mastodon's own picker shows them.
 const CHOICES: [Visibility; 4] = [

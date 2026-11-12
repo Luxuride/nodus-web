@@ -14,7 +14,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::{Notification, NotificationKind, Status};
+use nodus_client_core::model::{Notification, NotificationKind, Status};
 
 use super::request::FollowRequestActions;
 use crate::NotificationCard;

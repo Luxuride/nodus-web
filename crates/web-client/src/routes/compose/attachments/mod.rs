@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::MediaAttachment;
+use nodus_client_core::model::MediaAttachment;
 use nodus_pages::pages::compose::attachments::{
     Attachments as AttachmentList, AttachmentsProps as AttachmentListProps,
 };

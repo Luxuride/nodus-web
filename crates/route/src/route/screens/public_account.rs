@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::Account;
+use nodus_client_core::model::Account;
 
 use crate::components::CardRenderer;
 use crate::lists::account_row::AccountRow;
@@ -81,7 +81,7 @@ pub fn PublicAccountScreen(
             .get_value()
             .load_public_account(load_host.clone(), load_id.clone(), done);
         let done = Callback::new(
-            move |result: Result<Vec<nodus_instance::model::Status>, String>| {
+            move |result: Result<Vec<nodus_client_core::model::Status>, String>| {
                 alive.if_alive(|| match result {
                     Ok(found) => statuses.set(found),
                     Err(message) => error.set(Some(message)),

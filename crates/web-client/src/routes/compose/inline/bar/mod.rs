@@ -14,7 +14,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::Visibility;
+use nodus_client_core::model::Visibility;
 use nodus_pages::pages::compose::inline::bar::{ComposerBar as Bar, ComposerBarProps as BarProps};
 
 use super::SchedulePanel;

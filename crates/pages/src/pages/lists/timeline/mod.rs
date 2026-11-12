@@ -10,7 +10,7 @@
 //! read-only card, which is the same boxes with the verbs it cannot own.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::status_card::{StatusCard, StatusCardProps};
 

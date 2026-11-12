@@ -16,7 +16,7 @@ pub mod shelf;
 pub use shelf::Shelf;
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::chrome::Skeleton;
 use crate::chrome::more_button::{MoreButton, MoreButtonProps};

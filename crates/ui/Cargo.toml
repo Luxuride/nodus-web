@@ -5,7 +5,7 @@ description = "The marks both paint: the frame, the rail and the pieces a page c
 edition = "2024"
 
 [dependencies]
-nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0", default-features = false }
+nodus-client-core = { path = "../../../sdk/crates/client-core", version = "0.1.0", default-features = false }
 leptos = { version = "0.8", default-features = false }
 icondata = { version = "0.5", default-features = false, features = ["lucide"] }
 

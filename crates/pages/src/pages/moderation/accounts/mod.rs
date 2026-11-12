@@ -5,7 +5,7 @@
 //! with no token behind it — keeps its button and loses only the press.
 
 use leptos::prelude::*;
-use nodus_instance::model::{AdminAccount, ModerationAction};
+use nodus_client_core::model::{AdminAccount, ModerationAction};
 
 /// Account list with silence, suspend and the undo.
 #[component]

@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 
-use nodus_instance::model::MediaAttachment;
+use nodus_client_core::model::MediaAttachment;
 
 thread_local! {
     static DRAFT: RefCell<Option<Handoff>> = const { RefCell::new(None) };

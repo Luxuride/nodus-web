@@ -6,9 +6,9 @@
 //! sites keep saying `bridge::sign_in` and friends.
 
 use leptos::prelude::*;
-use nodus_instance::BrowserInstance;
-use nodus_sdk::instance_api::{Instance, InstanceApi};
-use nodus_sdk::state::Session;
+use nodus_mastodon::BrowserInstance;
+use nodus_client_sdk::instance_api::{Instance, InstanceApi};
+use nodus_client_sdk::state::Session;
 use wasm_bindgen::JsCast as _;
 
 use self::record::StoredSession;
@@ -292,7 +292,7 @@ fn restore(stored: StoredSession) {
                 // because the user's consent has not changed.
                 if matches!(
                     error,
-                    WebSdkError::Instance(nodus_sdk::instance_api::Error::Unauthorized)
+                    WebSdkError::Instance(nodus_client_sdk::instance_api::Error::Unauthorized)
                 ) {
                     clear_session();
                 }

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use super::menu::StatusMenu;
 use super::share::ShareButton;

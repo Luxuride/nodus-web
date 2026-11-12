@@ -6,7 +6,7 @@
 //! keeps its box and is disabled.
 
 use leptos::prelude::*;
-use nodus_instance::model::Report;
+use nodus_client_core::model::Report;
 
 /// Open reports, each with the one button a moderator needs.
 #[component]

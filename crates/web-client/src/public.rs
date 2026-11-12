@@ -6,7 +6,7 @@
 //! API quirks out of the client; the client only ever talks to Nodus.
 
 use gloo_net::http::Request;
-use nodus_instance::model::{Account, Context, Status};
+use nodus_client_core::model::{Account, Context, Status};
 
 /// Why a public read did not produce a post.
 #[derive(Debug, Clone, PartialEq, Eq)]

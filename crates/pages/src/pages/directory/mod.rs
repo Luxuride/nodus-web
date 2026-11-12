@@ -10,7 +10,7 @@
 //! handle and the line the account wrote about itself.
 
 use leptos::prelude::*;
-use nodus_instance::model::Account;
+use nodus_client_core::model::Account;
 
 use crate::chrome::Skeleton;
 use crate::chrome::more_button::{MoreButton, MoreButtonProps};

@@ -14,7 +14,7 @@
 //! line box, and the box it would occupy is already the handle's.
 
 use leptos::prelude::*;
-use nodus_instance::model::Account;
+use nodus_client_core::model::Account;
 
 use crate::display_name;
 

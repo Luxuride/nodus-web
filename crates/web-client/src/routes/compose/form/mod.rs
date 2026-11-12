@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{MediaAttachment, Status};
+use nodus_client_core::model::{MediaAttachment, Status};
 use nodus_pages::pages::compose::form::{ComposeForm as Form, ComposeFormProps as FormProps};
 
 use self::buttons::ComposerActions;
@@ -33,7 +33,7 @@ mod thread;
 /// still has to let the reader post, so a failure leaves the built-in defaults in
 /// place rather than blocking the form.
 fn start_from_preferences(
-    set_visibility: WriteSignal<nodus_instance::model::Visibility>,
+    set_visibility: WriteSignal<nodus_client_core::model::Visibility>,
     set_sensitive: WriteSignal<bool>,
 ) {
     let alive = crate::state::alive::Alive::new();
@@ -260,7 +260,7 @@ pub fn ComposeForm(initial: Option<Status>) -> impl IntoView {
 /// budget: the composer's layout is long enough on its own, and this part is pure data.
 fn wire_status(
     text: String,
-    visibility: nodus_instance::model::Visibility,
+    visibility: nodus_client_core::model::Visibility,
     media: Vec<MediaAttachment>,
     spoiler_text: String,
     sensitive: bool,

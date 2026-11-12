@@ -84,8 +84,8 @@ pub fn display_name(display_name: &str, acct: &str) -> String {
 
 /// What kind of attention a notification was.
 #[must_use]
-pub fn describe_notification(kind: nodus_instance::model::NotificationKind) -> &'static str {
-    use nodus_instance::model::NotificationKind;
+pub fn describe_notification(kind: nodus_client_core::model::NotificationKind) -> &'static str {
+    use nodus_client_core::model::NotificationKind;
     match kind {
         NotificationKind::Follow => "followed you",
         NotificationKind::FollowRequest => "asked to follow you",

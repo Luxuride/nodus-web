@@ -5,7 +5,7 @@
 //! absent verbs.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 /// One status as markup: who, what, and what can be done with it.
 ///

@@ -5,7 +5,7 @@
 //! older than [`TTL_MS`]. Offline, that means a page still renders — stamped with the
 //! moment it was fetched, never with the pretence that it is current.
 
-use nodus_sdk::page::{PageEntry, PageItems, PageKind};
+use nodus_client_sdk::page::{PageEntry, PageItems, PageKind};
 
 use super::handle;
 

@@ -6,7 +6,7 @@
 
 use std::fmt::Write as _;
 
-use nodus_sdk::Degraded;
+use nodus_client_sdk::Degraded;
 use nodus_shared::Reason;
 
 /// Turns the server's machine code into one line of text.

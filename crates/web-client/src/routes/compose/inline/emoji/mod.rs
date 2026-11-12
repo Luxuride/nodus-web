@@ -17,7 +17,7 @@
 
 use crate::state::bridge::actions;
 use leptos::prelude::*;
-use nodus_instance::model::CustomEmoji;
+use nodus_client_core::model::CustomEmoji;
 
 pub use nodus_pages::pages::compose::inline::emoji::Suggestions;
 

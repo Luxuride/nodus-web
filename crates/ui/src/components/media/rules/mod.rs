@@ -5,7 +5,7 @@
 //! re-derived per paint: the server would shift the page when the image landed, and the
 //! client would shift it when the veil came off.
 
-use nodus_instance::model::{MediaAttachment, MediaKind, Status};
+use nodus_client_core::model::{MediaAttachment, MediaKind, Status};
 
 /// The box a tile reserves: published dimensions when the instance has them, 16:9 when it
 /// does not.

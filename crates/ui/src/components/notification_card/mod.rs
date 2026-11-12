@@ -15,7 +15,7 @@ use super::format::{describe_notification, display_name};
     reason = "a Leptos component receives its props by value"
 )]
 pub fn NotificationCard(
-    #[prop(into)] notification: nodus_instance::model::Notification,
+    #[prop(into)] notification: nodus_client_core::model::Notification,
     #[prop(into)] age: String,
     body: Option<ChildrenFn>,
     extra: Option<ChildrenFn>,

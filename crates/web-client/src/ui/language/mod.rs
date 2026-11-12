@@ -12,7 +12,7 @@
 //! quotation.
 
 use leptos::prelude::*;
-use nodus_instance::model::Language;
+use nodus_client_core::model::Language;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, List};
+use nodus_client_core::model::{Account, List};
 
 use crate::components::CardRenderer;
 use crate::pages::lists::{AddPeople, ListPickerRow, ListTimeline, ListsPage, Members};

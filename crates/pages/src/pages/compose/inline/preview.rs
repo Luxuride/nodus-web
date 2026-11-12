@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::Visibility;
+use nodus_client_core::model::Visibility;
 
 use super::{ComposerBar, InlineComposer};
 use crate::pages::compose::inline::emoji_toggle::EmojiToggleButton;

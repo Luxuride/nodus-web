@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::Account;
+use nodus_client_core::model::Account;
 use nodus_state::page::{PageEntry, PageItems, PageKind};
 
 use crate::pages::people::{Kind, PeoplePage};

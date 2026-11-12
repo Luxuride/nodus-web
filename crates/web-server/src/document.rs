@@ -18,7 +18,7 @@ use leptos::tachys::html::element::InnerHtmlAttribute as _;
 use leptos::tachys::view::RenderHtml as _;
 use leptos::tachys::view::any_view::IntoAny as _;
 
-use nodus_instance::model::{Context, Status};
+use nodus_client_core::model::{Context, Status};
 
 // The rows live beside the page builders: they are the parts a page is made of, and they are
 // the only place markup is produced for them.

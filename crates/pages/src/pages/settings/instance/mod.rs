@@ -4,7 +4,7 @@
 //! a signal, because this crate has no transport.
 
 use leptos::prelude::*;
-use nodus_instance::model::InstanceInfo;
+use nodus_client_core::model::InstanceInfo;
 
 /// The name, the version, the banner and the facts a joiner asks about.
 #[component]

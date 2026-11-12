@@ -7,7 +7,7 @@
 //! only decides which emoji a query shows and how one is drawn.
 
 use leptos::prelude::*;
-use nodus_instance::model::CustomEmoji;
+use nodus_client_core::model::CustomEmoji;
 
 /// The emoji worth showing for a query, best match first.
 ///

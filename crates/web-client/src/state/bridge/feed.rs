@@ -6,8 +6,8 @@
 //! `bridge::follow_item`.
 
 use leptos::prelude::*;
-use nodus_sdk::instance_api::LocalId;
-use nodus_sdk::{Command, Degraded, InstanceApi};
+use nodus_client_sdk::instance_api::LocalId;
+use nodus_client_sdk::{Command, Degraded, InstanceApi};
 use nodus_shared::{AccountFeed, EventBatch, EventKind, InteractionEvent};
 
 use super::{
@@ -54,11 +54,11 @@ pub fn reload_feed(cursor: Option<String>) {
 }
 
 fn gone(
-    error: &nodus_sdk::SdkError<nodus_sdk::instance_api::Error, nodus_discovery::Error>,
+    error: &nodus_client_sdk::SdkError<nodus_client_sdk::instance_api::Error, nodus_discovery::Error>,
 ) -> bool {
     matches!(
         error,
-        nodus_sdk::SdkError::Discovery(nodus_discovery::Error::Status { status: 410, .. })
+        nodus_client_sdk::SdkError::Discovery(nodus_discovery::Error::Status { status: 410, .. })
     )
 }
 

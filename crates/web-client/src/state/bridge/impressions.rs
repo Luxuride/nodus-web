@@ -10,12 +10,12 @@
 //! deduplicates on `(item_id, kind, client_ts)` and two sends have two timestamps.
 //!
 //! Between the two events this module only keeps a map, which means the accounting
-//! lives in `nodus_sdk::DwellTracker` (tested natively) and the browser work here is
+//! lives in `nodus_client_sdk::DwellTracker` (tested natively) and the browser work here is
 //! reading the clock and moving bytes.
 
 use std::cell::RefCell;
 
-use nodus_sdk::{DwellTracker, MAX_EVENTS_PER_BATCH};
+use nodus_client_sdk::{DwellTracker, MAX_EVENTS_PER_BATCH};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 

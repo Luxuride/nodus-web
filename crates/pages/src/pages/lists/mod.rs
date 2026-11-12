@@ -22,7 +22,7 @@ pub use row::ListPickerRow;
 pub use timeline::ListTimeline;
 
 use leptos::prelude::*;
-use nodus_instance::model::List;
+use nodus_client_core::model::List;
 
 use crate::{PageHeader, Screen};
 

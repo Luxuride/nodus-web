@@ -14,7 +14,7 @@ mod results;
 pub use results::Results;
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, Status, Tag};
+use nodus_client_core::model::{Account, Status, Tag};
 
 use crate::{PageHeader, Screen};
 

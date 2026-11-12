@@ -5,7 +5,7 @@
 //! same boxes with nothing behind them when it is painted without a transport.
 
 use leptos::prelude::*;
-use nodus_instance::model::Account;
+use nodus_client_core::model::Account;
 
 use super::stop_submit;
 

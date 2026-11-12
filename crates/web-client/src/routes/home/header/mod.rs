@@ -1,7 +1,7 @@
 //! The block every primary timeline opens with: write, then switch between timelines.
 
 use leptos::prelude::*;
-use nodus_sdk::Timeline;
+use nodus_client_sdk::Timeline;
 
 use crate::routes::compose::inline::InlineComposer;
 use crate::routes::home::PrimaryTabs;

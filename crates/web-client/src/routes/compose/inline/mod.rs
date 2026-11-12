@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{MediaAttachment, Status, Visibility};
+use nodus_client_core::model::{MediaAttachment, Status, Visibility};
 use nodus_pages::pages::compose::inline::Posted;
 use nodus_pages::pages::compose::inline::{
     InlineComposer as InlineCard, InlineComposerProps as InlineCardProps,
@@ -72,7 +72,7 @@ fn custom_time(value: &str) -> Option<String> {
 pub fn InlineComposer(
     /// The timeline to refresh after a post, so the new status is visible at once.
     #[prop(optional_no_strip)]
-    which: Option<StoredValue<nodus_sdk::Timeline>>,
+    which: Option<StoredValue<nodus_client_sdk::Timeline>>,
     /// Bumped to ask the timeline to reload.
     #[prop(optional_no_strip)]
     set_reload: Option<WriteSignal<u32>>,
@@ -387,7 +387,7 @@ struct Draft {
     /// pickers' own style so the confirmation reads as the same choice, not a second claim.
     done: RwSignal<Option<(Visibility, String)>>,
     alive: Alive,
-    which: Option<StoredValue<nodus_sdk::Timeline>>,
+    which: Option<StoredValue<nodus_client_sdk::Timeline>>,
     set_reload: Option<WriteSignal<u32>>,
     reply_to: Option<StoredValue<String>>,
     on_posted: Option<Callback<Vec<Status>>>,
@@ -395,7 +395,7 @@ struct Draft {
 
 impl Draft {
     fn new(
-        which: Option<StoredValue<nodus_sdk::Timeline>>,
+        which: Option<StoredValue<nodus_client_sdk::Timeline>>,
         set_reload: Option<WriteSignal<u32>>,
         reply_to: Option<String>,
         on_posted: Option<Callback<Vec<Status>>>,
@@ -474,7 +474,7 @@ struct Signals {
     limit: RwSignal<usize>,
     done: RwSignal<Option<(Visibility, String)>>,
     alive: Alive,
-    which: Option<StoredValue<nodus_sdk::Timeline>>,
+    which: Option<StoredValue<nodus_client_sdk::Timeline>>,
     set_reload: Option<WriteSignal<u32>>,
     reply_to: Option<StoredValue<String>>,
     on_posted: Option<Callback<Vec<Status>>>,
@@ -581,7 +581,7 @@ struct Snapshot {
     poll_open: RwSignal<bool>,
     options: RwSignal<Vec<String>>,
     alive: Alive,
-    which: Option<StoredValue<nodus_sdk::Timeline>>,
+    which: Option<StoredValue<nodus_client_sdk::Timeline>>,
     set_reload: Option<WriteSignal<u32>>,
     on_posted: Option<Callback<Vec<Status>>>,
 }

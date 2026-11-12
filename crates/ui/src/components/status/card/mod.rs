@@ -12,7 +12,7 @@
 //! wrapper this component draws is the server's, where there is nothing to press.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::media_grid::Picture;
 use crate::status_body::{StatusBody, StatusBodyProps};

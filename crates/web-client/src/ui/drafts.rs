@@ -10,7 +10,7 @@
 //! cannot see. Text, visibility and language are enough to resume, and the rest is one
 //! deliberate action away.
 
-use nodus_instance::model::Visibility;
+use nodus_client_core::model::Visibility;
 
 /// How many drafts are kept. Ten is what the popup can show without scrolling.
 const CAP: usize = 10;

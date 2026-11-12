@@ -2,7 +2,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{Report, ReportState};
+use nodus_client_core::model::{Report, ReportState};
 use nodus_pages::pages::moderation::reports::ReportsPage;
 
 use crate::routes::format::relative_time;

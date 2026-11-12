@@ -26,10 +26,11 @@ repository = "https://github.com/nodus-social/nodus-web"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 nodus-shared = { path = "../sdk/crates/shared", version = "0.1.0" }
-nodus-sdk = { path = "../sdk/crates/sdk", version = "0.1.0" }
+nodus-client-sdk = { path = "../sdk/crates/client-sdk", version = "0.1.0" }
 # The browser transport that hosts `BrowserInstance`. The SDK facade deliberately
 # does not re-export a transport: a consumer picks `native` or `wasm` itself.
-nodus-instance = { path = "../sdk/crates/instance", version = "0.1.0", features = [
+nodus-client-core = { path = "../sdk/crates/client-core", version = "0.1.0", default-features = false }
+nodus-mastodon = { path = "../sdk/crates/mastodon", version = "0.1.0", features = [
     "wasm",
 ] }
 # Our recommendation API, browser transport (`BrowserDiscovery`).

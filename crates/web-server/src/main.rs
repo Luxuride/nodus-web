@@ -301,7 +301,7 @@ async fn public_thread(app: &App, path: &str) -> Option<String> {
     let context = client
         .context(&id)
         .await
-        .unwrap_or(nodus_instance::model::Context {
+        .unwrap_or(nodus_client_core::model::Context {
             ancestors: Vec::new(),
             descendants: Vec::new(),
         });

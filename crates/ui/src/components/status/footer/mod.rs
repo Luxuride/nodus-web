@@ -9,7 +9,7 @@
 //! arrive as slots, because this crate may not reach for the transport or the clipboard.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::icons::Icon;
 

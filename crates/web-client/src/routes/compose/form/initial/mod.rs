@@ -1,6 +1,6 @@
 //! The starting values of the composer, read from the status being edited.
 
-use nodus_instance::model::{Status, Visibility};
+use nodus_client_core::model::{Status, Visibility};
 
 /// Everything the form needs to know before the first keystroke.
 pub struct Initial {

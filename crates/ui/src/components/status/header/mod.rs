@@ -9,7 +9,7 @@
 //! what lets the server paint the same tree it hands to the browser.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::display_name;
 

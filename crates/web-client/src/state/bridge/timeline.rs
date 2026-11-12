@@ -6,8 +6,8 @@
 //! Nothing here keeps a second copy — a view that cached what it rendered would be
 //! the drift this whole design removes.
 
-use nodus_instance::model::Status;
-use nodus_sdk::{Timeline, TimelineRequest};
+use nodus_client_core::model::Status;
+use nodus_client_sdk::{Timeline, TimelineRequest};
 
 use super::handle;
 
@@ -201,5 +201,5 @@ pub fn upsert(statuses: Vec<Status>) {
     if statuses.is_empty() {
         return;
     }
-    super::dispatch(nodus_sdk::Command::StatusesUpserted { statuses });
+    super::dispatch(nodus_client_sdk::Command::StatusesUpserted { statuses });
 }

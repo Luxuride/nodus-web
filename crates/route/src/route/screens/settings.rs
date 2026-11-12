@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::InstanceInfo;
+use nodus_client_core::model::InstanceInfo;
 use nodus_state::page::{PageEntry, PageItems, PageKind};
 use nodus_web::shared::router::Route;
 

@@ -9,7 +9,7 @@
 //! so the form's submit, its one input and its one press stay in one place.
 
 use leptos::prelude::*;
-use nodus_instance::model::DomainAllow;
+use nodus_client_core::model::DomainAllow;
 
 use crate::components::panel::Panel;
 

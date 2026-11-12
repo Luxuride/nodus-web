@@ -11,7 +11,7 @@
 //! what the instance sent.
 
 use leptos::prelude::*;
-use nodus_instance::model::{MediaAttachment, Mention, Poll, Status, Tag};
+use nodus_client_core::model::{MediaAttachment, Mention, Poll, Status, Tag};
 
 use crate::icons::Icon;
 use crate::media::attachments_label;
@@ -144,7 +144,7 @@ fn grid(
 }
 
 /// The author's HTML, with the classes that give it links and paragraph rhythm.
-fn status_text(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> AnyView {
+fn status_text(content: &str, emojis: &[nodus_client_core::model::CustomEmoji]) -> AnyView {
     view! {
         <div
             class="break-words [overflow-wrap:anywhere] [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
@@ -158,7 +158,7 @@ fn status_text(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> 
 ///
 /// The server already does this while preparing its HTML; the browser receives the raw
 /// shortcodes from Mastodon, so the shared body has to paint them there too.
-fn with_emojis(content: &str, emojis: &[nodus_instance::model::CustomEmoji]) -> String {
+fn with_emojis(content: &str, emojis: &[nodus_client_core::model::CustomEmoji]) -> String {
     if emojis.is_empty() {
         return content.to_owned();
     }

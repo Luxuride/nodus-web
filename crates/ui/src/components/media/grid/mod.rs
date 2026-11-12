@@ -10,7 +10,7 @@
 //! mount does not move anything.
 
 use leptos::prelude::*;
-use nodus_instance::model::{MediaAttachment, MediaKind};
+use nodus_client_core::model::{MediaAttachment, MediaKind};
 
 /// One picture, in the shape a viewer needs it.
 #[derive(Clone, Debug, PartialEq, Eq)]

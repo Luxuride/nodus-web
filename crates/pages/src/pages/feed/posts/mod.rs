@@ -5,7 +5,7 @@
 //! state this crate may read (the same reason `PageHeader` takes its counters).
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, CustomEmoji, MediaAttachment, MediaKind, Status, Visibility};
+use nodus_client_core::model::{Account, CustomEmoji, MediaAttachment, MediaKind, Status, Visibility};
 use nodus_shared::{PostEmoji, PostItem, PostMedia};
 
 use crate::media_grid::Picture;

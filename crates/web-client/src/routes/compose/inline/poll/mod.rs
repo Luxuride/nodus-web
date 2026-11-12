@@ -6,7 +6,7 @@
 //! module only renders it and reports edits upward — a component that owned the options
 //! would lose them the moment the panel closed.
 
-use nodus_instance::model::PollDraft;
+use nodus_client_core::model::PollDraft;
 use wasm_bindgen::JsCast as _;
 
 /// The poll's answer as the wire wants it, or `None` when it is not one yet.

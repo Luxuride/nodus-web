@@ -8,13 +8,13 @@
 //! through the server's eye again, so the matching rule has to run here too — otherwise a
 //! filter silently stops applying the moment the client starts working from cache.
 //!
-//! The rule itself lives in `nodus_instance::model::filter` (`Filter::matches`), next to
+//! The rule itself lives in `nodus_client_core::model::filter` (`Filter::matches`), next to
 //! the wire type; this module only decides *which* filters apply to *what*.
 
 use leptos::prelude::*;
-use nodus_instance::model::{Filter, FilterContext, Status};
-use nodus_instance::model::{Verdict, judge as judge_text};
-use nodus_sdk::page::{PageItems, PageKind};
+use nodus_client_core::model::{Filter, FilterContext, Status};
+use nodus_client_core::model::{Verdict, judge as judge_text};
+use nodus_client_sdk::page::{PageItems, PageKind};
 
 use crate::routes::feed::posts::plain_text;
 use crate::routes::status::StatusCard;
@@ -25,7 +25,7 @@ use crate::state::bridge::{pages, revision};
 /// Reads only: the filter list comes from the SDK's page store (`PageKind::Filters`),
 /// which the settings screen keeps current, so a filter added a minute ago already
 /// applies to a timeline the reader never reloads. The matching itself is
-/// [`nodus_instance::model::filter::judge`], beside the wire type, so a cache-filled
+/// [`nodus_client_core::model::filter::judge`], beside the wire type, so a cache-filled
 /// thread and a server-filled timeline cannot disagree.
 #[must_use]
 pub fn judge(status: &Status, context: FilterContext) -> Verdict {

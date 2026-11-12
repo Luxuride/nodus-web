@@ -1,7 +1,7 @@
 //! How a page asks its caller to paint one status.
 
 use leptos::prelude::AnyView;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 /// Paints one status inside a list the page owns.
 ///

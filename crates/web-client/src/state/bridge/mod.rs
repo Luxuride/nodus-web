@@ -25,9 +25,9 @@ use std::rc::Rc;
 
 use leptos::prelude::*;
 use nodus_discovery::BrowserDiscovery;
-use nodus_instance::BrowserInstance;
-use nodus_sdk::instance_api::Instance;
-use nodus_sdk::{Command, MemoryPersistence, Sdk, Subscription, SystemClock};
+use nodus_mastodon::BrowserInstance;
+use nodus_client_sdk::instance_api::Instance;
+use nodus_client_sdk::{Command, MemoryPersistence, Sdk, Subscription, SystemClock};
 use url::Url;
 
 pub mod accounts;
@@ -70,7 +70,7 @@ pub use session::{authorize_sync, load_sync_consent, set_sync, sign_in, sign_out
 pub type WebSdk = Sdk<BrowserInstance, BrowserDiscovery, MemoryPersistence, SystemClock>;
 
 /// The error type [`WebSdk`] produces, for the one branch that inspects a variant.
-type WebSdkError = nodus_sdk::SdkError<nodus_sdk::instance_api::Error, nodus_discovery::Error>;
+type WebSdkError = nodus_client_sdk::SdkError<nodus_client_sdk::instance_api::Error, nodus_discovery::Error>;
 
 /// Where the API lives when the page has no `window` (native tests, prerender).
 const FALLBACK_API_BASE: &str = "http://127.0.0.1:3000";
@@ -267,7 +267,7 @@ pub(super) fn forget_feed_id() {
 }
 
 /// Builds a [`WebSdk`] for `instance` and swaps it in. Replaces any previous one.
-use nodus_instance::actions::AdminActions;
+use nodus_client_core::actions::AdminActions;
 
 fn install(instance: &Instance, token: &str) -> Result<(), String> {
     TOKEN.with_borrow_mut(|slot| *slot = Some(token.to_owned()));
@@ -444,7 +444,7 @@ pub async fn keep_admin_token(host: &str, token: &str) -> Result<(), String> {
     let instance = Instance::parse(host).map_err(|error| error.to_string())?;
     let transport = BrowserInstance::new(&instance, token);
     transport
-        .reports(nodus_instance::model::ReportState::Open, 1)
+        .reports(nodus_client_core::model::ReportState::Open, 1)
         .await
         .map_err(|error| {
             format!("That account cannot moderate on {host}, so the grant was not kept: {error}")

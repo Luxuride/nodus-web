@@ -6,7 +6,7 @@
 //! failure — and the caller's last refusal goes in the error line at the top.
 
 use leptos::prelude::*;
-use nodus_instance::model::AdminMeasure;
+use nodus_client_core::model::AdminMeasure;
 
 /// The keys the dashboard asks for, with the words a moderator uses for them.
 ///

@@ -2,7 +2,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::InstanceInfo;
+use nodus_client_core::model::InstanceInfo;
 use nodus_pages::pages::settings::instance_card::InstanceCard as SharedInstanceCard;
 
 use crate::state::alive::Alive;

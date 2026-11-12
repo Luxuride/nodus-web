@@ -16,10 +16,10 @@ use crate::{PAGE, document, runtime::StaticRuntime};
 
 /// The server's card painter: it has a status and needs the component's HTML.
 fn card() -> nodus_ui::components::card_renderer::CardRenderer {
-    std::sync::Arc::new(|status: nodus_instance::model::Status| card_view_for(&status))
+    std::sync::Arc::new(|status: nodus_client_core::model::Status| card_view_for(&status))
 }
 
-fn card_view_for(status: &nodus_instance::model::Status) -> leptos::prelude::AnyView {
+fn card_view_for(status: &nodus_client_core::model::Status) -> leptos::prelude::AnyView {
     use leptos::prelude::IntoAny;
     use leptos::tachys::html::element::InnerHtmlAttribute as _;
 
@@ -69,8 +69,8 @@ fn render_route(
 pub(crate) fn render_thread(
     assets: &document::Assets,
     acct: &str,
-    status: &nodus_instance::model::Status,
-    context: &nodus_instance::model::Context,
+    status: &nodus_client_core::model::Status,
+    context: &nodus_client_core::model::Context,
 ) -> String {
     let path = format!("/status/{}", status.id);
     let runtime = StaticRuntime::thread(status.clone(), context.clone());
@@ -225,8 +225,8 @@ pub(crate) async fn read_page(
 pub fn render_account(
     assets: &document::Assets,
     acct: &str,
-    account: &nodus_instance::model::Account,
-    statuses: &[nodus_instance::model::Status],
+    account: &nodus_client_core::model::Account,
+    statuses: &[nodus_client_core::model::Status],
     cursor: Option<&str>,
 ) -> String {
     let path = format!("/accounts/{}", account.id);
@@ -412,8 +412,8 @@ pub fn render_public_thread(
     assets: &document::Assets,
     host: &str,
     id: &str,
-    status: nodus_instance::model::Status,
-    context: nodus_instance::model::Context,
+    status: nodus_client_core::model::Status,
+    context: nodus_client_core::model::Context,
 ) -> String {
     let path = format!("/status/{host}/{id}");
     let inner = painted(|| {
@@ -448,8 +448,8 @@ pub fn render_public_account(
     assets: &document::Assets,
     host: &str,
     id: &str,
-    account: nodus_instance::model::Account,
-    statuses: Vec<nodus_instance::model::Status>,
+    account: nodus_client_core::model::Account,
+    statuses: Vec<nodus_client_core::model::Status>,
 ) -> String {
     let path = format!("/accounts/{host}/{id}");
     let inner = painted(|| {

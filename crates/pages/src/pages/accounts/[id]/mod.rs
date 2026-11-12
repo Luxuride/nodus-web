@@ -13,7 +13,7 @@
 //! tabs, the status list, then whatever the screen adds under it.
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, Relationship, Status};
+use nodus_client_core::model::{Account, Relationship, Status};
 
 use crate::components::CardRenderer;
 use crate::display_name;

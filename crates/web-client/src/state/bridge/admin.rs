@@ -1,8 +1,8 @@
 //! Moderation calls, and the one question that decides whether to show them.
 
 use super::{admin_transport, instance_transport};
-use nodus_instance::actions::{AdminActions, RegistrationActions};
-use nodus_instance::model::{
+use nodus_client_core::actions::{AdminActions, RegistrationActions};
+use nodus_client_core::model::{
     AdminAccount, AdminMeasure, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Report,
     ReportState,
 };

@@ -9,7 +9,7 @@
 //! shared read-only card is drawn, which is the same boxes with the verbs it cannot own.
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, Status, Tag};
+use nodus_client_core::model::{Account, Status, Tag};
 
 use crate::display_name;
 use crate::status_card::{StatusCard, StatusCardProps};

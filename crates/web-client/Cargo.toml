@@ -20,7 +20,7 @@ path = "src/main.rs"
 default = ["hydrate"]
 
 # What this artifact is, spelled out so the build is explicit: `trunk build --release`.
-hydrate = ["leptos/csr", "nodus-instance/wasm"]
+hydrate = ["leptos/csr", "nodus-mastodon/wasm"]
 
 # The moderation screens. Same meaning as in the shared vocabulary; the screens themselves
 # live in this crate, so the feature is read here.
@@ -36,9 +36,10 @@ nodus-route = { path = "../route" }
 nodus-editor = { path = "../editor" }
 leptos = { version = "0.8.23", features = ["csr"] }
 nodus-shared = { workspace = true }
-nodus-sdk = { workspace = true }
+nodus-client-sdk = { workspace = true }
 nodus-discovery = { workspace = true }
-nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0", features = ["wasm"] }
+nodus-client-core = { path = "../../../sdk/crates/client-core", version = "0.1.0" }
+nodus-mastodon = { path = "../../../sdk/crates/mastodon", version = "0.1.0", features = ["wasm"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 console_error_panic_hook = "0.1"

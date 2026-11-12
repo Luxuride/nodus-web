@@ -12,7 +12,7 @@
 //! this render.
 
 use leptos::prelude::*;
-use nodus_instance::model::List;
+use nodus_client_core::model::List;
 
 /// One list: its name, its replies policy, and the screen's own controls.
 ///

@@ -16,7 +16,7 @@ use std::time::Duration;
 use web_time::Instant;
 
 use leptos::task::spawn_local;
-use nodus_sdk::Driver;
+use nodus_client_sdk::Driver;
 
 use super::SDK;
 

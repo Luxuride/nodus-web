@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::Conversation;
+use nodus_client_core::model::Conversation;
 
 use crate::chrome::Skeleton;
 use crate::chrome::more_button::{MoreButton, MoreButtonProps};
@@ -219,7 +219,7 @@ mod rendering {
                             "sensitive": false, "spoiler_text": "", "visibility": "public",
                             "edited_at": null, "pinned": null, "poll": null, "emojis": []}
         }"#;
-        let conversation: nodus_instance::model::Conversation =
+        let conversation: nodus_client_core::model::Conversation =
             serde_json::from_str(json).expect("the fixture is a conversation");
 
         let html = Owner::new().with(|| {

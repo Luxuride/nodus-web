@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::router::{self, Route};
 

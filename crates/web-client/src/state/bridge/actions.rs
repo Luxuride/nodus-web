@@ -8,18 +8,18 @@
 
 use core::future::Future;
 
-use nodus_instance::BrowserInstance;
-use nodus_instance::InstanceApi;
-use nodus_instance::actions::{
+use nodus_mastodon::BrowserInstance;
+use nodus_client_core::InstanceApi;
+use nodus_client_core::actions::{
     AccountActions, Browse, FilterActions, HighlightActions, InstanceMeta, MediaActions,
     ScheduleActions, Search, StatusActions,
 };
-use nodus_instance::model::{
+use nodus_client_core::model::{
     Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId,
     MediaAttachment, PollDraft, ProfileUpdate, Relationship, SearchResults, Status,
 };
 
-pub use nodus_instance::model::Visibility;
+pub use nodus_client_core::model::Visibility;
 
 use super::instance_transport;
 
@@ -37,9 +37,9 @@ use super::instance_transport;
 /// Cached for the document like the emoji catalogue: the list changes when an admin edits
 /// the server's languages, not between two posts, and a composer that refetched it on every
 /// open would spend a request per keystroke-sized decision.
-pub async fn languages() -> Vec<nodus_instance::model::Language> {
+pub async fn languages() -> Vec<nodus_client_core::model::Language> {
     thread_local! {
-        static HELD: std::cell::RefCell<Option<Vec<nodus_instance::model::Language>>> =
+        static HELD: std::cell::RefCell<Option<Vec<nodus_client_core::model::Language>>> =
             const { std::cell::RefCell::new(None) };
     }
     if let Some(held) = HELD.with(|held| held.borrow().clone()) {
@@ -96,9 +96,9 @@ pub async fn my_language() -> Option<String> {
     fresh
 }
 
-pub async fn custom_emojis() -> Vec<nodus_instance::model::CustomEmoji> {
+pub async fn custom_emojis() -> Vec<nodus_client_core::model::CustomEmoji> {
     thread_local! {
-        static HELD: std::cell::RefCell<Option<Vec<nodus_instance::model::CustomEmoji>>> =
+        static HELD: std::cell::RefCell<Option<Vec<nodus_client_core::model::CustomEmoji>>> =
             const { std::cell::RefCell::new(None) };
     }
     if let Some(held) = HELD.with(|held| held.borrow().clone()) {
@@ -129,7 +129,7 @@ fn transport() -> Result<BrowserInstance, String> {
 
 /// Runs one transport call, flattening its error into a display string.
 async fn call<T>(
-    future: impl Future<Output = Result<T, nodus_instance::Error>>,
+    future: impl Future<Output = Result<T, nodus_client_core::Error>>,
 ) -> Result<T, String> {
     future.await.map_err(|error| error.to_string())
 }
@@ -466,7 +466,7 @@ pub async fn update_profile(display_name: String, note: String) -> Result<Accoun
     let transport = transport()?;
     let update = ProfileUpdate::new().display_name(display_name).note(note);
     let account = call(transport.update_profile(&update)).await?;
-    super::dispatch(nodus_sdk::Command::AccountsUpserted {
+    super::dispatch(nodus_client_sdk::Command::AccountsUpserted {
         accounts: vec![account.clone()],
     });
     Ok(account)
@@ -517,7 +517,7 @@ pub async fn mute_conversation(id: &str, muted: bool) -> Result<Conversation, St
 /// Queues a draft for `at`, in RFC 3339.
 pub async fn schedule(
     text: &str,
-    visibility: nodus_instance::model::Visibility,
+    visibility: nodus_client_core::model::Visibility,
     at: &str,
 ) -> Result<(), String> {
     let draft = Draft {
@@ -542,7 +542,7 @@ pub async fn cancel_scheduled(id: &str) -> Result<(), String> {
 }
 
 /// What the instance says about itself: name, version, contact, rules.
-pub async fn instance_info() -> Result<nodus_instance::model::InstanceInfo, String> {
+pub async fn instance_info() -> Result<nodus_client_core::model::InstanceInfo, String> {
     let transport = instance_transport().ok_or_else(|| "Not signed in.".to_owned())?;
     transport
         .instance_info()

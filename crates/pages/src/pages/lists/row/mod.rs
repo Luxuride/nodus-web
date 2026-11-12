@@ -8,7 +8,7 @@
 //! draws exactly the same boxes without them.
 
 use leptos::prelude::*;
-use nodus_instance::model::List;
+use nodus_client_core::model::List;
 
 use crate::lists::list_row::{ListRow, ListRowProps};
 

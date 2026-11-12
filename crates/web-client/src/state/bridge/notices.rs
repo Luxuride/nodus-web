@@ -1,8 +1,8 @@
 //! Account preferences and instance announcements.
 
 use super::instance_transport;
-use nodus_instance::actions::SettingsActions;
-use nodus_instance::model::{Announcement, Preferences};
+use nodus_client_core::actions::SettingsActions;
+use nodus_client_core::model::{Announcement, Preferences};
 
 /// The account's posting and reading defaults.
 pub async fn preferences() -> Result<Preferences, String> {

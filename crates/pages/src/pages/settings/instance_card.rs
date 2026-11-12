@@ -1,7 +1,7 @@
 //! The whole "This instance" card, so the caller only reads and reports.
 
 use leptos::prelude::*;
-use nodus_instance::model::InstanceInfo;
+use nodus_client_core::model::InstanceInfo;
 
 use crate::components::panel::Panel;
 

@@ -1,7 +1,7 @@
 //! The reply box under a thread: the normal composer, with the parent already chosen.
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 
 use crate::routes::compose::inline::InlineComposer;
 

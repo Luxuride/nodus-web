@@ -6,7 +6,7 @@
 //! markup rather than something the caller has to remember to add.
 
 use leptos::prelude::*;
-use nodus_instance::model::AdminAccount;
+use nodus_client_core::model::AdminAccount;
 
 /// The approval queue, plus the way to the invitation page.
 #[component]

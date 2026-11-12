@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::{Account, Relationship};
+use nodus_client_core::model::{Account, Relationship};
 
 use crate::chrome::{ButtonTabList, LoadMore};
 use crate::components::CardRenderer;

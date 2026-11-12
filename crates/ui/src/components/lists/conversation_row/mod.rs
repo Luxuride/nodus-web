@@ -15,7 +15,7 @@
 //! reader has to see it — and leaves the verb to the trailing slot.
 
 use leptos::prelude::*;
-use nodus_instance::model::Conversation;
+use nodus_client_core::model::Conversation;
 
 /// Everyone in a conversation, as one line.
 ///

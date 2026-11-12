@@ -6,7 +6,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 use nodus_ui::media_grid::Picture;
 use nodus_ui::status_body::StatusBody as SharedBody;
 

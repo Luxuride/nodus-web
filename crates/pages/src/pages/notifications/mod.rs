@@ -22,7 +22,7 @@ pub use row::NotificationRow;
 use row::NotificationRowProps;
 
 use leptos::prelude::*;
-use nodus_instance::model::{Notification, Status};
+use nodus_client_core::model::{Notification, Status};
 
 use crate::{PageHeader, Screen};
 

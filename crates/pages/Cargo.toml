@@ -6,7 +6,7 @@ edition = "2024"
 
 [dependencies]
 nodus-ui = { path = "../ui", version = "0.1.0" }
-nodus-instance = { path = "../../../sdk/crates/instance", version = "0.1.0", default-features = false }
+nodus-client-core = { path = "../../../sdk/crates/client-core", version = "0.1.0", default-features = false }
 nodus-shared = { path = "../../../sdk/crates/shared", version = "0.1.0" }
 nodus-state = { path = "../../../sdk/crates/state", version = "0.1.0" }
 leptos = { version = "0.8", default-features = false }

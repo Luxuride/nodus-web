@@ -4,14 +4,15 @@
 //! (`Link: rel="next"`) and the payload shapes are the ones the browser app already uses.
 //! A second hand-written HTTP layer would be a second place to be wrong about Mastodon.
 
-use nodus_instance::LocalId;
-use nodus_instance::actions::{Browse, RegistrationActions, ScheduleActions, Search as SearchApi};
-use nodus_instance::model::{
+use nodus_client_core::LocalId;
+use nodus_client_core::actions::{Browse, RegistrationActions, ScheduleActions, Search as SearchApi};
+use nodus_client_core::model::{
     Account, Context, Conversation, List, Notification, PageParams, ScheduledStatus, SearchResults,
     Status,
 };
-use nodus_instance::{HttpInstance, Instance, InstanceApi};
-use nodus_sdk::reads::{Headless, Reads};
+use nodus_client_core::{Instance, InstanceApi};
+use nodus_mastodon::HttpInstance;
+use nodus_client_sdk::reads::{Headless, Reads};
 
 /// A signed-in instance, ready to ask.
 #[derive(Debug, Clone)]
@@ -67,9 +68,9 @@ impl Client {
         limit: u16,
     ) -> Result<(Vec<Status>, Option<String>), String> {
         let kind = if local {
-            nodus_instance::StreamKind::Local
+            nodus_client_core::StreamKind::Local
         } else {
-            nodus_instance::StreamKind::Federated
+            nodus_client_core::StreamKind::Federated
         };
         let page = self
             .instance

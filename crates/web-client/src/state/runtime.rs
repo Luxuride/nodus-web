@@ -7,14 +7,14 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_instance::model::{Account, Context, Relationship, Status};
+use nodus_client_core::model::{Account, Context, Relationship, Status};
 use nodus_pages::pages::settings::nav::SettingsSection;
 use nodus_route::route::{
     Action, ActionResult, FeedKind, FeedPeopleView, FeedPostsView, Runtime, SessionView,
     TimelineKind, TimelineReply,
 };
-use nodus_sdk::page::{PageEntry, PageKind};
-use nodus_sdk::{Command, Timeline};
+use nodus_client_sdk::page::{PageEntry, PageKind};
+use nodus_client_sdk::{Command, Timeline};
 use nodus_shared::{AccountItem, PostItem};
 use nodus_web::shared::router::Route;
 
@@ -445,11 +445,11 @@ impl Runtime for ClientRuntime {
         });
     }
 
-    fn lists(&self) -> Option<Vec<nodus_instance::model::List>> {
+    fn lists(&self) -> Option<Vec<nodus_client_core::model::List>> {
         crate::state::bridge::seed::lists()
     }
 
-    fn load_lists(&self, done: Callback<Result<Vec<nodus_instance::model::List>, String>>) {
+    fn load_lists(&self, done: Callback<Result<Vec<nodus_client_core::model::List>, String>>) {
         spawn_local(async move {
             done.run(actions::lists().await);
         });
@@ -613,7 +613,7 @@ impl Runtime for ClientRuntime {
         crate::router::query_param(key)
     }
 
-    fn drop_account(&self, kind: &nodus_sdk::page::PageKind, account: &str) {
+    fn drop_account(&self, kind: &nodus_client_sdk::page::PageKind, account: &str) {
         dispatch(Command::PageAccountDropped {
             kind: kind.clone(),
             account: account.to_owned(),

@@ -9,7 +9,7 @@
 //! needs no arithmetic of ours to be correct in the reader's zone. Empty means now.
 
 use leptos::prelude::*;
-use nodus_instance::model::Visibility;
+use nodus_client_core::model::Visibility;
 
 use crate::components::icons::{Icon, Icon::Image, Icon::List};
 

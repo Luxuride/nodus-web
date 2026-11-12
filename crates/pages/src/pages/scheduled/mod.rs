@@ -10,7 +10,7 @@
 //! nothing behind it.
 
 use leptos::prelude::*;
-use nodus_instance::model::ScheduledStatus;
+use nodus_client_core::model::ScheduledStatus;
 
 use crate::chrome::Skeleton;
 use crate::lists::scheduled_row::{ScheduledRow, ScheduledRowProps};

@@ -9,7 +9,7 @@
 //! and the press cannot drift apart from the list above them.
 
 use leptos::prelude::*;
-use nodus_instance::model::DomainBlock;
+use nodus_client_core::model::DomainBlock;
 
 /// Blocked domains, with an add form.
 #[component]

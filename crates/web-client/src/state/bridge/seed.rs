@@ -8,9 +8,9 @@
 //! Nothing here is required for the app to work — a bundle served without the island (the
 //! static deployment, a reload of a client-side route) simply starts cold, as before.
 
-use nodus_instance::model::{List, SearchResults, Status};
-use nodus_sdk::Timeline;
-use nodus_sdk::page::{PageItems, PageKind};
+use nodus_client_core::model::{List, SearchResults, Status};
+use nodus_client_sdk::Timeline;
+use nodus_client_sdk::page::{PageItems, PageKind};
 
 use super::{handle, with_sdk};
 

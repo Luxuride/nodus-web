@@ -1436,6 +1436,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60993920e071b0c9b66f14e2b32740a4e27ffc82854dcd72035887f336a09a28"
 
 [[package]]
+name = "nodus-client-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "url",
+]
+
+[[package]]
+name = "nodus-client-sdk"
+version = "0.1.0"
+dependencies = [
+ "nodus-client-core",
+ "nodus-discovery",
+ "nodus-persist",
+ "nodus-runtime",
+ "nodus-state",
+]
+
+[[package]]
 name = "nodus-discovery"
 version = "0.1.0"
 dependencies = [
@@ -1456,7 +1477,7 @@ version = "0.1.0"
 dependencies = [
  "js-sys",
  "leptos",
- "nodus-instance",
+ "nodus-client-core",
  "nodus-pages",
  "nodus-ui",
  "wasm-bindgen",
@@ -1465,15 +1486,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "nodus-instance"
+name = "nodus-mastodon"
 version = "0.1.0"
 dependencies = [
  "gloo-net",
  "js-sys",
+ "nodus-client-core",
  "reqwest",
  "serde",
  "serde_json",
- "thiserror 2.0.21",
  "url",
  "wasm-bindgen",
  "web-sys",
@@ -1484,7 +1505,7 @@ name = "nodus-pages"
 version = "0.1.0"
 dependencies = [
  "leptos",
- "nodus-instance",
+ "nodus-client-core",
  "nodus-shared",
  "nodus-state",
  "nodus-ui",
@@ -1514,7 +1535,7 @@ name = "nodus-route"
 version = "0.1.0"
 dependencies = [
  "leptos",
- "nodus-instance",
+ "nodus-client-core",
  "nodus-pages",
  "nodus-shared",
  "nodus-state",
@@ -1527,7 +1548,7 @@ name = "nodus-runtime"
 version = "0.1.0"
 dependencies = [
  "js-sys",
- "nodus-instance",
+ "nodus-client-core",
  "nodus-persist",
  "nodus-protocol",
  "nodus-shared",
@@ -1535,17 +1556,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "web-time",
-]
-
-[[package]]
-name = "nodus-sdk"
-version = "0.1.0"
-dependencies = [
- "nodus-discovery",
- "nodus-instance",
- "nodus-persist",
- "nodus-runtime",
- "nodus-state",
 ]
 
 [[package]]
@@ -1559,7 +1569,7 @@ dependencies = [
 name = "nodus-state"
 version = "0.1.0"
 dependencies = [
- "nodus-instance",
+ "nodus-client-core",
  "nodus-protocol",
  "nodus-shared",
  "serde",
@@ -1571,7 +1581,7 @@ version = "0.1.0"
 dependencies = [
  "icondata",
  "leptos",
- "nodus-instance",
+ "nodus-client-core",
  "serde_json",
 ]
 
@@ -1587,12 +1597,13 @@ dependencies = [
  "gloo-net",
  "js-sys",
  "leptos",
+ "nodus-client-core",
+ "nodus-client-sdk",
  "nodus-discovery",
  "nodus-editor",
- "nodus-instance",
+ "nodus-mastodon",
  "nodus-pages",
  "nodus-route",
- "nodus-sdk",
  "nodus-shared",
  "nodus-ui",
  "nodus-web",
@@ -1612,10 +1623,11 @@ dependencies = [
  "axum",
  "leptos",
  "lol_html",
- "nodus-instance",
+ "nodus-client-core",
+ "nodus-client-sdk",
+ "nodus-mastodon",
  "nodus-pages",
  "nodus-route",
- "nodus-sdk",
  "nodus-state",
  "nodus-ui",
  "nodus-web",

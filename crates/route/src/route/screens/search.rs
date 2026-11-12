@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_instance::model::Status;
+use nodus_client_core::model::Status;
 use nodus_state::page::{PageItems, PageKind};
 
 use crate::components::CardRenderer;

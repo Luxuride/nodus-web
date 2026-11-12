@@ -149,52 +149,54 @@ pub fn PublicAccountScreen(
     let list_host = link_host;
     let list_id = id.clone();
     let rows: ChildrenFn = Arc::new(move || {
-        if tab.get() == Tab::Posts {
-            let host = list_host.clone();
-            let id = list_id.clone();
-            let more = move |_| {
-                let Some(last) = statuses.get_untracked().last().map(|s| s.id.clone()) else {
-                    return;
-                };
-                let host = host.clone();
-                let id = id.clone();
-                let done = Callback::new(move |result: Result<Vec<_>, String>| {
-                    alive.if_alive(|| {
-                        if let Err(message) = result {
-                            error.set(Some(message));
-                        }
-                    });
-                });
-                runtime
-                    .get_value()
-                    .load_public_account_statuses_before(host, id, last, done);
-            };
-            return view! {
-                <button class="btn btn-ghost btn-sm w-full" on:click=more>"Load older posts"</button>
-            }
-            .into_any();
-        }
-        let shown = match tab.get() {
-            Tab::Posts => Vec::new(),
-            Tab::Followers => followers.get().unwrap_or_default(),
-            Tab::Following => following.get().unwrap_or_default(),
-        };
         let host = list_host.clone();
+        let id = list_id.clone();
         view! {
-            <ul class="flex flex-col gap-2">
-                {shown.into_iter().map(|found| {
-                    let target = format!("/accounts/{host}/{}", found.id);
+            <div>
+                {move || if tab.get() == Tab::Posts {
+                    let host = host.clone();
+                    let id = id.clone();
+                    let older = move |_| {
+                        let Some(last) = statuses.get_untracked().last().map(|s| s.id.clone()) else {
+                            return;
+                        };
+                        let done = Callback::new(move |result: Result<Vec<_>, String>| {
+                            alive.if_alive(|| {
+                                if let Err(message) = result {
+                                    error.set(Some(message));
+                                }
+                            });
+                        });
+                        runtime
+                            .get_value()
+                            .load_public_account_statuses_before(host.clone(), id.clone(), last, done);
+                    };
                     view! {
-                        <AccountRow
-                            note=found.note.clone()
-                            account=found
-                            on_open=Callback::new(move |_id: String| {
-                                runtime.get_value().navigate(target.clone());
-                            })
-                        />
-                    }
-                }).collect_view()}
-            </ul>
+                        <button class="btn btn-ghost btn-sm w-full" on:click=older>"Load older posts"</button>
+                    }.into_any()
+                } else {
+                    let shown = match tab.get() {
+                        Tab::Followers => followers.get().unwrap_or_default(),
+                        _ => following.get().unwrap_or_default(),
+                    };
+                    view! {
+                        <ul class="flex flex-col gap-2">
+                            {shown.into_iter().map(|found| {
+                                let target = format!("/accounts/{}/{}", host, found.id);
+                                view! {
+                                    <AccountRow
+                                        note=found.note.clone()
+                                        account=found
+                                        on_open=Callback::new(move |_id: String| {
+                                            runtime.get_value().navigate(target.clone());
+                                        })
+                                    />
+                                }
+                            }).collect_view()}
+                        </ul>
+                    }.into_any()
+                }}
+            </div>
         }
         .into_any()
     });

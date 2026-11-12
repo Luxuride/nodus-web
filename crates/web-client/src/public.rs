@@ -47,7 +47,7 @@ fn url(host: &str, path: &str) -> Result<String, PublicError> {
     if !valid {
         return Err(PublicError::BadHost);
     }
-    Ok(format!("/api/public{path}"))
+    Ok(format!("/public-api{path}"))
 }
 
 async fn get<T: serde::de::DeserializeOwned>(host: &str, path: &str) -> Result<T, PublicError> {

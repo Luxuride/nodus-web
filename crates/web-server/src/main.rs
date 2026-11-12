@@ -126,27 +126,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/healthz", get(healthz))
         .route("/api/session", get(whoami).post(sign_in).delete(sign_out))
         .route(
-            "/api/public/status/{host}/{id}",
+            "/public-api/status/{host}/{id}",
             get(public_api::status),
         )
         .route(
-            "/api/public/status/{host}/{id}/context",
+            "/public-api/status/{host}/{id}/context",
             get(public_api::context),
         )
         .route(
-            "/api/public/account/{host}/{id}",
+            "/public-api/account/{host}/{id}",
             get(public_api::account),
         )
         .route(
-            "/api/public/account/{host}/{id}/statuses",
+            "/public-api/account/{host}/{id}/statuses",
             get(public_api::account_statuses),
         )
         .route(
-            "/api/public/account/{host}/{id}/followers",
+            "/public-api/account/{host}/{id}/followers",
             get(public_api::followers),
         )
         .route(
-            "/api/public/account/{host}/{id}/following",
+            "/public-api/account/{host}/{id}/following",
             get(public_api::following),
         )
         .route("/", get(index))

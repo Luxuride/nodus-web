@@ -20,12 +20,16 @@ use crate::state::alive::Alive;
 use crate::state::bridge::admin;
 
 use self::announcements::Announcements;
+use self::audit::Audit;
 use self::domains::Domains;
 use self::overview::Overview;
+use self::protocol::Protocol;
 
 mod announcements;
+mod audit;
 mod domains;
 mod overview;
+mod protocol;
 
 /// The administration area for one section.
 #[expect(
@@ -77,6 +81,8 @@ pub fn Admin(section: String) -> impl IntoView {
                 Section::Overview => view! { <Overview/> }.into_any(),
                 Section::Domains => view! { <Domains/> }.into_any(),
                 Section::Announcements => view! { <Announcements/> }.into_any(),
+                Section::Audit => view! { <Audit/> }.into_any(),
+                Section::Protocol => view! { <Protocol/> }.into_any(),
             }}
         </AdminPage>
     }

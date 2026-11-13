@@ -3,8 +3,8 @@
 use super::{admin_transport, instance_transport};
 use nodus_client_core::actions::{AdminActions, RegistrationActions};
 use nodus_client_core::model::{
-    AdminAccount, AdminMeasure, DomainAllow, DomainBlock, DomainSeverity, ModerationAction, Report,
-    ReportState,
+    AdminAccount, AdminMeasure, Announcement, AnnouncementDraft, AuditEntry, DomainAllow,
+    DomainBlock, DomainSeverity, ModerationAction, Report, ReportState,
 };
 
 /// How many rows a moderation screen asks for.
@@ -38,6 +38,50 @@ pub async fn staff() -> Staff {
         Ok(_) => Staff::Yes,
         Err(_) => Staff::No,
     }
+}
+
+/// Recent administrative actions.
+pub async fn audit() -> Result<Vec<AuditEntry>, String> {
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .audit(PAGE)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Announcements staff can see, published or not.
+pub async fn admin_announcements() -> Result<Vec<Announcement>, String> {
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .admin_announcements()
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Publish an announcement.
+pub async fn create_announcement(draft: AnnouncementDraft) -> Result<Announcement, String> {
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .create_announcement(draft)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Withdraw an announcement.
+pub async fn delete_announcement(id: &str) -> Result<(), String> {
+    let transport = admin_transport()
+        .or_else(instance_transport)
+        .ok_or_else(|| "Not signed in.".to_owned())?;
+    transport
+        .delete_announcement(id)
+        .await
+        .map_err(|error| error.to_string())
 }
 
 /// Reports in the given state.

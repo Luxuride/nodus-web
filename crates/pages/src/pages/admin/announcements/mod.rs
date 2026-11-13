@@ -1,80 +1,135 @@
-//! What this instance is announcing right now, read through the one endpoint that exists.
-//!
-//! The API has `GET /api/v1/announcements` (read) and `POST …/:id/dismiss`, and nothing else:
-//! there is no administration endpoint for creating or withdrawing one at any version the
-//! documentation covers, so `POST /api/v1/admin/announcements` answers the instance's HTML
-//! 404 page. Publishing therefore is not offered here — the panel says so plainly rather than
-//! forwarding the reader to a page this app cannot drive.
-//!
-//! Nothing on this page is a verb, so its whole shape is markup: the list, its empty line, and
-//! the panel that explains why there is no form.
+//! Instance announcements, and the form that publishes them.
 
 use leptos::prelude::*;
 use nodus_client_core::model::Announcement;
 
 use crate::components::panel::Panel;
 
-/// What is published now, and the honest statement about publishing.
+/// Every announcement, with publishing controls.
 #[component]
 pub fn AnnouncementsPage(
     /// The announcements, as the caller last read them.
     #[prop(into)]
     items: Signal<Vec<Announcement>>,
-    /// The last read's refusal, when it had one.
+    /// The message being written.
+    #[prop(into)]
+    draft: Signal<String>,
+    /// Whether the new announcement is published immediately.
+    #[prop(into)]
+    published: Signal<bool>,
+    /// Whether a read or write is already on its way.
+    #[prop(into)]
+    busy: Signal<bool>,
+    /// The last read's or write's refusal.
     #[prop(into)]
     error: Signal<Option<String>>,
+    /// Records the typed message.
+    #[prop(optional)]
+    on_draft: Option<Callback<String>>,
+    /// Records the publish toggle.
+    #[prop(optional)]
+    on_published: Option<Callback<bool>>,
+    /// Publishes the draft.
+    #[prop(optional)]
+    on_publish: Option<Callback<()>>,
+    /// Withdraws one announcement.
+    #[prop(optional)]
+    on_delete: Option<Callback<String>>,
 ) -> impl IntoView {
-    let published = move || {
-        items
-            .get()
-            .into_iter()
-            .map(|announcement| {
-                let ends = announcement.ends_at.clone();
-                view! {
-                    <li class="border-b border-base-300 py-2 last:border-0">
-                        <p class="whitespace-pre-wrap text-sm">{announcement.content.clone()}</p>
-                        <p class="mt-1 text-xs opacity-60">
-                            {match ends {
-                                Some(ends) => format!("Published until {ends}"),
-                                None => "Published without an end date".to_owned(),
-                            }}
-                        </p>
-                    </li>
-                }
-            })
-            .collect::<Vec<_>>()
-    };
-
     view! {
         <div class="flex flex-col gap-3">
-            <Panel title="Published now">
-                <Show
-                    when=move || !items.get().is_empty()
-                    fallback=move || {
-                        view! {
-                            <p class="text-sm opacity-70">
-                                "This instance is not announcing anything."
-                            </p>
+            <Panel title="Announcements" description="Messages this instance shows to its members.">
+                <Show when=move || error.get().is_some()>
+                    <p class="alert alert-error alert-soft py-1 text-sm">
+                        {move || error.get().unwrap_or_default()}
+                    </p>
+                </Show>
+                <ul class="divide-y divide-base-300">
+                    <For each=move || items.get() key=|announcement| announcement.id.clone() let:announcement>
+                        {
+                            let id = announcement.id.clone();
+                            let target = StoredValue::new(id);
+                            let status = if announcement.published { "published" } else { "draft" };
+                            view! {
+                                <li class="flex items-start justify-between gap-3 py-2">
+                                    <div class="min-w-0">
+                                        <p class="whitespace-pre-wrap text-sm">{announcement.content.clone()}</p>
+                                        <p class="mt-1 text-xs opacity-60">
+                                            {format!("{status} · {}", announcement.published_at.clone().unwrap_or_default())}
+                                        </p>
+                                    </div>
+                                    <button
+                                        class="btn btn-ghost btn-xs shrink-0"
+                                        disabled=move || busy.get() || on_delete.is_none()
+                                        on:click=move |_| {
+                                            if let Some(on_delete) = on_delete {
+                                                on_delete.run(target.get_value());
+                                            }
+                                        }
+                                    >
+                                        "Delete"
+                                    </button>
+                                </li>
+                            }
+                        }
+                    </For>
+                </ul>
+                <Show when=move || items.get().is_empty()>
+                    <p class="text-sm opacity-60">"No announcements yet."</p>
+                </Show>
+            </Panel>
+
+            <Panel title="New announcement" description="Text is shown as written.">
+                <form
+                    class="flex flex-col gap-2"
+                    on:submit=move |event| {
+                        stop_submit(&event);
+                        if let Some(on_publish) = on_publish {
+                            on_publish.run(());
                         }
                     }
                 >
-                    <ul>{published}</ul>
-                </Show>
-                {move || error.get().map(|message| view! {
-                    <p class="alert alert-error alert-soft py-1 text-sm">{message}</p>
-                })}
+                    <textarea
+                        class="textarea textarea-bordered min-h-24"
+                        placeholder="What should members know?"
+                        prop:value=move || draft.get()
+                        disabled=on_draft.is_none()
+                        on:input=move |event| {
+                            if let Some(on_draft) = on_draft {
+                                on_draft.run(event_target_value(&event));
+                            }
+                        }
+                    ></textarea>
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm"
+                            prop:checked=move || published.get()
+                            disabled=on_published.is_none()
+                            on:change=move |event| {
+                                if let Some(on_published) = on_published {
+                                    on_published.run(event_target_checked(&event));
+                                }
+                            }
+                        />
+                        <span class="label-text">"Publish immediately"</span>
+                    </label>
+                    <button
+                        class="btn btn-primary btn-sm self-start"
+                        disabled=move || busy.get() || on_publish.is_none()
+                    >
+                        "Publish"
+                    </button>
+                </form>
             </Panel>
-
-            <div class="card border border-dashed border-base-300 bg-base-100">
-                <div class="card-body gap-1 p-4">
-                    <h2 class="text-sm font-semibold">"Publishing has no API"</h2>
-                    <p class="text-sm opacity-70">
-                        "Mastodon exposes no request for creating or withdrawing an
-                         announcement, so no client can publish one. Server staff have to do
-                         it in the instance's own administration pages."
-                    </p>
-                </div>
-            </div>
         </div>
     }
+}
+
+/// Keeps a submit from reloading the page on wasm, and keeps the native build's event used.
+fn stop_submit(event: &leptos::ev::SubmitEvent) {
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = event;
+    #[cfg(target_arch = "wasm32")]
+    event.prevent_default();
 }

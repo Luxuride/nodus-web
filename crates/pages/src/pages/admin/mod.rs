@@ -17,8 +17,10 @@ use crate::icons::Icon;
 use crate::{PageHeader, Screen};
 
 pub mod announcements;
+pub mod audit;
 pub mod domains;
 pub mod overview;
+pub mod protocol;
 
 /// One section of the administration area.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,11 +31,21 @@ pub enum Section {
     Domains,
     /// What the instance is telling everyone.
     Announcements,
+    /// What staff have done.
+    Audit,
+    /// What API this server publishes.
+    Protocol,
 }
 
 impl Section {
     /// Every section, in the order the strip shows them.
-    pub const ALL: [Self; 3] = [Self::Overview, Self::Domains, Self::Announcements];
+    pub const ALL: [Self; 5] = [
+        Self::Overview,
+        Self::Domains,
+        Self::Announcements,
+        Self::Audit,
+        Self::Protocol,
+    ];
 
     /// The last path segment, which is also the strip's key.
     #[must_use]
@@ -42,6 +54,8 @@ impl Section {
             Self::Overview => "overview",
             Self::Domains => "domains",
             Self::Announcements => "announcements",
+            Self::Audit => "audit",
+            Self::Protocol => "protocol",
         }
     }
 
@@ -61,6 +75,8 @@ impl Section {
             Self::Overview => "Overview",
             Self::Domains => "Allowed domains",
             Self::Announcements => "Announcements",
+            Self::Audit => "Audit log",
+            Self::Protocol => "Protocol",
         }
     }
 
@@ -71,6 +87,8 @@ impl Section {
             Self::Overview => "What this instance counted this week",
             Self::Domains => "Domains allowed through a general block",
             Self::Announcements => "What the instance is telling everyone",
+            Self::Audit => "Administrative actions recorded by this server",
+            Self::Protocol => "The client API the SDK selects for this server",
         }
     }
 
@@ -78,9 +96,10 @@ impl Section {
     #[must_use]
     pub const fn icon(self) -> Icon {
         match self {
-            Self::Overview => Icon::Globe,
+            Self::Overview | Self::Protocol => Icon::Globe,
             Self::Domains => Icon::Link,
             Self::Announcements => Icon::Bell,
+            Self::Audit => Icon::List,
         }
     }
 

@@ -6,9 +6,9 @@
 //! sites keep saying `bridge::sign_in` and friends.
 
 use leptos::prelude::*;
-use nodus_mastodon::BrowserInstance;
 use nodus_client_sdk::instance_api::{Instance, InstanceApi};
 use nodus_client_sdk::state::Session;
+use nodus_mastodon::BrowserInstance;
 use wasm_bindgen::JsCast as _;
 
 use self::record::StoredSession;

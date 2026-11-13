@@ -8,7 +8,9 @@
 use std::sync::Arc;
 
 use leptos::prelude::*;
-use nodus_client_core::model::{Account, Context, Conversation, Filter, List, Relationship, Status};
+use nodus_client_core::model::{
+    Account, Context, Conversation, Filter, List, Relationship, Status,
+};
 use nodus_shared::{AccountItem, PostItem};
 use nodus_state::page::{PageEntry, PageKind};
 use nodus_web::shared::router::Route;

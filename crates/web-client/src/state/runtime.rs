@@ -8,13 +8,13 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_client_core::model::{Account, Context, Relationship, Status};
+use nodus_client_sdk::page::{PageEntry, PageKind};
+use nodus_client_sdk::{Command, Timeline};
 use nodus_pages::pages::settings::nav::SettingsSection;
 use nodus_route::route::{
     Action, ActionResult, FeedKind, FeedPeopleView, FeedPostsView, Runtime, SessionView,
     TimelineKind, TimelineReply,
 };
-use nodus_client_sdk::page::{PageEntry, PageKind};
-use nodus_client_sdk::{Command, Timeline};
 use nodus_shared::{AccountItem, PostItem};
 use nodus_web::shared::router::Route;
 

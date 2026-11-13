@@ -5,14 +5,16 @@
 //! A second hand-written HTTP layer would be a second place to be wrong about Mastodon.
 
 use nodus_client_core::LocalId;
-use nodus_client_core::actions::{Browse, RegistrationActions, ScheduleActions, Search as SearchApi};
+use nodus_client_core::actions::{
+    Browse, RegistrationActions, ScheduleActions, Search as SearchApi,
+};
 use nodus_client_core::model::{
     Account, Context, Conversation, List, Notification, PageParams, ScheduledStatus, SearchResults,
     Status,
 };
 use nodus_client_core::{Instance, InstanceApi};
-use nodus_mastodon::HttpInstance;
 use nodus_client_sdk::reads::{Headless, Reads};
+use nodus_mastodon::HttpInstance;
 
 /// A signed-in instance, ready to ask.
 #[derive(Debug, Clone)]

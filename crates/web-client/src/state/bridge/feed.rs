@@ -54,7 +54,10 @@ pub fn reload_feed(cursor: Option<String>) {
 }
 
 fn gone(
-    error: &nodus_client_sdk::SdkError<nodus_client_sdk::instance_api::Error, nodus_discovery::Error>,
+    error: &nodus_client_sdk::SdkError<
+        nodus_client_sdk::instance_api::Error,
+        nodus_discovery::Error,
+    >,
 ) -> bool {
     matches!(
         error,

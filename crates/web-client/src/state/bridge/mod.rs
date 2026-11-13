@@ -24,10 +24,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use leptos::prelude::*;
-use nodus_discovery::BrowserDiscovery;
-use nodus_mastodon::BrowserInstance;
 use nodus_client_sdk::instance_api::Instance;
 use nodus_client_sdk::{Command, MemoryPersistence, Sdk, Subscription, SystemClock};
+use nodus_discovery::BrowserDiscovery;
+use nodus_mastodon::BrowserInstance;
 use url::Url;
 
 pub mod accounts;
@@ -70,7 +70,8 @@ pub use session::{authorize_sync, load_sync_consent, set_sync, sign_in, sign_out
 pub type WebSdk = Sdk<BrowserInstance, BrowserDiscovery, MemoryPersistence, SystemClock>;
 
 /// The error type [`WebSdk`] produces, for the one branch that inspects a variant.
-type WebSdkError = nodus_client_sdk::SdkError<nodus_client_sdk::instance_api::Error, nodus_discovery::Error>;
+type WebSdkError =
+    nodus_client_sdk::SdkError<nodus_client_sdk::instance_api::Error, nodus_discovery::Error>;
 
 /// Where the API lives when the page has no `window` (native tests, prerender).
 const FALLBACK_API_BASE: &str = "http://127.0.0.1:3000";

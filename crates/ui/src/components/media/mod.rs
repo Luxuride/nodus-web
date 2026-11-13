@@ -4,6 +4,7 @@
 //! grid: the client sizes a single picture for the viewer, the server only ever draws the grid.
 
 pub mod grid;
+pub mod jxl;
 pub mod lightbox;
 pub mod rules;
 

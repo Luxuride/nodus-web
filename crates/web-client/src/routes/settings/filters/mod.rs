@@ -5,8 +5,8 @@ use std::sync::Arc;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use nodus_client_core::model::FilterAction;
-use nodus_pages::pages::settings::lists::{FilterItem, FiltersCard as SharedFiltersCard};
 use nodus_client_sdk::page::{PageItems, PageKind};
+use nodus_pages::pages::settings::lists::{FilterItem, FiltersCard as SharedFiltersCard};
 
 mod new;
 

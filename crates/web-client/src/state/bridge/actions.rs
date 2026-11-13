@@ -8,7 +8,6 @@
 
 use core::future::Future;
 
-use nodus_mastodon::BrowserInstance;
 use nodus_client_core::InstanceApi;
 use nodus_client_core::actions::{
     AccountActions, Browse, FilterActions, HighlightActions, InstanceMeta, MediaActions,
@@ -18,6 +17,7 @@ use nodus_client_core::model::{
     Account, Context, Conversation, Draft, Filter, FilterDraft, HistoryEntry, List, LocalId,
     MediaAttachment, PollDraft, ProfileUpdate, Relationship, SearchResults, Status,
 };
+use nodus_mastodon::BrowserInstance;
 
 pub use nodus_client_core::model::Visibility;
 

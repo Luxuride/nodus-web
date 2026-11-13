@@ -14,9 +14,9 @@ use leptos::prelude::*;
 use nodus_client_core::model::{MediaAttachment, Mention, Poll, Status, Tag};
 
 use crate::icons::Icon;
-use crate::mfm;
 use crate::media::attachments_label;
 use crate::media_grid::Picture;
+use crate::mfm;
 
 /// Content, media and poll of one status.
 ///

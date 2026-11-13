@@ -3,6 +3,7 @@
 //! Everything here compiles for `wasm32` and for the server. Pages live in
 //! `nodus-pages`; routing and the runtime live in `nodus-route`.
 
+pub mod blurhash;
 pub mod components;
 pub mod mfm;
 

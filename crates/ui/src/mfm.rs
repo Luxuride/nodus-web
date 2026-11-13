@@ -99,7 +99,12 @@ fn function(body: &str) -> String {
         | "rainbow" | "sparkle" | "blur" => {
             format!("<span class=\"mfm-{name}\">{}</span>", inline(content))
         }
-        "font" if matches!(argument, Some("serif" | "sans" | "monospace" | "cursive" | "fantasy")) => {
+        "font"
+            if matches!(
+                argument,
+                Some("serif" | "sans" | "monospace" | "cursive" | "fantasy")
+            ) =>
+        {
             format!(
                 "<span class=\"mfm-font\" style=\"font-family:{}\">{}</span>",
                 argument.unwrap_or_default(),
@@ -107,7 +112,11 @@ fn function(body: &str) -> String {
             )
         }
         "fg" | "bg" if argument.is_some_and(safe_color) => {
-            let property = if name == "fg" { "color" } else { "background-color" };
+            let property = if name == "fg" {
+                "color"
+            } else {
+                "background-color"
+            };
             format!(
                 "<span style=\"{property}:{}\">{}</span>",
                 argument.unwrap_or_default(),
@@ -180,7 +189,10 @@ mod tests {
 
     #[test]
     fn animation_functions_wrap_their_content() {
-        assert_eq!(inline("$[spin hello]"), "<span class=\"mfm-spin\">hello</span>");
+        assert_eq!(
+            inline("$[spin hello]"),
+            "<span class=\"mfm-spin\">hello</span>"
+        );
     }
 
     #[test]

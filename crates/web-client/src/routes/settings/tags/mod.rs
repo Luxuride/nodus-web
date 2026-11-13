@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use nodus_pages::pages::settings::lists::{FeaturedTagsCard as SharedFeaturedTagsCard, TagItem};
 use nodus_client_sdk::page::{PageItems, PageKind};
+use nodus_pages::pages::settings::lists::{FeaturedTagsCard as SharedFeaturedTagsCard, TagItem};
 
 use crate::state::alive::Alive;
 use crate::state::bridge::{actions, pages, revision};

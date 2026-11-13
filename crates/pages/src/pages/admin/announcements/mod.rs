@@ -24,16 +24,16 @@ pub fn AnnouncementsPage(
     #[prop(into)]
     error: Signal<Option<String>>,
     /// Records the typed message.
-    #[prop(optional)]
+    #[prop(optional_no_strip)]
     on_draft: Option<Callback<String>>,
     /// Records the publish toggle.
-    #[prop(optional)]
+    #[prop(optional_no_strip)]
     on_published: Option<Callback<bool>>,
     /// Publishes the draft.
-    #[prop(optional)]
+    #[prop(optional_no_strip)]
     on_publish: Option<Callback<()>>,
     /// Withdraws one announcement.
-    #[prop(optional)]
+    #[prop(optional_no_strip)]
     on_delete: Option<Callback<String>>,
 ) -> impl IntoView {
     view! {

@@ -17,7 +17,7 @@ name = "nodus-web"
 path = "src/main.rs"
 
 [features]
-default = ["hydrate"]
+default = ["hydrate", "admin"]
 
 # What this artifact is, spelled out so the build is explicit: `trunk build --release`.
 hydrate = ["leptos/csr", "nodus-mastodon/wasm"]

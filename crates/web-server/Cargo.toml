@@ -16,7 +16,7 @@ name = "nodus-web-server"
 path = "src/main.rs"
 
 [features]
-default = []
+default = ["admin"]
 
 # A server that also carries the moderation screens, so a moderator's first paint has the
 # rail's doors: `cargo build -p nodus-web-server --features admin`.

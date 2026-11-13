@@ -87,6 +87,9 @@ mod tests {
             blurhash: None,
             meta_width: width,
             meta_height: height,
+            sensitive: false,
+            processing_state: None,
+            processing_progress: None,
         }
     }
 

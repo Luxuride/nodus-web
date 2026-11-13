@@ -72,7 +72,13 @@ pub fn MediaGrid(
     view! {
         <ul class=columns aria-hidden=hidden.to_string()>
             <For each=rows key=|(_, media)| media.id.clone() let:entry>
-                <MediaTile items=items media=entry.1 interactive=interactive blurred=hidden on_open=on_open/>
+                <MediaTile
+                    items=items
+                    media=entry.1.clone()
+                    interactive=interactive
+                    blurred=hidden || entry.1.sensitive
+                    on_open=on_open
+                />
             </For>
         </ul>
     }

@@ -119,6 +119,7 @@ pub fn StatusCard(
                                         on_vote,
                                         interactive,
                                         revealed_init: false,
+                                        target_language: "en".to_owned(),
                                     })}
                                 </div>
                             }

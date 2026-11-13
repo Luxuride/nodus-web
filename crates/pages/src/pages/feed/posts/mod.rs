@@ -100,6 +100,7 @@ fn status_of(item: &PostItem, body: String) -> Status {
         url: (!item.url.trim().is_empty()).then(|| item.url.clone()),
         sensitive: item.sensitive,
         spoiler_text: item.spoiler_text.clone(),
+        language: None,
         content_format: None,
         content_source: None,
         media_attachments: item.media.iter().map(media_of).collect(),
@@ -127,6 +128,9 @@ fn media_of(media: &PostMedia) -> MediaAttachment {
         blurhash: media.blurhash.clone(),
         meta_width: media.meta_width,
         meta_height: media.meta_height,
+        sensitive: false,
+        processing_state: None,
+        processing_progress: None,
     }
 }
 

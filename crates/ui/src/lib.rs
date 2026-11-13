@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 //! The pieces a page composes: pure markup, no I/O.
 //!
 //! Everything here compiles for `wasm32` and for the server. Pages live in

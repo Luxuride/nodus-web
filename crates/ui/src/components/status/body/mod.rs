@@ -18,6 +18,34 @@ use crate::media::attachments_label;
 use crate::media_grid::Picture;
 use crate::mfm;
 
+/// A translated body and warning, kept together because the warning is part of the post.
+#[derive(Clone, Debug)]
+struct Translation {
+    content: String,
+    spoiler: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+struct TranslateRequest {
+    text: String,
+    spoiler: Option<String>,
+    source: Option<String>,
+    target: String,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(serde::Deserialize)]
+struct TranslateResponse {
+    content: String,
+    spoiler: Option<String>,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(serde::Deserialize)]
+struct TranslateError {
+    error: String,
+}
+
 /// Content, media and poll of one status.
 ///
 /// `interactive` is false on the server paint, where media has no viewer to open.
@@ -26,7 +54,8 @@ use crate::mfm;
 #[component]
 #[expect(
     clippy::needless_pass_by_value,
-    reason = "a Leptos component receives its props by value"
+    clippy::too_many_lines,
+    reason = "a Leptos component receives its props by value; the body is one disclosure tree"
 )]
 pub fn StatusBody(
     /// The status whose content this is.
@@ -43,55 +72,161 @@ pub fn StatusBody(
     /// Whether the reader already asked to see sensitive media.
     #[prop(default = false)]
     revealed_init: bool,
+    /// The language the reader wants translations in.
+    #[prop(default = "en".to_owned())]
+    target_language: String,
 ) -> impl IntoView {
     // Per status, not global: a reader who opens one post's warning has not consented to the
     // next one, and the flag is a claim about this attachment set only.
     let (revealed, set_revealed) = signal(revealed_init);
+    let (translated, set_translated) = signal(Option::<Translation>::None);
+    let (translating, set_translating) = signal(false);
+    let (translation_error, set_translation_error) = signal(Option::<String>::None);
+
     let sensitive = status.sensitive;
+    let spoiler = StoredValue::new(status.spoiler_text.trim().to_owned());
+    let warned = !status.spoiler_text.trim().is_empty();
+    // A warning hides the post the same way sensitivity does. Leaving the text behind a
+    // <details> while the media grid stayed below it showed the part most people use a
+    // warning for before they had consented to it.
     let hidden = move || sensitive && !revealed.get();
-    let spoiler = status.spoiler_text.trim().to_owned();
-    let warned = !spoiler.is_empty();
-    // Two copies, one per branch: the branches are separate closures, and a view is built
-    // from the text inside each of them.
-    let warned_content = status.content.clone();
-    let plain_content = status.content.clone();
-    let warned_source = status.content_source.clone();
-    let plain_source = status.content_source.clone();
-    let warned_format = status.content_format.clone();
-    let plain_format = status.content_format.clone();
-    let warned_emojis = status.emojis.clone();
-    let plain_emojis = status.emojis.clone();
-    // One copy for both grids: the signal is what lets the grid rebuild when the card's
-    // copy of the status is replaced, while this component stays mounted.
+    let opened = move || !warned || revealed.get();
+
+    let content = status.content.clone();
+    let source = status.content_source.clone();
+    let format = status.content_format.clone();
+    let emojis = status.emojis.clone();
+    let translated_for_body = translated;
+    let body_html = StoredValue::new(move || {
+        if let Some(translation) = translated_for_body.get() {
+            return with_emojis(&translation.content, &emojis);
+        }
+        if format.as_deref() == Some("mfm") {
+            mfm::render(source.as_deref().unwrap_or(&content), &emojis)
+        } else {
+            with_emojis(&content, &emojis)
+        }
+    });
+    let spoiler_text = StoredValue::new(move || {
+        translated
+            .get()
+            .and_then(|translation| translation.spoiler)
+            .unwrap_or_else(|| spoiler.get_value())
+    });
+
+    let language = status.language.clone();
+    let target = StoredValue::new(target_language);
+    let has_text = !status.content.is_empty() || !status.spoiler_text.trim().is_empty();
+    let can_translate = language.as_deref().is_some_and(|source| {
+        !source.trim().is_empty() && !same_language(source, &target.get_value())
+    }) && has_text;
+    let request_text = status.content.clone();
+    let request_spoiler =
+        (!status.spoiler_text.trim().is_empty()).then(|| status.spoiler_text.trim().to_owned());
+    let request_source = language.clone();
+    let start_translation = Callback::new(move |()| {
+        if translated.get_untracked().is_some() {
+            set_translated.set(None);
+            set_translation_error.set(None);
+            return;
+        }
+        if translating.get_untracked() {
+            return;
+        }
+        let request = TranslateRequest {
+            text: request_text.clone(),
+            spoiler: request_spoiler.clone(),
+            source: request_source.clone(),
+            target: target.get_value(),
+        };
+        set_translating.set(true);
+        set_translation_error.set(None);
+        #[cfg(target_arch = "wasm32")]
+        {
+            use gloo_net::http::Request;
+            leptos::task::spawn_local(async move {
+                let response = match Request::post("/public-api/translate")
+                    .json(&request)
+                    .map_err(|error| error.to_string())
+                {
+                    Ok(request) => request.send().await.map_err(|error| error.to_string()),
+                    Err(error) => Err(error),
+                };
+                let result = match response {
+                    Ok(response) if response.ok() => response
+                        .json::<TranslateResponse>()
+                        .await
+                        .map_err(|error| error.to_string()),
+                    Ok(response) => match response.json::<TranslateError>().await {
+                        Ok(error) => Err(error.error),
+                        Err(_) => Err(format!(
+                            "The translation service answered {}.",
+                            response.status()
+                        )),
+                    },
+                    Err(error) => Err(format!("Could not reach the translator: {error}")),
+                };
+                match result {
+                    Ok(translation) => set_translated.set(Some(Translation {
+                        content: translation.content,
+                        spoiler: translation.spoiler,
+                    })),
+                    Err(error) => set_translation_error.set(Some(error)),
+                }
+                set_translating.set(false);
+            });
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = request;
+            set_translating.set(false);
+        }
+    });
+
     let attachments = status.media_attachments.clone();
     let items = Signal::derive(move || attachments.clone());
     let has_media = !status.media_attachments.is_empty();
-    let veil_label = attachments_label(&status);
-    let poll = status.poll.clone();
+    let veil_label = StoredValue::new(attachments_label(&status));
+    let poll = StoredValue::new(status.poll.clone());
 
     view! {
         <Show when=move || warned>
             <div class="rounded-box bg-base-200 p-3">
-                <p class="text-sm font-medium">{spoiler.clone()}</p>
-                // Opening the warning is consent for the whole post: text, media and poll
-                // arrive together, and asking twice would make one decision cost two clicks.
-                <details class="mt-2">
-                    <summary
-                        class="cursor-pointer text-xs opacity-60"
-                        on:click=move |_| set_revealed.set(true)
+                <p class="text-sm font-medium">{move || spoiler_text.with_value(|text| text())}</p>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-xs"
+                        on:click=move |_| set_revealed.update(|revealed| *revealed = !*revealed)
                     >
-                        "Show content"
-                    </summary>
+                        {move || if revealed.get() { "Hide content" } else { "Show content" }}
+                    </button>
+                    {translation_control(
+                        can_translate,
+                        translating,
+                        translated,
+                        translation_error,
+                        start_translation,
+                    )}
+                </div>
+                <Show when=move || revealed.get()>
                     <p class="mt-2 whitespace-pre-line text-sm leading-relaxed">
-                        <span>{status_text(&warned_content, warned_source.as_deref(), warned_format.as_deref(), &warned_emojis)}</span>
+                        <span inner_html=move || body_html.with_value(|html| html())></span>
                     </p>
-                </details>
+                </Show>
             </div>
         </Show>
         <Show when=move || !warned>
             <p class="whitespace-pre-line text-sm leading-relaxed">
-                <span>{status_text(&plain_content, plain_source.as_deref(), plain_format.as_deref(), &plain_emojis)}</span>
+                <span inner_html=move || body_html.with_value(|html| html())></span>
             </p>
+            {translation_control(
+                can_translate,
+                translating,
+                translated,
+                translation_error,
+                start_translation,
+            )}
         </Show>
 
         <StatusChips
@@ -100,32 +235,84 @@ pub fn StatusBody(
             url=status.url.clone()
         />
 
-        <Show when=move || hidden()>
-            // Blurred *and* labelled: a blur alone leaves the reader guessing whether the
-            // hidden thing is a photo, a chart or a joke, which is worse than a warning.
-            <div class="relative overflow-hidden rounded-box">
-                {grid(items, true, interactive, on_open_media)}
-                // Only a label and a click target: the sharpest thing on screen should not
-                // be the overlay, and a veil over a blur reads as a bug rather than a gate.
+        <Show when=move || opened()>
+            <Show when=move || hidden()>
+                // Blurred *and* labelled: a blur alone leaves the reader guessing whether the
+                // hidden thing is a photo, a chart or a joke, which is worse than a warning.
+                <div class="relative overflow-hidden rounded-box">
+                    {grid(items, true, interactive, on_open_media)}
+                    // Only a label and a click target: the sharpest thing on screen should not
+                    // be the overlay, and a veil over a blur reads as a bug rather than a gate.
+                    <button
+                        type="button"
+                        class="absolute inset-0 flex cursor-pointer items-center justify-center bg-transparent"
+                        on:click=move |_| set_revealed.set(true)
+                    >
+                        <span class="rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm transition-transform hover:scale-105">
+                            <span class="block text-sm font-medium">"Sensitive content"</span>
+                            <span class="block text-xs opacity-70">{move || veil_label.get_value()}</span>
+                        </span>
+                    </button>
+                </div>
+            </Show>
+
+            <Show when=move || has_media && !hidden()>
+                {grid(items, false, interactive, on_open_media)}
+            </Show>
+
+            {move || {
+                poll.with_value(|poll| {
+                    poll.clone()
+                        .map(|poll| PollBlock(PollBlockProps { poll, on_vote }))
+                })
+            }}
+        </Show>
+    }
+}
+
+/// The one control that asks for a translation, drawn in both branches of a post.
+fn translation_control(
+    can_translate: bool,
+    translating: ReadSignal<bool>,
+    translated: ReadSignal<Option<Translation>>,
+    error: ReadSignal<Option<String>>,
+    start: Callback<()>,
+) -> AnyView {
+    view! {
+        <Show when=move || can_translate>
+            <div class="flex flex-col gap-1">
                 <button
                     type="button"
-                    class="absolute inset-0 flex cursor-pointer items-center justify-center bg-transparent"
-                    on:click=move |_| set_revealed.set(true)
+                    class="btn btn-ghost btn-xs"
+                    disabled=move || translating.get()
+                    on:click=move |_| start.run(())
                 >
-                    <span class="rounded-box bg-base-300/90 px-3 py-1.5 text-center shadow-sm transition-transform hover:scale-105">
-                        <span class="block text-sm font-medium">"Sensitive content"</span>
-                        <span class="block text-xs opacity-70">{veil_label.clone()}</span>
-                    </span>
+                    {move || match (translating.get(), translated.get().is_some()) {
+                        (true, _) => "Translating...".to_owned(),
+                        (false, true) => "Show original".to_owned(),
+                        (false, false) => "Translate".to_owned(),
+                    }}
                 </button>
+                <Show when=move || error.get().is_some()>
+                    <span class="text-xs text-error">{move || error.get().unwrap_or_default()}</span>
+                </Show>
             </div>
         </Show>
-
-        <Show when=move || has_media && !hidden()>
-            {grid(items, false, interactive, on_open_media)}
-        </Show>
-
-        {poll.map(|poll| PollBlock(PollBlockProps { poll, on_vote }))}
     }
+    .into_any()
+}
+
+/// Whether two codes name the same language. `en-US` and `en` do, and a reader who set
+/// `pt-BR` should not be offered a translation of every `pt` post.
+fn same_language(left: &str, right: &str) -> bool {
+    let primary = |code: &str| {
+        code.trim()
+            .split(['-', '_'])
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+    };
+    primary(left) == primary(right)
 }
 
 /// One attachment grid, with the viewer callback forwarded exactly as it arrived.
@@ -145,27 +332,6 @@ fn grid(
         interactive,
         on_open,
     })
-    .into_any()
-}
-
-/// The author's HTML, with the classes that give it links and paragraph rhythm.
-fn status_text(
-    content: &str,
-    source: Option<&str>,
-    format: Option<&str>,
-    emojis: &[nodus_client_core::model::CustomEmoji],
-) -> AnyView {
-    let prepared = if format == Some("mfm") {
-        mfm::render(source.unwrap_or(content), emojis)
-    } else {
-        with_emojis(content, emojis)
-    };
-    view! {
-        <div
-            class="break-words [overflow-wrap:anywhere] [&_a]:link [&_a]:link-primary [&_a]:underline-offset-2 [&_p+p]:mt-2"
-            inner_html=prepared
-        ></div>
-    }
     .into_any()
 }
 

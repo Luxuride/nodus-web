@@ -22,6 +22,7 @@ mod public_api;
 mod rows;
 mod runtime;
 mod session;
+mod translate;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -30,7 +31,7 @@ use std::sync::Arc;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use nodus_web::shared::router::Route;
 use serde::Deserialize;
@@ -143,6 +144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/public-api/account/{host}/{id}/following",
             get(public_api::following),
         )
+        .route("/public-api/translate", post(translate::translate))
         .route("/", get(index))
         .route("/home", get(home))
         .route(

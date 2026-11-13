@@ -168,6 +168,7 @@ fn ReadOnly(status: Status, age_of: Callback<String, String>) -> impl IntoView {
                     on_vote: None,
                     interactive: false,
                     revealed_init: false,
+                    target_language: "en".to_owned(),
                 })}
             </div>
         </div>

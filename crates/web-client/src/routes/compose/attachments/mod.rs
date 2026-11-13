@@ -103,7 +103,30 @@ fn pick(
                         .await
                     {
                         Ok(attachment) => {
+                            let id = attachment.id.clone();
                             alive.if_alive(|| media.update(|list| list.push(attachment)));
+                            spawn_local(async move {
+                                for _ in 0..120 {
+                                    gloo_timers::future::TimeoutFuture::new(500).await;
+                                    let Ok(current) = actions::media_status(&id).await else {
+                                        break;
+                                    };
+                                    let done = current
+                                        .processing_state
+                                        .as_deref()
+                                        .is_none_or(|state| state == "ready" || state == "failed");
+                                    media.update(|list| {
+                                        if let Some(slot) =
+                                            list.iter_mut().find(|item| item.id == current.id)
+                                        {
+                                            *slot = current.clone();
+                                        }
+                                    });
+                                    if done {
+                                        break;
+                                    }
+                                }
+                            });
                         }
                         Err(message) => alive.if_alive(|| set_error.set(Some(message))),
                     }
@@ -167,6 +190,22 @@ pub fn Attachments(
     // Alt text is edited after the upload because that is when the writer knows what the
     // picture is going to say in the post; asking for it before the transfer would be asking
     // about a picture nobody can see yet.
+    let sensitive = Callback::new(move |(id, flag): (String, bool)| {
+        let alive = Alive::new();
+        spawn_local(async move {
+            match actions::set_media_sensitive(&id, flag).await {
+                Ok(updated) => alive.if_alive(|| {
+                    media.update(|list| {
+                        if let Some(slot) = list.iter_mut().find(|item| item.id == updated.id) {
+                            *slot = updated;
+                        }
+                    });
+                }),
+                Err(message) => alive.if_alive(|| set_error.set(Some(message))),
+            }
+        });
+    });
+
     let describe = Callback::new(move |(id, text): (String, String)| {
         let alive = Alive::new();
         spawn_local(async move {
@@ -189,6 +228,7 @@ pub fn Attachments(
         percent: Signal::derive(move || percent.get()),
         on_remove: Some(remove),
         on_alt: Some(describe),
+        on_sensitive: Some(sensitive),
         picker: Some(input),
     })
 }

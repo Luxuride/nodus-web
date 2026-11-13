@@ -47,8 +47,7 @@ pub async fn browser_supports_jxl() -> bool {
     };
     JsFuture::from(promise)
         .await
-        .map(|value| value.as_bool() == Some(true))
-        .unwrap_or(false)
+        .is_ok_and(|value| value.as_bool() == Some(true))
 }
 
 /// Fetch a JPEG XL file and return it as a PNG data URI.

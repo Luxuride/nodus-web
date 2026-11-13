@@ -333,10 +333,21 @@ pub async fn edit(id: &str, status: &NewStatus) -> Result<Status, String> {
     call(transport()?.edit_status(id, &status.draft())).await
 }
 
-/// Uploads one attachment and returns what the instance made of it.
+/// Reads one attachment's server-side processing state.
+pub async fn media_status(id: &str) -> Result<nodus_client_core::model::MediaAttachment, String> {
+    call(transport()?.media_status(id)).await
+}
+
+pub async fn set_media_sensitive(
+    id: &str,
+    sensitive: bool,
+) -> Result<nodus_client_core::model::MediaAttachment, String> {
+    call(transport()?.set_media_sensitive(id, sensitive)).await
+}
+
 #[expect(
     dead_code,
-    reason = "kept for the screen that will call it: the composer uploads through the editor path, the edit history panel and filter editing are still to come"
+    reason = "the composer uploads through the progress-aware bridge"
 )]
 pub async fn upload_media(
     bytes: Vec<u8>,

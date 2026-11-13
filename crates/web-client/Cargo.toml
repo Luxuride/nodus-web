@@ -49,6 +49,7 @@ url = "2"
 # The two form-encoded `POST`s of the OAuth flow. No JSON feature: responses are read with
 # the browser's own parser.
 gloo-net = { version = "0.6", default-features = false, features = ["http"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"

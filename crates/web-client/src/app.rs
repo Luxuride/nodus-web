@@ -397,17 +397,17 @@ fn staff_rail_items() -> impl IntoView {
 #[cfg(feature = "admin")]
 #[component]
 fn StaffRail() -> impl IntoView {
-    let staff = RwSignal::new(false);
+    let standing = RwSignal::new(None);
     Effect::new(move |_| {
         revision().get();
         spawn_local(async move {
             let answer = crate::state::bridge::admin::staff().await;
-            staff.set(matches!(answer, crate::state::bridge::admin::Staff::Yes));
+            standing.set(Some(answer));
         });
     });
 
     view! {
-        <Show when=move || staff.get()>
+        <Show when=move || !matches!(standing.get(), Some(crate::state::bridge::admin::Staff::No))>
             <RailItem
                 label="Moderation"
                 icon=Icon::Shield
